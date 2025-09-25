@@ -1,0 +1,32 @@
+experiment:
+  name: "Quick Test"
+  description: "Minimal experiment for testing setup"
+  author: "Lab Template"
+
+game:
+  horizon: 3                  # Just 3 trials
+  total_game_rounds: 1        # One round only
+  k_armed_bandit: 2          # 2 options
+  max_choice_time: 15000     # 15 seconds per choice
+  max_waiting_time: 2000     # 2 seconds wait (goes individual quickly)
+
+groups:
+  max_group_size: 1          # Individual task
+  min_group_size: 1
+
+conditions:
+  indivOrGroup: individual
+  taskType: static
+  exp_condition: quick_test
+
+# Very clear probabilities for testing
+environments:
+  static:
+    prob_0: [0.9, 0.1]  # Option 1: 90% (clearly better), Option 2: 10%
+
+payment:
+  flat_fee: 0.50  # Minimal payment for test
+  completion_fee: 0
+
+debug:
+  subject_exceptions: ["test", "debug", "quicktest"]

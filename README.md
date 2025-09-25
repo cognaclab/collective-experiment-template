@@ -1,232 +1,80 @@
-# Collective Cognitive Behavior Experiment Platform
+# Collective Experiment Platform
 
 [![Node.js](https://img.shields.io/badge/Node.js-v22.15.0-blue.svg)](https://nodejs.org)
 [![MongoDB](https://img.shields.io/badge/MongoDB-8.0.9-green.svg)](https://www.mongodb.com/)
-[![Mongosh](https://img.shields.io/badge/Mongosh-2.5.1-lightgrey.svg)](https://www.mongodb.com/docs/mongodb-shell/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
-A **template-based platform** for creating online collective cognitive behavior experiments. Researchers can build custom experiments using simple Markdown and YAML files, without coding. The system generates interactive web-based experiments with real-time multiplayer functionality.
+Create online collective behavior experiments using simple **Markdown** and **YAML** files. No coding required! The system generates interactive web-based experiments with real-time multiplayer functionality.
 
-**Default Experiment**: A 'collective reward' multi-player bandit task where a group of players each chooses a bandit option, and only the total sum of payoffs is shown as feedback (individual payoffs are not available).
+## ✨ Key Features
 
----
+- 🚫 **No Coding Required** - Write experiments in Markdown and YAML
+- 👥 **Real-Time Multiplayer** - Automatic group formation and coordination
+- 🔄 **Conditional Content** - Dynamic text based on experimental conditions
+- ⚡ **Auto-Generation** - From content files to running experiments
+- 🎮 **Phaser Integration** - Combines simple content with complex game mechanics
 
-## 🎯 Key Features
-
-✨ **Template-Based Design**: Create experiments using Markdown files and YAML configuration  
-🚫 **No Coding Required**: Researchers edit content, not JavaScript  
-🔄 **Conditional Content**: Dynamic text that adapts to experimental conditions  
-👥 **Real-Time Multiplayer**: Preserved collective behavior functionality  
-⚡ **Automatic Generation**: From content files to running experiments  
-🎮 **Phaser Integration**: Combines simple content with complex game mechanics  
-
----
-
-## 📝 Creating Your Own Experiment
-
-**Quick Start**: Copy the template, edit content, generate, and test!
+## 🚀 Quick Start
 
 ```bash
-# 1. Copy the template experiment
-cp -r content/experiments/default content/experiments/my-experiment
-
-# 2. Edit your content files (see INSTRUCTIONS.md for details)
-# Edit: config.yaml, sequences/main.yaml, instructions/*.md
-
-# 3. Generate JavaScript from your content  
-npm run scenes:generate
-
-# 4. Test your experiment
-npm run dev:web
-# Visit http://localhost:8000
-```
-
-📖 **Detailed Guide**: See [INSTRUCTIONS.md](./INSTRUCTIONS.md) for complete step-by-step instructions.
-
----
-
-## 🚀 Quick Start & Development
-
-### Development Mode (Recommended)
-
-```bash
-# Install dependencies
+# 1. Setup (5 minutes)
 npm install
+cp .env.example .env
+npm run docker:up
 
-# Start development with automatic scene generation
-npm run dev
-# This runs: scenes:watch + dev:web + dev:game
+# 2. Try the working example
+npm run example
+# Visit: http://localhost:8000/?subjectID=test1
 
-# Or start components separately:
-npm run scenes:generate    # Generate scenes from content
-npm run scenes:watch       # Watch content changes  
-npm run dev:web           # Start web server
-npm run dev:game          # Start game server
+# 3. Create your own experiment
+cp -r content/experiments/examples/quick-test content/experiments/my-study
+npm run generate my-study
+npm run experiment
 ```
 
-### Production Mode
+## 📚 Documentation
+
+| Guide | Purpose |
+|-------|---------|
+| **[Getting Started](./GETTING-STARTED.md)** | First-time setup and basic usage |
+| **[Experiment Creation Guide](./EXPERIMENT-CREATION-GUIDE.md)** | Build custom experiments |
+| **[Examples](./content/experiments/examples/)** | Ready-to-use experiment templates |
+| **[Troubleshooting](./TROUBLESHOOTING.md)** | Common issues and solutions |
+| **[Deployment](./DEPLOYMENT.md)** | Deploy for real data collection |
+
+## 🎮 Core Commands
 
 ```bash
-# Start the applications with PM2
-pm2 start bin/www --name collective_reward_static --log ../logs --time --max-memory-restart 1G
-pm2 start gameServer.js --name collective_reward_game
+# Running experiments
+npm run example          # Working example experiment
+npm run experiment       # Generated experiment
+
+# Content management
+npm run generate [name]  # Generate from experiment content
+npm run generate:watch   # Auto-regenerate on changes
+
+# Development
+npm run docker:up        # Start MongoDB
+npm run docker:down      # Stop MongoDB
 ```
 
-### Restart the Applications
+## 🧪 What's Included
 
-```bash
-pm2 restart collective_reward_static --log ../logs --time --max-memory-restart 1G
-pm2 restart collective_reward_game --log ./logs --time --max-memory-restart 9G --node-args="--expose-gc"
-```
+- **Default Experiment**: Multi-armed bandit task with group coordination
+- **Simple Examples**: Quick test, individual task, group task
+- **Template System**: Markdown → Interactive experiment
+- **Real-time Backend**: Node.js + Socket.IO + MongoDB
+- **Complete Deployment**: Production-ready with PM2 and Docker
 
+## 🎯 Perfect For
+
+- **Researchers** studying collective behavior, social learning, group decision-making
+- **Students** learning experimental design and web development
+- **Labs** needing reproducible, scalable online experiments
 
 ---
 
-## 🧪 Experiment Architecture Overview
-
-This web-based behavioral experiment system combines a **template-driven content system** with a robust real-time multiplayer architecture. Below is a breakdown of its core components:
-
-### 🎨 Scene Template System (New)
-
-- **Content-Driven Design**  
-  Experiments are defined using Markdown files (`instructions/*.md`) and YAML configuration (`config.yaml`, `sequences/main.yaml`). No JavaScript coding required for basic experiments.
-
-- **Conditional Content Engine**  
-  Dynamic text rendering based on experimental conditions (group vs. individual, static vs. dynamic environments) using simple `{if condition="group"}` syntax in Markdown.
-
-- **Automatic Code Generation**  
-  The scene generator (`scripts/generate-scenes.js`) converts Markdown content into Phaser.js scene classes, bridging researcher-friendly content with technical implementation.
-
-- **Hybrid Architecture**  
-  Simple instruction/text scenes use the template system, while complex interactive scenes (gameplay, tutorials) remain as custom Phaser code, providing both ease-of-use and flexibility.
-
-### 🖥️ Server-Side (Real-Time Game Management)
-
-- **Node.js + Express + Socket.IO**  
-  The backend is implemented in `gameServer.js`, using Express for routing and static file serving, and Socket.IO for handling real-time communication with clients.
-
-- **Group Formation Logic**  
-  Participants are automatically assigned to experimental "rooms" upon joining. A room stays open until it reaches a defined `maxGroupSize` (e.g., 10 participants) or until it reaches a `maxWaitingTime`, whichever earlier. Once full, a new room is dynamically opened up to form another group. This enables synchronised multiplayer sessions with independent group structures.
-
-- **Session Coordination and Experiment Flow**  
-  The server handles waiting rooms, session timing, trial progression, environmental changes (e.g. static/dynamic reward probabilities), and game round transitions. It tracks each client’s session and manages reconnections via a fallback 'decoyRoom' to preserve data integrity.
-
-- **Data Storage via MongoDB and Mongoose**  
-  Participant actions, game state variables, timing, and outcome metrics are collected during the session and stored in a MongoDB database using Mongoose. Data is saved after every game session (`gameRound`) and during disconnection events, ensuring no loss of behavioural records.
-
----
-
-### 🕹️ Client-Side (Interactive Participant Interface)
-
-- **Phaser Framework (`public/src/main.js`)**  
-  The client interface is built with Phaser, a JavaScript game framework. It governs:
-  - Scene transitions (waiting rooms, instruction screens, main task, feedback, questionnaire)
-  - Real-time updates (e.g., countdowns, trial status)
-  - Participant inputs and visual feedback
-
-- **Socket.IO Client Integration**  
-  Client-server communication is bi-directional via WebSockets. Each participant receives trial-specific parameters, group assignment info, and task configurations dynamically, ensuring synchronised experimental control across clients.
-
-- **Behavioural Safeguards**  
-  The client detects browser reloads and tab visibility changes to prevent duplicated entries or incomplete trials. Disconnected participants are routed to the final questionnaire stage with their data preserved.
-
----
-
-### 🔄 Task Mechanics and Flow
-
-1. **Joining**: Participant connects and is assigned to a room or individual condition based on latency and group availability.
-2. **Waiting Room**: Real-time countdown starts. If enough participants join in time, a group session begins; otherwise, the participant proceeds individually.
-3. **Tutorial + Comprehension Test**: Ensures participants understand the task before proceeding.
-4. **Bandit Task**: Multiple rounds of collective decision-making where only the group-level payoff is shown.
-5. **Feedback & Transition**: After each round, participants receive summary feedback before proceeding to the next round.
-6. **Data Export**: All events are logged to MongoDB and can be exported via CLI using `mongoexport` (as shown in a later section).
-
----
-
-This architecture allows researchers to conduct robust, real-time online experiments involving collective behaviour, feedback sharing, and adaptive choice under uncertainty.
-
-
-## 📘 PM2 Cheat Sheet
-
-### Real-time Log Monitoring
-
-```bash
-pm2 logs --raw         # All apps
-pm2 logs <id|name>     # Specific app by ID or name
-```
-
-### Clear Logs
-
-```bash
-pm2 flush
-```
-
-### Restarting Apps
-
-```bash
-pm2 restart app.js
-```
-
-### Check Running Apps
-
-```bash
-pm2 list
-pm2 monit
-```
-
-### Stop an App
-
-```bash
-pm2 stop app_name
-```
-
-### Delete an App
-
-```bash
-pm2 delete app_name
-```
-
----
-
-## 📁 Log Collection (Production VPS)
-
-Run the following commands on the VPS to collect log snapshots:
-
-```bash
-cp ~/.pm2/logs/collective_reward_game-out.log CollectiveRewardExp/logs/collective_reward_game-out-DATETIME-2.log
-cp ~/.pm2/logs/collective_reward_static-out.log CollectiveRewardExp/logs/collective_reward_static-out-DATETIME-2.log
-
-cp ~/.pm2/logs/collective_reward_game-error.log CollectiveRewardExp/logs/collective_reward_game-error-DATETIME-2.log
-cp ~/.pm2/logs/collective_reward_static-error.log CollectiveRewardExp/logs/collective_reward_static-error-DATETIME-2.log
-```
-
----
-
-## 💾 How to Export Data from MongoDB
-
-Use the following command to export data as CSV:
-
-```bash
-mongoexport --host localhost \
-  --db DB_NAME \
-  --collection COLLECTION_NAME \
-  --type=csv \
-  --out ./data/DATA_NAME_YOU_WANT.csv \
-  --fieldFile ./models/dataField.txt
-```
-
----
-
-## 🧑‍💻 Author
-
-**Wataru Toyokawa**
-
-If you use or build upon this code, please consider citing or acknowledging the project.
-
----
-
-## 📜 License
-
-This project is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+**Contributors**: Wataru Toyokawa, \[...\], Michael Crosscombe
+**License**: [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 
 

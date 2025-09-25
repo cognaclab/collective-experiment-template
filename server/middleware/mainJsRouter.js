@@ -8,7 +8,7 @@ const path = require('path');
 
 class MainJsRouter {
     constructor() {
-        this.experimentMode = process.env.EXPERIMENT_MODE || 'generated';
+        this.experimentType = process.env.EXPERIMENT_TYPE || 'example';
         this.srcDir = path.join(__dirname, '../../client/public/src');
         this.exampleMainJs = path.join(this.srcDir, 'main-example.js');
         this.generatedMainJs = path.join(this.srcDir, 'main-generated.js');
@@ -21,7 +21,7 @@ class MainJsRouter {
             if (req.url === '/src/main.js') {
                 let targetFile;
                 
-                if (this.experimentMode === 'example') {
+                if (this.experimentType === 'example') {
                     targetFile = this.exampleMainJs;
                     console.log('🎯 Serving example main.js');
                 } else {
@@ -42,8 +42,8 @@ class MainJsRouter {
         };
     }
 
-    getExperimentMode() {
-        return this.experimentMode;
+    getExperimentType() {
+        return this.experimentType;
     }
 }
 

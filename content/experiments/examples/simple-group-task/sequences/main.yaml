@@ -1,0 +1,9 @@
+sequences:
+  main:
+    - scene_type: "instruction"
+      content_key: "welcome"
+      duration: null  # Wait for user interaction
+
+    - scene_type: "game"
+      content_key: "main_task"
+      duration: null  # Controlled by game logic

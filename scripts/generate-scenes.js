@@ -41,14 +41,21 @@ const RUNTIME_VARIABLES = [
 ];
 
 class SceneGenerator {
-    constructor() {
+    constructor(experimentName = null) {
         this.rootDir = path.join(__dirname, '..');
-        this.contentDir = path.join(this.rootDir, 'content', 'experiments', 'default');
+
+        // Determine experiment name from argument, env var, or default
+        this.experimentName = experimentName ||
+                               process.argv[2] ||
+                               process.env.EXPERIMENT_NAME ||
+                               'default';
+
+        this.contentDir = path.join(this.rootDir, 'content', 'experiments', this.experimentName);
         this.outputDir = path.join(this.rootDir, 'client', 'public', 'src', 'generated');
         this.viewsDir = path.join(this.rootDir, 'client', 'views', 'generated');
         this.compiledScenesPath = path.join(this.outputDir, 'compiled_scenes.json');
         this.compiledPagesPath = path.join(this.outputDir, 'compiled_pages.json');
-        
+
         this.config = null;
         this.sequences = null;
         this.compiledScenes = {};
@@ -56,8 +63,14 @@ class SceneGenerator {
     }
 
     async generate() {
-        console.log('🚀 Starting scene generation...');
-        
+        console.log(`🚀 Starting scene generation for experiment: ${this.experimentName}...`);
+        console.log(`📂 Reading content from: ${this.contentDir}`);
+
+        // Verify experiment directory exists
+        if (!fs.existsSync(this.contentDir)) {
+            throw new Error(`Experiment directory not found: ${this.contentDir}`);
+        }
+
         try {
             // Ensure output directory exists
             this.ensureDirectoryExists(this.outputDir);
@@ -620,7 +633,25 @@ export default ExperimentFlow;
 
 // Run if called directly
 if (require.main === module) {
-    const generator = new SceneGenerator();
+    // Parse command line arguments
+    const experimentName = process.argv[2];
+
+    if (experimentName && (experimentName === '--help' || experimentName === '-h')) {
+        console.log(`
+Usage: node generate-scenes.js [experiment-name]
+
+Examples:
+  node generate-scenes.js                    # Generate from 'default' experiment
+  node generate-scenes.js my-experiment      # Generate from 'my-experiment'
+  node generate-scenes.js 2-armed-individual # Generate from '2-armed-individual'
+
+Environment variable:
+  EXPERIMENT_NAME=my-experiment node generate-scenes.js
+        `);
+        process.exit(0);
+    }
+
+    const generator = new SceneGenerator(experimentName);
     generator.generate();
 }
 

@@ -8,14 +8,14 @@ const path = require('path');
 
 class ExperimentModeHandler {
     constructor() {
-        this.experimentMode = process.env.EXPERIMENT_MODE || 'generated';
+        this.experimentType = process.env.EXPERIMENT_TYPE || 'example';
         this.baseViewsDir = path.join(__dirname, '../../client/views');
         this.exampleViewsDir = path.join(this.baseViewsDir, 'example');
         this.generatedViewsDir = path.join(this.baseViewsDir, 'generated');
-        
+
         // Load compiled pages data if in generated mode
         this.compiledPages = {};
-        if (this.experimentMode === 'generated') {
+        if (this.experimentType === 'generated') {
             this.loadCompiledPages();
         }
     }
@@ -45,13 +45,13 @@ class ExperimentModeHandler {
                 let targetViewsDir;
                 let viewPath;
                 
-                if (this.experimentMode === 'generated') {
+                if (this.experimentType === 'generated') {
                     // Check for generated template first
                     viewPath = path.join(this.generatedViewsDir, `${view}.ejs`);
                     if (fs.existsSync(viewPath)) {
                         targetViewsDir = this.generatedViewsDir;
                         console.log(`📄 Using generated template: ${view}.ejs`);
-                        
+
                         // Add compiled page data to locals
                         if (this.compiledPages[view]) {
                             locals = locals || {};
@@ -110,14 +110,14 @@ class ExperimentModeHandler {
         };
     }
 
-    // Method to get current experiment mode
-    getExperimentMode() {
-        return this.experimentMode;
+    // Method to get current experiment type
+    getExperimentType() {
+        return this.experimentType;
     }
 
     // Method to check if using generated mode
     isGeneratedMode() {
-        return this.experimentMode === 'generated';
+        return this.experimentType === 'generated';
     }
 
     // Method to get compiled page data
