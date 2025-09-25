@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta http-equiv="x-ua-compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title><%= title %></title>
+    <link rel="icon" href= "/assets/favicon.ico">
+    <link href="/stylesheets/import.css" rel="stylesheet" type="text/css" media="all" />
+    <link href="/stylesheets/confirmation.css" rel="stylesheet" type="text/css" media="all" />
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script type="text/javascript">
+      const config = <%- JSON.stringify({
+        subjectID,
+        bonus_for_waiting,
+        confirmationID,
+        totalEarning,
+        exp_condition,
+        indivOrGroup,
+        latency
+      }) %>;
+      let completionFee; //= <%- JSON.stringify(completionFee) %>;
+
+      if(config.totalEarning>0){
+        // completionFee = <%- JSON.stringify(completionFee) %>;
+        completionFee = 2.0;
+      } else {
+        completionFee = 0;
+      }
+
+      window.onload = function() {
+
+        let earningsDiv = document.getElementById('earnings');
+        earningsDiv.innerHTML = "<p>Flat fee for completion of the task: £"+ completionFee.toFixed(2) +"<br> Waiting Bonus: £" +
+        (Math.round(100*parseInt(config.bonus_for_waiting)/100)/100).toFixed(2) + "<br>Bonus from the decision-making task: £" + parseFloat(config.totalEarning).toFixed(2) +"</p><p>Total earnings: <span>£" + (parseInt(config.bonus_for_waiting)/100 + parseFloat(config.totalEarning) + completionFee).toFixed(2) +"</span></p>";
+        
+        let confirmationIDDiv = document.getElementById('confirmationID');
+        //confirmationIDDiv.innerHTML = "<h1>" + confirmationID + "</h1>";
+        confirmationIDDiv.innerHTML = "<h1> <a href='https://app.prolific.com/submissions/complete?cc=831C075C'>Go back to Prolific</a> </h1>"; //https://app.prolific.co/submissions/complete?cc=831C075C
+      }
+
+    </script>
+    <script type="text/javascript">
+      (function () {
+        // 📌 Prevent back navigation
+        history.pushState(null, document.title, location.href);
+        window.addEventListener('popstate', function () {
+          history.pushState(null, document.title, location.href);
+        });
+
+        // 🚫 Prevent reload (F5, Ctrl+R, Cmd+R)
+        window.addEventListener('keydown', function (e) {
+          const key = e.key.toLowerCase();
+          const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+
+          if (
+            (key === 'f5') ||                                 // F5
+            (!isMac && e.ctrlKey && key === 'r') ||           // Ctrl + R (Windows/Linux)
+            (isMac && e.metaKey && key === 'r')               // Cmd + R (macOS)
+          ) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        });
+
+        // ⚠️ Prompt before leaving the page (covers Ctrl/Cmd+W, closing tab, etc.)
+        window.addEventListener('beforeunload', function (e) {
+          e.preventDefault();
+          e.returnValue = ''; // Required for modern browsers to show the prompt
+        });
+      })();
+  </script>
+  </head>
+  <body>
+    <div id="wrap">
+  <h1>Thank you for your participation!</h1>
+
+  <fieldset>
+    <legend>Your total earnings</legend>
+    <div id="earnings">
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Click the following link to Prolific to complete the task!</legend>
+    <div id="confirmationID">
+    </div>
+  </fieldset>
+  <p class="lead">* <span>The task will NOT complete until you go back to Prolific via this link</span>. </p>
+
+  <fieldset>
+    <legend>
+      Here is some further information on the background of this study:
+    </legend>
+    <div id="debriefing">
+      <div class="inner">
+      <h2>Nature of Project</h2>
+        <p class="lead" id='innerText'>
+          In this research project, we investigate how people integrate information from various personal experiences (such as rewards received from sequential choices) and information provided by others for future decisions. In particular, this experiment examines how much the sharing of information from other individuals is valued and how different strategies of sharing information affects the overall performance of groups.
+        </p>
+        <p class="lead" id='innerText'>
+          Thank you for your participation!
+        </p>
+        <p class="lead" id='innerText'>
+          If you are interested in learning more about this topic, below is a list of related scientific papers that you might find interesting:
+        </p>
+        <table class="reference">
+          <ul>
+            <li>
+              Toyokawa, W., Whalen, A., & Laland, K. N. (2019). Social learning strategies regulate the wisdom and madness of interactive crowds. Nature Human Behaviour, 3: 183–193.
+            </li>
+            <li>
+              Moussaïd, M., Brighton, H., & Gaissmaier, W. (2015). The amplification of risk in experimental diffusion chains. Proceedings of the National Academy of Sciences, 112(18), 5631-5636.
+            </li>
+            <li>
+              Morgan, T. J. H., Rendell, L. E., Ehn, M., Hoppitt, W., & Laland, K. N. (2012). The evolutionary basis of human social learning. Proc. Roy. Soc. B. 279: 653-662.
+            </li>
+          </ul>
+        </table>
+      <h2>Storage of Data</h2>
+      <p class='lead' id='innerText'>
+        As outlined in the Informed Consent form, the data that you provide will be only connected to your PROLIFIC_ID and anonymised at the earliest point in time. That is, after completion and compensation, the ID will be deleted from the dataset used for scientific analyses. Your anonymised data will only be associated with the demographic information you provided at the end of the questionnaire. Access to your anonymised data might be given to other researchers, including researchers from outside of this project. Once the study is published, the anonymised data might be made available on a public data repository. Your rights to access, change or move your information are limited, as we need to manage your information in specific ways for the research to be reliable and accurate. Once anonymised, we will not be able to track and delete your data.
+      </p>
+      <h2>What should I do if I have concerns about this study?</h2>
+      <p class='lead' id='innerText'>
+        A full outline of the procedures governed by the University of Konstanz's Teaching and Research Ethical Committee can be obtained from <a target='blank_' href='https://www.uni-konstanz.de/en/university/administration-and-organisation/university-bodies-and-committees/university-bodies-for-scientific-integrity/ethics-committee/'>this website</a>
+      </p>
+      <h2>Contact Details</h2>
+      <div class='researcherNames'>
+        <p>
+          <span>Researchers:</span><br>
+          Dr Wataru Toyokawa<br>(btcc.cognac@gmail.com)<br><br>
+          Dr Katja Sangati<br><br>
+        </p>
+      </div>
+      </div>
+    </div>
+  </fieldset>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= typeof title !== 'undefined' ? title : "Oops! Something went wrong" %></title>
+    <link rel="stylesheet" href="/stylesheets/style.css">
+</head>
+<body class="error-page">
+    <div class="container">
+        <h1>We're Sorry!</h1>
+        <p>Unfortunately, something went wrong and we cannot continue with the experiment.</p>
+        <h2>What happened?</h2>
+        <p><%= typeof errorMessage !== 'undefined' ? errorMessage : 'An unexpected error occurred.' %></p>
+        <h2>What this means</h2>
+        <ul>
+            <li>Your participation has been recorded up to this point</li>
+            <li>You will receive compensation for the time you have already spent</li>
+            <li>No further action is required from you</li>
+        </ul>
+        <h2>Next Steps</h2>
+        <ol>
+            <li><strong>Please contact us</strong> using the information below so we can process your payment</li>
+            <li><strong>Include your participant ID</strong> in your message: <code><%= typeof participant_id !== 'undefined' ? participant_id : 'Not provided' %></code></li>
+            <li>We will respond within 24 hours to arrange your compensation</li>
+        </ol>
+        <h2>Contact Information</h2>
+        <p>If you have any questions or concerns, please contact us:</p>
+        <p><strong>Email</strong>: <%= typeof support_contact !== 'undefined' ? support_contact : 'btcc.cognac@gmail.com' %><br><strong>Subject</strong>: Experiment Technical Issue - ID <%= typeof participant_id !== 'undefined' ? participant_id : 'Not provided' %></p>
+        <p>Please include:</p>
+        <ul>
+            <li>Your participant/subject ID</li>
+            <li>A brief description of what you were doing when the error occurred</li>
+            <li>Any error messages you saw</li>
+        </ul>
+        <h2>Our Apology</h2>
+        <p>We sincerely apologize for this technical issue. Online experiments sometimes encounter unexpected problems, and we work continuously to improve the system.</p>
+        <p>Your time is valuable, and we will ensure you receive fair compensation for your participation.</p>
+        <hr>
+        <p><em>You may now close this browser window.</em></p>
+    </div>
+</body>
+</html>

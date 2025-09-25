@@ -1,0 +1,272 @@
+@charset "utf-8";
+
+body {
+  padding: 50px; /* padding の分だけ enchant のカーソル位置判定をずらすので注意（main.jsの setPosition(）関数)*/
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif; 
+}
+
+body {
+	margin: 0;
+    padding: 0;
+    font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: #00B7FF;
+}
+
+canvas {  
+	display : block;  
+	margin : auto;
+}
+
+div {
+	/*width: 100%;*/
+}
+
+/*#instructionDiv{
+	margin : 0 auto;
+}
+
+#instructionTextDiv{
+	margin : 0 auto;
+}
+
+#phaser-game-main{
+	margin : 0 auto;
+}*/
+
+#wrap{
+	/*width: 500px;*/
+	margin: 40px 20px 1px 20px;
+	background-color:  #E2E4D9;
+	padding: 40px 80px;
+	border: #f6bb9e 1px solid;
+
+}
+
+#footer{
+	/*width: 500px;*/
+	margin: 0px 20px 30px 20px;
+	padding-left: 5px;
+	background-color:  #E2E4D9;
+
+}
+
+/*スクロール表示の設定*/
+.scr {
+      overflow-y: scroll;   /* スクロール表示 */
+      width: 800px;
+      height: 400px;
+      background-color: white;
+      padding: 20px 30px;
+      margin: 30px 15px;
+  }
+
+
+/*ページタイトル(h1)の設定*/
+h1{
+	color: #000080;
+	text-align: center;
+	font-size: 260%;
+	font-family: "Verdana";
+	height: 60px;
+	margin-bottom: 20px;
+	padding: 0px 0px 0px 0px;
+}
+
+/*大見出し(h2)の設定*/
+h2{
+	color: #4e0000;
+	border: #94c8b1 1px dotted;
+	border-left: #d0e35b 10px solid;
+	padding: 5px 20px;
+	margin-bottom: 15px;
+	font-size: 200%;
+}
+
+/*中見出し(h3)の設定*/
+h3{
+	color: #000000;
+	border-bottom: #000000 1px dotted;
+	border-left: #000000 10px solid;
+	padding: 5px 20px;
+	margin-bottom: 10px;
+	font-size: 130%;
+}
+
+/*リード文領域の設定*/
+p.lead{
+	font-size: 115%;
+	line-height: 130%;
+	padding: 5px 15px;
+	margin-bottom: 30px;
+}
+
+p.lead span{
+	color: #df4839;
+}
+
+#importantNote{
+	font-size: 100%;
+}
+/*進むボタンの設定*/
+.nextButton{
+	font-size: 110%;
+	text-align: right;
+	padding: 15px 10px;
+	margin-bottom: 50px; /* 5px 1px 5px;*/
+}
+
+.col {
+	float: left;
+	width: 160px;
+	text-align: center;
+	font-size: 32px;
+	position: relative;
+	margin: 0 auto;
+}
+
+/*ボタンクラスの設定*/
+.btn {
+	margin: 0 auto;
+	width: 130px;
+	height: 100px;
+	padding: 7px;
+	color: #fff;
+	border-radius: 5px;
+	background: #00aaff;
+	cursor: pointer;
+	opacity: 0.7;
+	/*margin-bottom: 150px;*/
+}
+.btn:hover {
+	opacity: 0.9;
+}
+
+.btn2 {
+	margin: 0 auto;
+	width: 130px;
+	padding: 7px;
+	color: #4e0000;
+	border-radius: 5px;
+	background: #d0e35b;
+	cursor: pointer;
+	opacity: 0.9;
+	/*margin-bottom: 150px;*/
+}
+.btn2:hover {
+	opacity: 1.0;
+	background: #FFA500;
+}
+
+.btn3 {
+	margin: 0 auto;
+	width: 100%; /*650px;*/
+	padding: 8px;
+	color: #000000;
+	border-radius: 5px;
+	background: #3B9FDD;
+	cursor: pointer;
+	opacity: 0.9;
+	/*margin-bottom: 150px;*/
+}
+.btn3:hover {
+	opacity: 1.0;
+}
+
+.btn4 {
+	margin: 0 auto;
+	width: 130px;
+	padding: 7px;
+	color: #4e0000;
+	border-radius: 5px;
+	background: #d0e35b;
+	/*cursor: pointer;*/
+	opacity: 0.5;
+	/*margin-bottom: 150px;*/
+}
+
+
+/*注意書きの強調箇所の設定*/
+.note{
+	font-size: 107%;
+	color: #df4839;
+	font-weight: bold;
+}
+
+/*エラーメッセージの設定*/
+#errorMessage{
+	color: #df4839;
+	font-size: 107%;
+	font-family: "Times New Roman";
+}
+
+/*確認テストの質問エリアの設定*/
+#question_area{
+	padding: 20px 30px;
+    margin: 30px 15px;
+}
+
+#question{
+	font-size: 115%;
+	line-height: 130%;
+	padding: 5px 15px;
+	margin-bottom: 30px;
+}
+
+.answer_mode{
+	background-color: #FFFFFF;
+}
+
+/*文章中に現れる画像の設定*/
+.img{
+	width: 80%;
+	height: 80%;
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-bottom: 30px;
+}
+
+/*footerのロゴマークの設定*/
+#footer .img{
+	width: 235px;
+	height: 75px;
+	margin: 30px 5px 5px 5px;
+}
+
+#footer table{
+	width: 70%;
+}
+#footer td{
+	padding: 1px 5px;
+}
+
+/*箇条書きの設定*/
+ol{
+	line-height: 1.5em;
+	margin-left: 40px;
+	margin-top: 0px;
+}
+
+ol li{
+	font-size: 115%;
+	line-height: 130%;
+	padding: 5px 15px;
+	list-style-type: decimal;
+	text-align: left;
+	margin-left: 50px;
+}
+
+ul{
+	line-height: 130%;
+	margin-left: 40px;
+	margin-bottom: 40px;
+}
+ul li{
+	list-style-type: disc;
+}
+
+
+

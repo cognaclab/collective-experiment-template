@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+	<html lang="en">
+	<head>
+	    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	    <meta http-equiv="x-ua-compatible" content="IE=Edge">
+	    <meta name="viewport" content="width=device-width, user-scalable=no">
+	    <meta name="apple-mobile-web-app-capable" content="yes">
+	    <title><%= title %></title>
+	    <link rel="icon" href= "/assets/favicon.ico">
+	    <link href="/stylesheets/import.css" rel="stylesheet" type="text/css" media="all" />
+	    <!--<link rel='stylesheet' href='/stylesheets/style.css' />-->
+	    <script type="text/javascript" src="/src/jquery.min.js"></script>
+	    <!-- <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> -->
+	    <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script> -->
+	    <!-- Using Phaser 3.90.0 from CDN for consistency -->
+	    <script src="//cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.js"></script>
+	    <script src="/socket.io/socket.io.js"></script>
+	    <script type="module" src="/src/CircleSpin.js"></script>
+	    <script type="text/javascript">
+			const subjectID = <%- JSON.stringify(subjectID) %>;
+			const portnum = 8181; //8181 = indiv
+			//$("#subjectID").val(subjectID);
+			//console.log('my subjectID is ' + subjectID + '!! - by game.ejs');
+		</script>
+		<script type="text/javascript" src="/src/global_values.js"></script>
+		<script type="module" src="/src/functions.js"></script>
+		<!--<script type="text/javascript" src="/src/math_functions.js"></script>-->
+		<script type="text/javascript" src="/src/instruction_texts.js"></script>
+		<!-- <script type="module" src="/src/scenes/SceneWaitingRoom0.js"></script>
+		<script type="module" src="/src/scenes/SceneWaitingRoom.js"></script>
+		<script type="module" src="/src/scenes/SceneWaitingRoom2.js"></script>
+		<script type="module" src="/src/scenes/SceneInstruction.js"></script>
+		<script type="module" src="/src/scenes/SceneTutorial.js"></script>
+		<script type="module" src="/src/scenes/SceneTutorialFeedback.js"></script> -->
+		<script type="module" src="/src/main.js"></script>
+	    <script type="text/javascript">
+	        // ban on back-button
+	        history.pushState(null, null, null);
+
+	        window.addEventListener("popstate", function() {
+	            history.pushState(null, null, null);
+	        });
+
+	        //check for navigation time API support
+			// if (window.performance) {
+			//   console.info("window.performance work's fine on this browser");
+			// }
+			// if (performance.navigation.type == 1) {
+			// 	console.info( "This page is reloaded" );
+			// } else {
+			// 	console.info( "This page is not reloaded");
+			// }
+	    </script>
+	</head>
+	<body>
+		<div id = "phaser-game-main"></div>
+		<!-- Instruction Texts -->
+		<div id = "instructionTextDiv"></div>
+		<noscript>
+			<p class="lead"><span class="note">
+			To participate in this study, it is necessary to enable JavaScript which is currently switched off. Here are the <a href="https://www.enable-javascript.com/"> instructions how to enable JavaScript in your web browser</a>.
+			</span></p>
+		</noscript>
+		<div id= "questionnaireStarts"></div>
+		<!-- <form style="display: hidden" action="http://63-250-60-135.cloud-xip.io:8000/questionnaire" method="POST" id="form"> -->
+    	<form style="display: hidden" action="http://192.168.33.10:8000/questionnaire" method="POST" id="form">
+	        <input type="hidden" id="subjectID" name="subjectID" value="" />
+	        <input type="hidden" id="bonus_for_waiting" name="bonus_for_waiting" value="0" />
+	        <input type="hidden" id="totalEarning" name="totalEarning" value="0" />
+	        <input type="hidden" id="totalEarningInPence" name="totalEarningInPence" value="0" />
+	        <input type="hidden" id="totalEarningInGBP" name="totalEarningInGBP" value="0" />
+	        <input type="hidden" id="confirmationID" name="confirmationID" value="" />
+	        <!-- <input type="hidden" id="exp_condition" name="exp_condition" value="" /> -->
+	        <input type="hidden" id="indivOrGroup" name="indivOrGroup" value="" />
+	        <!-- <input type="hidden" id="info_share_cost" name="info_share_cost" value="" /> -->
+	        <input type="hidden" id="completed" name="completed" value="" />
+	        <input type="hidden" id="currentTrial" name="currentTrial" value="0" />
+	        <input type="hidden" id="gameRound" name="gameRound" value="0" />
+	        <input type="hidden" id="latency" name="latency" value="" />
+	    </form>
+	</body>
+</html>

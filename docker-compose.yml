@@ -1,0 +1,23 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: collective-bandit-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      # Skip authentication for development simplicity
+      MONGO_INITDB_DATABASE: collective_bandit_dev
+    volumes:
+      - mongodb_data:/data/db
+      - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/01-init.js:ro
+    networks:
+      - collective-bandit-network
+
+volumes:
+  mongodb_data:
+    name: collective_bandit_mongodb_data
+
+networks:
+  collective-bandit-network:
+    name: collective_bandit_network

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta http-equiv="x-ua-compatible" content="IE=Edge">
+    <!-- <meta name="viewport" content="width=device-width, user-scalable=no"> -->
+    <meta name="viewport" content="width=device-width">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title><%= title %></title>
+    <link rel="icon" href= "/assets/favicon.ico">
+    <!--<link rel="stylesheet" href="https://unpkg.com/purecss@2.0.3/build/pure-min.css" integrity="sha384-cg6SkqEOCV1NbJoCu11+bm0NvBRc8IYLRGXkmNrqUBfTjmMYwNKPWBTIKyw9mHNJ" crossorigin="anonymous">-->
+    <link href="/stylesheets/import.css" rel="stylesheet" type="text/css" media="all" />
+    <link href="/stylesheets/confirmation.css" rel="stylesheet" type="text/css" media="all" />
+    <!-- <script type="text/javascript" src="/src/jquery.min.js"></script> -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <!--<script type="text/javascript" src="/src/enchant.js"></script>-->
+    <script type="text/javascript">
+      // JSON.stringify() parses a data posted by routing. 
+      const subjectID = <%- JSON.stringify(subjectID) %>;
+    </script>
+    <script type="text/javascript" src="/src/goToExp.js" async></script>
+    <script type="text/javascript">
+        // ban on back-button
+        history.pushState(null, null, null);
+
+        window.addEventListener("popstate", function() {
+            history.pushState(null, null, null);
+        });
+    </script>
+    
+  </head>
+  <body>
+    <div id="wrap">
+      <h1>
+        Welcome!
+      </h1>
+      <noscript>
+      <p class="lead"><span class="note">
+        To participate in this study, it is necessary to enable JavaScript which is currently switched off. Here are the <a href="https://www.enable-javascript.com/"> instructions how to enable JavaScript in your web browser</a>.
+      </span></p>
+    </noscript>
+      <!--<p>Welcome <%= subjectID %></p>-->
+      <div id="overview">
+        <p class="lead">
+          Thank you for your interest in our study!<br><br>
+          This study is divided in <span class="note">two parts</span>.
+        </p>
+        <ol>
+          <!-- This is the real one (mentioning the 1 minutes waiting time)-->
+          <li>
+            <p>In the <span class="note">first part, a group decision-making game</span>, you will be asked to make a series of choices with other participants (i.e. teammates). Based on these decisions, your team will be able to earn some <span class="note">bonus</span> that will be added to your participation fee.</p>
+            <p>This part of the study will be <span class="note">played in groups</span> with other study participants. <span class="note">In order to find enough participants (2 to 10 people)</span>, you might need to wait for up to <span class="note">2&nbsp;minutes</span> to begin with this part of the study. Do not worry about losing time during this process and please be patient: <span class="note">You will be paid for the amount of time you have waited</span> and still attended to our study (10&nbsp;pence per minute)!</p>
+          </li>
+          <!-- This is the pilot one (individual condition only, therefore only 30 seconds waiting time)-->
+          <!--<li>
+            In the first part, you will be asked to make a number of decisions and you can earn an additional bonus based on your choices. You may have to wait for up to 10&nbsp;seconds to begin the task in a waiting screen. Do not worry about losing your waiting time: You will be paid for the amount of time you wait (10&nbsp;pence per minute)!
+          </li>-->
+          <li>
+           In the <span class="note">second part</span> of the study, you will be asked to fill out a short survey. This survey will help us to understand how you decided in part one. All results will be <span class="note">collected fully confidentially</span>.
+          </li>
+        </ol>
+        <br />
+        <p class="lead">
+         Upon completion of the study, you will be paid <span class="note">1&nbsp;pound sterling for your completion</span>, plus any extra bonus you earned both in the waiting room and in the first part of the study (roughly up to 3 pound sterling). The completion of the study should take about 15 minutes.
+        </p>
+      </div>
+
+      <!--<div class="expImg">
+        <img src="/assets/instructionPictures.001.png" width="50%">
+      </div>-->
+
+      <h2 class="infoSheet">
+        Important Notes
+      </h2>
+      <div id="importantNote">
+        <ol>
+          <!--<li>
+              You can participate in this study <span class="note">only once</span>.
+          </li>-->
+          <!--<li>
+              Use a <span class="note">tablet, laptop, or desktop computer</span> - no smart phone. 
+          </li>-->
+          <li>
+              Please make sure that <span class="note">your internet connection is stable</span>, as it may also impact the study experience of other participants. If your internet <span class="note">disconnects</span> during the first part of the study, <span class="note">you will not be able to complete the study</span> and therefore not be eligible for the compensation.
+          </li>
+          <li>
+              Furthermore, <span class="note">you can only participate once</span> and you will not be able to restart the study. Therefore, please <span class="note">do not restart/reload your browser</span> once this study has started. <span class="note">If you do so, part one of the study will be terminated automatically</span> and you will be directed to the survey part. This implies that you can only keep rewards that you have accumulated so far, but are not able to gain any additional rewards. If you abort part one of the study, this may also negatively affect the bonus of other participants, so please be considerate.
+          </li>
+          <!--<li>
+              <span class="note">This is a pilot run of the experiment</span> -- so you may encounter some technical issues during the task. Please do not hesitate to contact the researcher if you have any concerns or comments. You can do this via feedback form provided at the end of the survey, or directly via Prolific platform.   
+          </li>-->
+        </ol>
+      </div>
+      <br />
+
+      <fieldset>
+    <legend>
+      Information sheet
+    </legend>
+    <div id="debriefing">
+      <div class="inner">
+      <!--<h2>What is the purpose of the study?</h2>
+        <p class="lead" id='innerText'>
+          The aim of this study is to look at the nature of people's learning behaviour and how this relates to their decision-making. This study is part of a larger project in which we are seeking to understand computational mechanisms underlying collective human behaviour. 
+        </p>-->
+
+      <h2>Why have I been chosen?</h2>
+        <p class="lead" id='innerText'>
+          You have been invited to take part because your mother language is English and you have not participated any similar experiments from our lab before. You can participate in this study <span class="note">only once</span>.
+        </p>
+
+      <!--<h2>Do I have to take part?</h2>
+        <p class="lead" id='innerText'>
+          It is up to you to decide whether or not to take part. If you decide to take part, you will be asked to confirm that you are willing to take part. If you decide to take part, you are still free to withdraw at any time and without giving a reason before the analysis of data has been conducted. 
+        </p>-->
+
+      <h2>What will happen to me if I take part?</h2>
+        <p class="lead" id='innerText'>
+          If you decide to take part in this study, you first have to confirm your willingness to do so. After your declaration of consent, you will be asked to complete the decision-making game and the survey. Finally, you have to submit the study for a successful participation. You are free to withdraw from this study at any time and without giving a reason.
+        </p>
+
+      <h2>Are there any risks or side effects?</h2>
+      <p class="lead" id='innerText'>
+        The task is fully anonymous and there are no possible disadvantages or risks of taking part.
+      </p>
+
+      <h2>What do I have to do?</h2>
+      <p class="lead" id='innerText'>
+        In the first part, you will have to make a series of binary choices. The survey part consists of some demographic information (such as age and gender) and other questions to measure your thoughts on the specific task at hand. The entire study (including both the game and the survey) will take approximately 15 minutes to complete.
+      </p>
+
+      <h2>What are the possible benefits of taking part?</h2>
+      <p class="lead" id='innerText'>
+        The decision-making game will earn you some extra bonus rewards in addition to the flat fee for completing the study. The more points you collect during the game, the more bonus you earn!
+      </p>
+
+      <h2>What information about me will be held?</h2>
+      <p class="lead" id='innerText'>
+        We will keep a record of your results of the completed game and the survey. The results will be stored on a computer at the University of Konstanz for analysis purposes. All information which is collected about you during the course of the study will stay strictly confidential. The data that you provide will be only connected to your PROLIFIC_ID and anonymised at the earliest point in data analysis. That is, after completion and compensation, the ID will be deleted from the dataset. Your anonymised data will only be associated with the demographic information you provide at the end of the questionnaire. Once anonymised, we will not be able to delete your data. While the anonymised data might be made available on a public data repository for scientific purposes only, the lead researcher, Dr Wataru Toyokawa, will be in charge of ensuring that the security and confidentiality of your information is maintained.
+      </p>
+
+      <h2>What will happen to the results of the research study?</h2>
+      <p class="lead" id='innerText'>
+        The data will be analysed and published in scientific journals and presented at scientific conferences. Any information that could identify you will not be published.
+      </p>
+
+      <h2>Who is organising and funding the research?</h2>
+      <p class="lead" id='innerText'>
+        This research is being conducted by members of the Social Psychology and Decision Sciences, Department of Psychology, University of Konstanz, Konstanz, Germany. This research is financially supported by the Committee on Research (AFF) of the University of Konstanz (16903119 FP 031/19).  
+      </p>
+
+      <h2>Contact Details</h2>
+      <p class="lead" id='innerText'>
+        Please do not hesitate to contact us should you have any questions at any stage of the research study:
+      </p>
+      <p class="lead" id='innerText'>
+        Dr Wataru Toyokawa<br>Dr Katja Sangati<br>(btcc.cognac@gmail.com)
+      </p>
+      <!--<div class='researcherNames'>
+        <p>Researchers:<br>
+          Dr Wataru Toyokawa<br>Dr Helge Giese<br>(spdslab@gmail.com)<br>
+          <br> <br>
+        </p>
+      </div>-->
+
+      <form>
+        <input type="button" value="Print this page" onclick="window.print();" />
+      </form>
+
+      </div>
+    </div>
+  </fieldset>
+  <br />
+  <br />
+
+
+  <h2 class="infoSheet">Declaration:</h2>
+  <p class="lead">Please click the following declaration statements if you agree to take part:</p>
+  <!--<form name="agreement_form">
+    <input type="checkbox" name="agreement" value="agreed1">I have read and understood the preceding information.<br>
+    <input type="checkbox" name="agreement" value="agreed2">I understand that I can withdraw from the study without providing an explanation<br>
+    <input type="checkbox" name="agreement" value="agreed3">I understand that my processed data will soon be anonymised (i.e. disconnected with my PROLIFIC_ID) upon collection and that only the authorized researchers will have access to the raw data, which will be kept confidentially.<br>
+    <input type="checkbox" name="agreement" value="agreed4">I have been made fully aware of the potential risks associated with this research and am satisfied with the information provided.<br>
+    <input type="checkbox" name="agreement" value="agreed5">I know that I can contact members of the research project in case of questions and concerns, even after my participation.<br>
+    <input type="checkbox" name="agreement" value="agreed6">I agree to take part in the study.<br>
+    <input type="button" value="Confirm" onclick="myCheck();"> 
+  </form>-->
+
+      <div id='agreement'></div>
+
+      <noscript>
+        <p class="lead"><span class="note">
+          To participate in this study, it is necessary to enable JavaScript which is currently switched off. Here are the <a href="https://www.enable-javascript.com/"> instructions how to enable JavaScript in your web browser</a>.
+        </span></p>
+      </noscript>
+
+      <div id='gameStart'></div>
+      <!-- Auto-detect server for development vs production -->
+      <form style="display: hidden" id="form" method="POST">
+          <input type="hidden" id="subjectID" name="subjectID" value='' />
+      </form>
+
+      <script>
+        // Set form action based on environment
+        document.addEventListener('DOMContentLoaded', function() {
+          const form = document.getElementById('form');
+          const gameServerUrl = '<%= gameServerUrl %>';
+          form.action = gameServerUrl;
+        });
+      </script>
+    </div>
+    <div id="footer">
+      <table>
+        <tr>
+          <!-- <td><img src="/assets/UniKonstanz_Logo_Optimum_sRGB.png" width="40%"></td> -->
+          <!-- <td><img src="/assets/UniKonstanz_Logo_Optimum_sRGB.png" width="300" height="160"></td> -->
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

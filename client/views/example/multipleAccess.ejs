@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta http-equiv="x-ua-compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Reloaded</title>
+    <link href="/stylesheets/import.css" rel="stylesheet" type="text/css" media="all" />
+    <script type="text/javascript" src="/src/jquery.min.js"></script>
+    <script type="text/javascript">
+        // ban on back-button
+        history.pushState(null, null, null);
+
+        window.addEventListener("popstate", function() {
+            history.pushState(null, null, null);
+        });
+    </script>
+  </head>
+  <body>
+    <div id="wrap">
+      <p>
+        <span class='note'>Your ID might already be stored in the database.</span>
+      </p>
+    </div>
+  </body>
+</html>

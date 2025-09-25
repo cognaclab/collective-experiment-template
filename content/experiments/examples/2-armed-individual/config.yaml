@@ -1,0 +1,20 @@
+experiment:
+  name: "2-Armed Individual Bandit"
+  description: "Simple individual decision task with 2 options"
+
+game:
+  numOptions: 2
+  maxGroupSize: 1
+  minGroupSize: 1  
+  horizon: 50
+  maxChoiceStageTime: 10000
+  maxWaitingTime: 5000
+
+conditions:
+  indivOrGroup: individual
+  taskType: static
+  exp_condition: individual_2arm
+
+# Bandit arm probabilities (optional - system can use defaults)
+bandit:
+  armProbabilities: [0.3, 0.7]  # Left arm: 30%, Right arm: 70%

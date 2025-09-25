@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+	<html lang="en">
+	<head>
+	    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	    <meta http-equiv="x-ua-compatible" content="IE=Edge">
+	    <meta name="viewport" content="width=device-width, user-scalable=no">
+	    <meta name="apple-mobile-web-app-capable" content="yes">
+	    <title><%= title %></title>
+	    <link rel="icon" href= "/assets/favicon.ico">
+	    <link href="/stylesheets/import.css" rel="stylesheet" type="text/css" media="all" />
+	    <!--<link rel='stylesheet' href='/stylesheets/style.css' />-->
+	    <!-- <script type="text/javascript" src="/src/jquery.min.js"></script> -->
+	    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+	    <!-- Using Phaser 3.90.0 from CDN for consistency -->
+	    <script src="//cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.js"></script>
+	    <script src="/socket.io/socket.io.js"></script>
+	    <script type="text/javascript">
+			const subjectID = <%- JSON.stringify(subjectID) %>;
+			const portnum = 8181; //8181 = indiv
+			//$("#subjectID").val(subjectID);
+			//console.log('my subjectID is ' + subjectID + '!! - by game.ejs');
+		</script>
+		<!--<script type="text/javascript" src="/src/expFunctions.js"></script>-->
+		<!-- <script type="text/javascript" src="/src/main.js"></script> -->
+		<script type="text/javascript" src="/src/main_4ab.js"></script>
+	    <script type="text/javascript">
+	        // ban on back-button
+	        history.pushState(null, null, null);
+
+	        window.addEventListener("popstate", function() {
+	            history.pushState(null, null, null);
+	        });
+	    </script>
+	</head>
+	<body>
+		<div id = "phaser-game-main"></div>
+		<!-- Instruction Texts -->
+		<div id = "instructionTextDiv"></div>
+		<noscript>
+			<p class="lead"><span class="note">
+			To participate in this study, it is necessary to enable JavaScript which is currently switched off. Here are the <a href="https://www.enable-javascript.com/"> instructions how to enable JavaScript in your web browser</a>.
+			</span></p>
+		</noscript>
+		<div id= "questionnaireStarts"></div>
+		<form style="display: hidden" action="http://63-250-60-135.cloud-xip.io:8000/questionnaire" method="POST" id="form">
+    	<!--<form style="display: hidden" action="http://192.168.33.10:8000/questionnaire" method="POST" id="form">-->
+	        <input type="hidden" id="subjectID" name="subjectID" value="" />
+	        <input type="hidden" id="bonus_for_waiting" name="bonus_for_waiting" value="0" />
+	        <input type="hidden" id="totalEarning" name="totalEarning" value="0" />
+	        <input type="hidden" id="totalEarningInCent" name="totalEarningInCent" value="0" />
+	        <input type="hidden" id="totalEarningInUSD" name="totalEarningInUSD" value="0" />
+	        <input type="hidden" id="confirmationID" name="confirmationID" value="" />
+	        <input type="hidden" id="exp_condition" name="exp_condition" value="" />
+	        <input type="hidden" id="indivOrGroup" name="indivOrGroup" value="" />
+	        <input type="hidden" id="completed" name="completed" value="0" />
+	        <input type="hidden" id="currentTrial" name="currentTrial" value="0" />
+	        <input type="hidden" id="latency" name="latency" value="" />
+	    </form>
+	</body>
+</html>

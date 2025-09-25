@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scene Template Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #game-container {
+            margin: 20px auto;
+            text-align: center;
+        }
+        .note {
+            font-weight: bold;
+            color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <h1>Scene Template System Test</h1>
+    <div id="game-container"></div>
+    
+    <!-- Mock global variables that exist in the main app -->
+    <script>
+        // Mock global variables from the main application
+        window.configWidth = 800;
+        window.configHeight = 600;
+        window.indivOrGroup = 1; // Group condition
+        window.taskType = 'static';
+        window.exp_condition = 'group_static';
+    </script>
+    
+    <!-- Load scene files as modules -->
+    <script type="module">
+        import SceneTemplate from './src/scenes/SceneTemplate.js';
+        import sceneIntegration from './src/generated/SceneIntegration.js';
+        
+        // Simple test scene
+        class TestScene extends SceneTemplate {
+            constructor() {
+                super({
+                    key: 'TestScene',
+                    contentKey: 'welcome',
+                    nextScene: 'Generatedinstruction'
+                });
+            }
+            
+            preload() {
+                // Load compiled scenes data
+                sceneIntegration.preloadCompiledScenes(this);
+            }
+        }
+        
+        async function initTest() {
+            console.log('Initializing scene integration test...');
+            
+            // Initialize scene integration
+            await sceneIntegration.init();
+            
+            // Get generated scenes
+            const generatedScenes = sceneIntegration.getGeneratedScenes();
+            
+            // Create Phaser config
+            const config = {
+                type: Phaser.AUTO,
+                width: 800,
+                height: 600,
+                parent: 'game-container',
+                dom: {
+                    createContainer: true
+                },
+                scene: [TestScene, ...generatedScenes]
+            };
+            
+            // Create game
+            const game = new Phaser.Game(config);
+            
+            // Create experiment flow
+            const flow = sceneIntegration.createExperimentFlow(game);
+            
+            // Start with test scene
+            game.scene.start('TestScene');
+            
+            console.log('Test initialized successfully!');
+        }
+        
+        // Start the test
+        initTest().catch(console.error);
+    </script>
+</body>
+</html>

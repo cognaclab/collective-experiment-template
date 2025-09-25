@@ -1,0 +1,28 @@
+sequence:
+  - scene: welcome
+    type: instruction
+    content: welcome.md
+    next: instruction
+    
+  - scene: instruction
+    type: instruction
+    content: instruction.md
+    next: practice
+    
+  - scene: practice  
+    type: instruction
+    content: practice.md
+    next: game_main
+    
+  - scene: game_main
+    type: game
+    environment: static
+    trials: 50
+    next: questionnaire
+    
+  - scene: questionnaire
+    type: questionnaire
+    next: end
+    
+  - scene: end
+    type: completion
