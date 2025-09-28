@@ -7,6 +7,7 @@
     "example": "concurrently \"npm run dev:web:example\" \"npm run dev:game\"",
     "experiment": "npm run generate && concurrently \"npm run dev:web:generated\" \"npm run dev:game\"",
     "generate": "node scripts/generate-scenes.js",
+    "generate:clean": "rm -rf client/public/src/generated/* client/views/generated/*",
     "generate:watch": "nodemon --watch content/experiments/ --exec \"npm run generate\"",
     "dev:web:example": "EXPERIMENT_TYPE=example nodemon server/servers/www",
     "dev:web:generated": "EXPERIMENT_TYPE=generated nodemon server/servers/www",

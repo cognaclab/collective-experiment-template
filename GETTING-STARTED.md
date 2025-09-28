@@ -2,7 +2,7 @@
 
 Welcome to the Collective Experiment Platform! This guide will help you set up your development environment and create your first experiment.
 
-## 🎯 Prerequisites
+## Prerequisites
 
 Before you begin, make sure you have these installed on your system:
 
@@ -11,14 +11,14 @@ Before you begin, make sure you have these installed on your system:
 - **Docker** (for MongoDB) - [Download here](https://www.docker.com/get-started)
 - **Git** - [Download here](https://git-scm.com)
 
-## 📦 Initial Setup
+## Initial Setup
 
 ### 1. Clone and Install
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-lab/CollectiveRewardExp.git
-cd CollectiveRewardExp
+git clone https://github.com/cognaclab/collective-experiment-template.git
+cd collective-experiment-template
 
 # Install dependencies
 npm install
@@ -44,7 +44,7 @@ npm run docker:up
 docker ps
 ```
 
-## 🚀 Your First Run
+## Your First Run
 
 ### Try the Example Experiment
 
@@ -69,16 +69,16 @@ npm run example
 4. **Main Task** - The bandit decision-making game
 5. **Survey** - Post-experiment questionnaire
 
-## 🧪 Creating Your Own Experiment
+## Creating Your Own Experiment
 
 ### Step 1: Copy the Template
 
 ```bash
 # Create a new experiment directory
-cp -r content/experiments/default content/experiments/my-first-experiment
+cp -r content/experiments/examples/quick-test content/experiments/my-experiment
 
 # Your experiment files are now in:
-# content/experiments/my-first-experiment/
+# content/experiments/my-experiment/
 ```
 
 ### Step 2: Edit Your Content
@@ -86,13 +86,13 @@ cp -r content/experiments/default content/experiments/my-first-experiment
 Navigate to your experiment directory and edit these key files:
 
 ```
-my-first-experiment/
+my-experiment/
 ├── config.yaml          # Main experiment configuration
 ├── sequences/
 │   └── main.yaml        # Define experiment flow
-└── instructions/
-    ├── welcome.md       # Welcome/consent page
-    ├── tutorial.md      # Game tutorial
+├── instructions/
+│   └── welcome.md       # Welcome/consent page
+└── pages/
     └── questionnaire.md # Post-experiment survey
 ```
 
@@ -105,7 +105,7 @@ my-first-experiment/
 
 ```bash
 # Generate templates from your experiment
-npm run generate my-first-experiment
+npm run generate my-experiment
 
 # Run your generated experiment
 npm run experiment
@@ -142,7 +142,7 @@ npm run experiment
 
 Now your templates will automatically regenerate when you edit content files!
 
-## 📊 Testing with Multiple Participants
+## Testing with Multiple Participants
 
 ### Simulate Multiple Users
 
@@ -162,7 +162,7 @@ use collective_bandit_dev
 db.behaviouraldatas.find().pretty()
 ```
 
-## 🛠️ Common Commands Reference
+## Common Commands Reference
 
 ```bash
 # Running experiments
@@ -171,6 +171,7 @@ npm run experiment       # Your generated experiment
 
 # Content management
 npm run generate [name]  # Generate from experiment content
+npm run generate:clean   # Clear generated files
 npm run generate:watch   # Auto-regenerate on changes
 
 # Database
@@ -184,7 +185,7 @@ npm run dev:web:generated   # Just the web server (generated mode)
 npm run dev:game           # Just the game server (socket.io)
 ```
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### "Cannot connect to database"
 ```bash
@@ -220,7 +221,7 @@ npm install
 - Look at server logs for error messages
 - Verify MongoDB is accessible
 
-## 📚 Next Steps
+## Next Steps
 
 Once you have the basic setup working:
 
@@ -229,7 +230,7 @@ Once you have the basic setup working:
 3. **Explore Examples** - Look at other experiments in `content/experiments/`
 4. **Customize Gameplay** - Learn about the Phaser game engine integration
 
-## 🆘 Getting Help
+## Getting Help
 
 - **Check the logs** - Server logs show detailed error information
 - **Browser console** - Check for JavaScript errors (F12 → Console)

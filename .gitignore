@@ -18,6 +18,11 @@ package-lock.json
 
 # Build outputs
 dist/
+
+# Generated experiment files
+client/public/src/generated/*
+!client/public/src/generated/SceneIntegration.js
+client/views/generated/*
 build/
 coverage/
 

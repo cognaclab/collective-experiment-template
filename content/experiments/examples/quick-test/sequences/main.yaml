@@ -1,9 +1,18 @@
-sequences:
-  main:
-    - scene_type: "instruction"
-      content_key: "welcome"
-      duration: null
+sequence:
+  - scene: "welcome"
+    type: "instruction"
+    content: "welcome.md"
+    next: "game_main"
 
-    - scene_type: "game"
-      content_key: "main_task"
-      duration: null
+  - scene: "game_main"
+    type: "game"
+    environment: "static"
+    trials: 3
+    next: "questionnaire"
+
+  - scene: "questionnaire"
+    type: "questionnaire"
+    next: "end"
+
+  - scene: "end"
+    type: "completion"

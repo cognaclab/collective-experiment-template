@@ -1,9 +1,18 @@
-sequences:
-  main:
-    - scene_type: "instruction"
-      content_key: "welcome"
-      duration: null  # Wait for user interaction
+sequence:
+  - scene: "welcome"
+    type: "instruction"
+    content: "welcome.md"
+    next: "game_main"
 
-    - scene_type: "game"
-      content_key: "main_task"
-      duration: null  # Controlled by game logic
+  - scene: "game_main"
+    type: "game"
+    environment: "static"
+    trials: 10
+    next: "questionnaire"
+
+  - scene: "questionnaire"
+    type: "questionnaire"
+    next: "end"
+
+  - scene: "end"
+    type: "completion"

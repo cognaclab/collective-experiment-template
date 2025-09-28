@@ -44,17 +44,20 @@ class SceneGenerator {
     constructor(experimentName = null) {
         this.rootDir = path.join(__dirname, '..');
 
-        // Determine experiment name from argument, env var, or default
+        // Determine experiment name from argument or env var (no default fallback)
         this.experimentName = experimentName ||
                                process.argv[2] ||
-                               process.env.EXPERIMENT_NAME ||
-                               'default';
+                               process.env.EXPERIMENT_NAME;
 
-        this.contentDir = path.join(this.rootDir, 'content', 'experiments', this.experimentName);
         this.outputDir = path.join(this.rootDir, 'client', 'public', 'src', 'generated');
         this.viewsDir = path.join(this.rootDir, 'client', 'views', 'generated');
         this.compiledScenesPath = path.join(this.outputDir, 'compiled_scenes.json');
         this.compiledPagesPath = path.join(this.outputDir, 'compiled_pages.json');
+
+        // Set contentDir only if experimentName is provided
+        if (this.experimentName) {
+            this.contentDir = path.join(this.rootDir, 'content', 'experiments', this.experimentName);
+        }
 
         this.config = null;
         this.sequences = null;
@@ -63,12 +66,56 @@ class SceneGenerator {
     }
 
     async generate() {
+        // Validate that experiment name was provided
+        if (!this.experimentName) {
+            console.error('❌ Error: No experiment name provided!');
+            console.log('');
+            console.log('📋 Available experiments:');
+
+            const experimentsDir = path.join(this.rootDir, 'content', 'experiments');
+            if (fs.existsSync(experimentsDir)) {
+                const experiments = fs.readdirSync(experimentsDir, { withFileTypes: true })
+                    .filter(dirent => dirent.isDirectory())
+                    .map(dirent => dirent.name);
+
+                if (experiments.length > 0) {
+                    experiments.forEach(exp => console.log(`   • ${exp}`));
+                } else {
+                    console.log('   (No experiments found in content/experiments/)');
+                }
+            }
+
+            console.log('');
+            console.log('💡 Usage: npm run generate [experiment-name]');
+            console.log('   Example: npm run generate examples/quick-test');
+            process.exit(1);
+        }
+
         console.log(`🚀 Starting scene generation for experiment: ${this.experimentName}...`);
         console.log(`📂 Reading content from: ${this.contentDir}`);
 
         // Verify experiment directory exists
         if (!fs.existsSync(this.contentDir)) {
-            throw new Error(`Experiment directory not found: ${this.contentDir}`);
+            console.error(`❌ Experiment directory not found: ${this.contentDir}`);
+            console.log('');
+            console.log('📋 Available experiments:');
+
+            const experimentsDir = path.join(this.rootDir, 'content', 'experiments');
+            if (fs.existsSync(experimentsDir)) {
+                const experiments = fs.readdirSync(experimentsDir, { withFileTypes: true })
+                    .filter(dirent => dirent.isDirectory())
+                    .map(dirent => dirent.name);
+
+                if (experiments.length > 0) {
+                    experiments.forEach(exp => console.log(`   • ${exp}`));
+                } else {
+                    console.log('   (No experiments found in content/experiments/)');
+                }
+            }
+
+            console.log('');
+            console.log('💡 Usage: npm run generate [experiment-name]');
+            process.exit(1);
         }
 
         try {

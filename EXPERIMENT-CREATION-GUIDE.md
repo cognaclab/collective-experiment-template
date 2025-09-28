@@ -2,7 +2,7 @@
 
 This guide teaches you how to create your own collective behavior experiments from scratch using the template system.
 
-## 🎯 Overview: How Experiments Work
+## Overview: How Experiments Work
 
 The platform uses a **template-based approach** where you write content in simple formats and the system generates the technical code for you.
 
@@ -17,7 +17,7 @@ The platform uses a **template-based approach** where you write content in simpl
 - **Database integration** - Data collection
 - **Web server routes** - Complete web application
 
-## 📁 Experiment Structure
+## Experiment Structure
 
 Every experiment has this structure:
 
@@ -34,7 +34,7 @@ my-experiment/
 └── pages/                   # Additional custom pages (optional)
 ```
 
-## 🛠️ Step-by-Step Creation Process
+## Step-by-Step Creation Process
 
 ### Step 1: Create Your Experiment Directory
 
@@ -197,27 +197,34 @@ Rate your agreement (1=Strongly Disagree, 5=Strongly Agree):
 ### Step 4: Define Experiment Flow (`sequences/main.yaml`)
 
 ```yaml
-sequences:
-  main:
-    # Welcome and consent
-    - scene_type: "instruction"
-      content_key: "welcome"
-      duration: null              # Wait for user interaction
+sequence:
+  # Welcome and consent
+  - scene: "welcome"
+    type: "instruction"
+    content: "welcome.md"
+    next: "tutorial"
 
-    # Optional tutorial
-    - scene_type: "instruction"
-      content_key: "tutorial"
-      duration: null
+  # Optional tutorial
+  - scene: "tutorial"
+    type: "instruction"
+    content: "tutorial.md"
+    next: "game_main"
 
-    # Main experiment
-    - scene_type: "game"
-      content_key: "main_task"
-      duration: null              # Controlled by game logic
+  # Main experiment
+  - scene: "game_main"
+    type: "game"
+    environment: "static"
+    trials: 20
+    next: "questionnaire"
 
-    # Post-experiment survey
-    - scene_type: "instruction"
-      content_key: "questionnaire"
-      duration: null
+  # Post-experiment survey
+  - scene: "questionnaire"
+    type: "questionnaire"
+    next: "end"
+
+  # Completion
+  - scene: "end"
+    type: "completion"
 ```
 
 ### Step 5: Generate and Test
@@ -234,7 +241,7 @@ npm run experiment
 # Group: Open multiple tabs with test1, test2, test3...
 ```
 
-## 🎨 Advanced Features
+## Advanced Features
 
 ### Conditional Content
 
@@ -335,7 +342,7 @@ Use debug subject IDs (defined in config.yaml) to:
 - Replay the experiment multiple times
 - Test different scenarios
 
-## 📊 Data Collection
+## Data Collection
 
 Your experiment automatically collects:
 - **Behavioral data**: Choices, reaction times, outcomes
@@ -355,7 +362,7 @@ db.behaviouraldatas.find().pretty()
 # Export to CSV (see main README for full command)
 ```
 
-## 🚨 Common Mistakes to Avoid
+## Common Mistakes to Avoid
 
 ### 1. YAML Syntax Errors
 - Use spaces, not tabs for indentation
@@ -377,7 +384,7 @@ db.behaviouraldatas.find().pretty()
 - For groups, open all participant tabs quickly
 - Check browser console for JavaScript errors
 
-## 🎯 Tips for Success
+## Tips for Success
 
 ### 1. Start Simple
 - Begin with an existing example
@@ -399,7 +406,7 @@ db.behaviouraldatas.find().pretty()
 - Design questionnaires with analysis in mind
 - Consider how you'll identify different experimental conditions
 
-## 📚 Next Steps
+## Next Steps
 
 Once you've created a basic experiment:
 
@@ -408,4 +415,4 @@ Once you've created a basic experiment:
 3. **Check the API reference** - Understand the data structure
 4. **Join the lab community** - Share your experiments and get feedback
 
-Happy experimenting! 🎉
+Happy experimenting!

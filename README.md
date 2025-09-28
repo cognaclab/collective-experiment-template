@@ -8,16 +8,18 @@ Create online collective behavior experiments using simple **Markdown** and **YA
 
 ## ✨ Key Features
 
-- 🚫 **No Coding Required** - Write experiments in Markdown and YAML
-- 👥 **Real-Time Multiplayer** - Automatic group formation and coordination
-- 🔄 **Conditional Content** - Dynamic text based on experimental conditions
-- ⚡ **Auto-Generation** - From content files to running experiments
-- 🎮 **Phaser Integration** - Combines simple content with complex game mechanics
+- **Easy to Get Started** - Write experiments in Markdown and YAML
+- **Real-Time Multiplayer** - Automatic group formation and coordination
+- **Conditional Content** - Dynamic text based on experimental conditions
+- **Auto-Generation** - From content files to running experiments
+- **Phaser Integration** - Combines simple content with complex game mechanics
 
 ## 🚀 Quick Start
 
 ```bash
-# 1. Setup (5 minutes)
+# 1. Clone and setup (5 minutes)
+git clone https://github.com/cognaclab/collective-experiment-template.git
+cd collective-experiment-template
 npm install
 cp .env.example .env
 npm run docker:up
@@ -27,8 +29,8 @@ npm run example
 # Visit: http://localhost:8000/?subjectID=test1
 
 # 3. Create your own experiment
-cp -r content/experiments/examples/quick-test content/experiments/my-study
-npm run generate my-study
+cp -r content/experiments/examples/quick-test content/experiments/my-experiment
+npm run generate my-experiment
 npm run experiment
 ```
 
@@ -51,6 +53,7 @@ npm run experiment       # Generated experiment
 
 # Content management
 npm run generate [name]  # Generate from experiment content
+npm run generate:clean   # Clear generated files
 npm run generate:watch   # Auto-regenerate on changes
 
 # Development
@@ -65,12 +68,6 @@ npm run docker:down      # Stop MongoDB
 - **Template System**: Markdown → Interactive experiment
 - **Real-time Backend**: Node.js + Socket.IO + MongoDB
 - **Complete Deployment**: Production-ready with PM2 and Docker
-
-## 🎯 Perfect For
-
-- **Researchers** studying collective behavior, social learning, group decision-making
-- **Students** learning experimental design and web development
-- **Labs** needing reproducible, scalable online experiments
 
 ---
 
