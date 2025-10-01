@@ -42,8 +42,7 @@
 			</span></p>
 		</noscript>
 		<div id= "questionnaireStarts"></div>
-		<form style="display: hidden" action="http://63-250-60-135.cloud-xip.io:8000/questionnaire" method="POST" id="form">
-    	<!--<form style="display: hidden" action="http://192.168.33.10:8000/questionnaire" method="POST" id="form">-->
+		<form style="display: hidden" action="<%= APP_URL %>/questionnaire" method="POST" id="form">
 	        <input type="hidden" id="subjectID" name="subjectID" value="" />
 	        <input type="hidden" id="bonus_for_waiting" name="bonus_for_waiting" value="0" />
 	        <input type="hidden" id="totalEarning" name="totalEarning" value="0" />

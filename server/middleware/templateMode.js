@@ -42,6 +42,11 @@ class ExperimentModeHandler {
 
             // Override render method
             res.render = (view, locals, callback) => {
+                // Add environment variables to locals for all templates
+                locals = locals || {};
+                locals.APP_URL = process.env.APP_URL || 'http://localhost:8000';
+                locals.GAME_SERVER_URL = process.env.GAME_SERVER_URL || 'http://localhost:8181';
+
                 let targetViewsDir;
                 let viewPath;
                 
