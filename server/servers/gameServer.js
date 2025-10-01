@@ -1083,11 +1083,9 @@ function proceedToResult (room) {
 			trial: roomStatus[room]['trial']
 		}
 	});
-	if (roomStatus[room].n > 1) {
-		io.to(room).emit('Proceed to the result scene', roomStatus[room]);
-	} else {
-		io.to(room).emit('group became too small', roomStatus[room]);
-	}
+	// For both group and individual conditions, proceed to result scene
+	// Individual players (n=1) should continue playing, not be kicked out
+	io.to(room).emit('Proceed to the result scene', roomStatus[room]);
 }
 
 
@@ -1128,9 +1126,9 @@ function proceedTrial (room) {
 		roomStatus[room]['trial'] = 1; // resetting the trial num
 		roomStatus[room]['currentEnv'] = 0; // resetting the environment num
 		if (roomStatus[room]['taskOrder'][roomStatus[room]['gameRound']] == 'dynamic') {
-			roomStatus[room]['horizon'] = horizonList[1]
+			roomStatus[room]['horizon'] = config.horizonList[1]
 		} else {
-			roomStatus[room]['horizon'] = horizonList[0]
+			roomStatus[room]['horizon'] = config.horizonList[0]
 		}
 		// announcing ending the round
 		io.to(room).emit('End this session', roomStatus[room]);

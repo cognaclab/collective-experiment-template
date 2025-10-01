@@ -83,7 +83,8 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 		io.to(client.room).emit('these are done subjects', { doneSubject: room.doneId[p] });
 	} else {
 		const countPositive = room.socialInfo[p].filter(n => n > -1).length;
-		if (countPositive < 2) {
+		// Only zero out group payoff if in group condition AND not enough participants
+		if (countPositive < 2 && room.indivOrGroup === 1) {
 			room.groupTotalPayoff[p] -= this_indiv_payoff;
 			room.groupCumulativePayoff[round] -= this_indiv_payoff;
 			room.groupTotalPayoff[p] = 0;
