@@ -34,6 +34,8 @@ import SceneGoToQuestionnaire from './scenes/SceneGoToQuestionnaire.js';
 import SceneMessagePopUp from './scenes/SceneMessagePopUp.js';
 import SceneNextRoundsInstruction from './scenes/SceneNextRoundsInstruction.js';
 
+// ===== Import Instruction Texts =============================
+import './instruction_texts.js';
 
 // ===== Import Functions =============================
 import {rand

@@ -157,12 +157,9 @@ function rand(max, min = 0) {
 function proceedToResult (thisRoomStatus, thisRoomName, io) {
     thisRoomStatus['stage'] = 'resultFeedback';
     console.log(' - Feedback collective payoff = ' + (thisRoomStatus['groupTotalPayoff'][thisRoomStatus['pointer']-1]) +' with socialFreq ' + (thisRoomStatus['socialFreq'][thisRoomStatus['pointer']-1]) + ' at trial = ' + (thisRoomStatus['trial']) );
-    if (thisRoomStatus.n > 1) {
-        io.to(thisRoomName).emit('Proceed to the result scene', thisRoomStatus);
-    } else {
-        io.to(thisRoomName).emit('Proceed to the result scene', thisRoomStatus);
-        // io.to(thisRoomName).emit('group became too small', thisRoomStatus);
-    }
+    // For both group and individual conditions, proceed to result scene
+    // Individual players (n=1) should continue playing, not be kicked out
+    io.to(thisRoomName).emit('Proceed to the result scene', thisRoomStatus);
 }
 
 function proceedTrial (thisRoomStatus, thisRoomName, io, config) {

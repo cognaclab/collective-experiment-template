@@ -61,6 +61,7 @@ function handleCoreReady({ config, client, data, roomStatus, io, countDownMainSt
     const timestamp = `${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
     const newRoomName = `${timestamp}_largeLatency_${config.sessionNo + Object.keys(roomStatus).length - 1}`;
     roomStatus[newRoomName] = createRoom({ name: newRoomName });
+    roomStatus[newRoomName].horizon = config.horizon; // Ensure horizon is set for individual rooms
     client.room = newRoomName;
     client.subjectNumber = 1;
   }
