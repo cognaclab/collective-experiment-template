@@ -505,10 +505,18 @@ window.onload = function() {
             }
         }
 
-        console.log('[DEBUG main-example] Stopping SceneAskStillThere and starting SceneResultFeedback');
+        // FIX: Stop the current active scene (could be SceneMain or SceneAskStillThere)
+        // instead of assuming it's always SceneAskStillThere
+        const activeScenes = game.scene.getScenes(true);
+        if (activeScenes.length > 0) {
+            const currentSceneKey = activeScenes[0].scene.key;
+            console.log('[DEBUG main-example] Stopping current scene:', currentSceneKey);
+            game.scene.stop(currentSceneKey);
+        }
+
+        console.log('[DEBUG main-example] Starting SceneResultFeedback');
 
         // changing scenes
-        game.scene.stop('SceneAskStillThere');
         game.scene.start('SceneResultFeedback',
             {gameRound: gameRound
                 , trial: currentTrial

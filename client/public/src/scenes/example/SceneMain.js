@@ -169,10 +169,14 @@ class SceneMain extends Phaser.Scene {
 					let time_madeChoice = new Date();
 		    		madeChoice(currentChoiceFlag, exp_condition, optionOrder, time_madeChoice - time_created);
 
-					console.log('[DEBUG SceneMain] After madeChoice() call, destroying timer and transitioning to SceneAskStillThere');
+					console.log('[DEBUG SceneMain] After madeChoice() call, socket emitted. Staying in SceneMain to wait for response.');
 
 					gameTimer.destroy();
-		    		this.scene.start('SceneAskStillThere', {didMiss: false, flag: currentChoiceFlag, horizon: this.horizon, prob_means: [prob_means[0][currentTrial-1], prob_means[1][currentTrial-1], prob_means[2][currentTrial-1]]});
+
+					// FIX: Don't transition to SceneAskStillThere - wait for socket response in this scene
+					// This prevents the race condition where socket event arrives before scene is created
+					// this.scene.start('SceneAskStillThere', {didMiss: false, ...}); // REMOVED
+
 		    		isWaiting = true;
 		    		isChoiceMade = true;
 
@@ -185,7 +189,18 @@ class SceneMain extends Phaser.Scene {
 					options['box_active'+i].disableInteractive();
 		    		confirmationContainer.visible= false;
 
-					console.log('[DEBUG SceneMain] Scene transition complete, all interactions disabled');
+					// Show waiting message in this scene
+					if (!this.waitingText) {
+						if (indivOrGroup == 1) {
+							this.waitingText = this.add.text(configWidth/2, configHeight/2 - 100, 'Please wait for others...',
+								{ fontSize: '30px', fill: '#000', align: "center" }).setOrigin(0.5);
+						} else {
+							this.waitingText = this.add.text(configWidth/2, configHeight/2 - 100, 'Please wait...',
+								{ fontSize: '30px', fill: '#000', align: "center" }).setOrigin(0.5);
+						}
+					}
+
+					console.log('[DEBUG SceneMain] All interactions disabled, waiting for server response in SceneMain');
 		    	} else {
 					console.warn('[DEBUG SceneMain] Double-click detected! isChoiceMade already true, ignoring click');
 				}
