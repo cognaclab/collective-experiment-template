@@ -184,10 +184,14 @@ class SceneTemplate extends Phaser.Scene {
     handleNext() {
         if (this.onComplete) {
             this.onComplete.call(this);
-        } else if (this.nextScene) {
-            this.scene.start(this.nextScene, this.gameData);
+        } else if (window.experimentFlow) {
+            const currentKey = this.scene.key;
+            // Clean shutdown of this scene before transitioning
+            this.scene.stop();
+            // Then let ExperimentFlow handle the transition
+            window.experimentFlow.next(currentKey);
         } else {
-            console.warn('No next scene defined for', this.scene.key);
+            console.warn('ExperimentFlow not available');
         }
     }
 

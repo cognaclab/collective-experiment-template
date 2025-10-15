@@ -2,17 +2,18 @@ sequence:
   - scene: "welcome"
     type: "instruction"
     content: "welcome.md"
-    next: "game_main"
+    next: "SceneMain"
 
-  - scene: "game_main"
+  - scene: "SceneMain"
     type: "game"
     environment: "static"
     trials: 3
-    next: "questionnaire"
+    next: "SceneGoToQuestionnaire"
 
-  - scene: "questionnaire"
+  - scene: "SceneGoToQuestionnaire"
     type: "questionnaire"
     next: "end"
 
   - scene: "end"
     type: "completion"
+    redirect: "/endPage"
