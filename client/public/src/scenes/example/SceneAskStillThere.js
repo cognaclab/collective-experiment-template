@@ -22,6 +22,33 @@ class SceneAskStillThere extends Phaser.Scene {
 
 	create(){
 
+		console.log('[DEBUG SceneAskStillThere] Scene created:', {
+			didMiss: this.didMiss,
+			flag: this.flag,
+			currentTrial,
+			indivOrGroup,
+			timestamp: new Date().toISOString()
+		});
+
+		// Safety timeout - if no server response within 10 seconds, show error
+		const SAFETY_TIMEOUT = 10000; // 10 seconds
+		this.safetyTimer = this.time.delayedCall(SAFETY_TIMEOUT, () => {
+			console.error('[DEBUG SceneAskStillThere] TIMEOUT! No server response after', SAFETY_TIMEOUT/1000, 'seconds');
+			console.error('[DEBUG SceneAskStillThere] Expected socket event "Proceed to the result scene" was not received');
+			console.error('[DEBUG SceneAskStillThere] Current state:', {
+				currentTrial,
+				gameRound,
+				indivOrGroup,
+				didMiss: this.didMiss,
+				flag: this.flag
+			});
+
+			// Show error message to user
+			if (this.waitOthersTextRef) {
+				this.waitOthersTextRef.setText('Connection issue detected.\nPlease check console (F12) and report this bug.\nTrial: ' + currentTrial);
+			}
+		});
+
 		// loading circle animation
 		let CircleSpinContainer = this.add.container(configWidth/2, configHeight/2 - 50);
 		createCircle(this, CircleSpinContainer, 0, 0, 48, 0xffc3b0); // background = 0xffd6c9, brighter 0xffe9e3
@@ -148,9 +175,10 @@ class SceneAskStillThere extends Phaser.Scene {
 		
 		if (indivOrGroup == 1) {
 			if(!this.didMiss) {
-				// When this is a group condition, 
+				// When this is a group condition,
 				// "please wait" message
 				waitOthersText = this.add.text(16, 60, 'Please wait for others...', { fontSize: '30px', fill: '#000', align: "center"});
+				this.waitOthersTextRef = waitOthersText; // Store reference for timeout handler
 
 				// setTimeout(function(){
 			    // 	currentChoiceFlag = 0;
@@ -228,6 +256,7 @@ class SceneAskStillThere extends Phaser.Scene {
 		} else if (indivOrGroup == 0 && !this.didMiss) {
 			// Individual condition, normal choice - just wait for server to proceed
 			waitOthersText = this.add.text(16, 60, 'Please wait...', { fontSize: '30px', fill: '#000', align: "center"});
+			this.waitOthersTextRef = waitOthersText; // Store reference for timeout handler
 		} else if (indivOrGroup == 0 && this.didMiss == true) {
 			// if missed
 			setTimeout(function(){

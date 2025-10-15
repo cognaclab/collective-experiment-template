@@ -474,6 +474,15 @@ window.onload = function() {
     });
 
     socket.on('Proceed to the result scene', function(data) {
+        console.log('[DEBUG main-example] ✅ Received "Proceed to the result scene" event from server:', {
+            currentTrial,
+            gameRound,
+            pointer: data?.pointer,
+            groupSize: data?.n,
+            indivOrGroup,
+            timestamp: new Date().toISOString()
+        });
+
         // update social frequency information
         currentGroupSize = data?.n;
         mySocialInfo = data?.socialInfo[data?.pointer - 1];
@@ -496,9 +505,11 @@ window.onload = function() {
             }
         }
 
+        console.log('[DEBUG main-example] Stopping SceneAskStillThere and starting SceneResultFeedback');
+
         // changing scenes
         game.scene.stop('SceneAskStillThere');
-        game.scene.start('SceneResultFeedback', 
+        game.scene.start('SceneResultFeedback',
             {gameRound: gameRound
                 , trial: currentTrial
                 , mySocialInfo: mySocialInfo
@@ -506,8 +517,10 @@ window.onload = function() {
                 , horizon: horizon
                 , n: currentGroupSize
                 , groupCumulativePayoff: groupCumulativePayoff[data.gameRound]
-                , taskType: taskType 
+                , taskType: taskType
             });
+
+        console.log('[DEBUG main-example] Scene transition to SceneResultFeedback complete');
     });
 
     socket.on('Proceed to next trial', function(data) {

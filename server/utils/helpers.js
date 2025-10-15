@@ -155,11 +155,26 @@ function rand(max, min = 0) {
 }
 
 function proceedToResult (thisRoomStatus, thisRoomName, io) {
+    console.log('[DEBUG proceedToResult] 🚀 Called for room:', thisRoomName, {
+        trial: thisRoomStatus['trial'],
+        gameRound: thisRoomStatus['gameRound'],
+        pointer: thisRoomStatus['pointer'],
+        n: thisRoomStatus['n'],
+        indivOrGroup: thisRoomStatus['indivOrGroup'],
+        stage: thisRoomStatus['stage'],
+        timestamp: new Date().toISOString()
+    });
+
     thisRoomStatus['stage'] = 'resultFeedback';
     console.log(' - Feedback collective payoff = ' + (thisRoomStatus['groupTotalPayoff'][thisRoomStatus['pointer']-1]) +' with socialFreq ' + (thisRoomStatus['socialFreq'][thisRoomStatus['pointer']-1]) + ' at trial = ' + (thisRoomStatus['trial']) );
+
+    console.log('[DEBUG proceedToResult] 📤 Emitting "Proceed to the result scene" to room:', thisRoomName);
+
     // For both group and individual conditions, proceed to result scene
     // Individual players (n=1) should continue playing, not be kicked out
     io.to(thisRoomName).emit('Proceed to the result scene', thisRoomStatus);
+
+    console.log('[DEBUG proceedToResult] ✅ Event emitted successfully');
 }
 
 function proceedTrial (thisRoomStatus, thisRoomName, io, config) {

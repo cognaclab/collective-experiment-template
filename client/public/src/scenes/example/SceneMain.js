@@ -157,18 +157,38 @@ class SceneMain extends Phaser.Scene {
         	options['box_active'+i].on('pointerdown', function (pointer) {
 		    	//clearTimeout(countDownChoiceStage);
 		    	if(!isChoiceMade) {
+					console.log('[DEBUG SceneMain] Choice confirmed:', {
+						option: i,
+						currentChoiceFlag,
+						currentTrial,
+						gameRound,
+						indivOrGroup,
+						timestamp: new Date().toISOString()
+					});
+
 					let time_madeChoice = new Date();
 		    		madeChoice(currentChoiceFlag, exp_condition, optionOrder, time_madeChoice - time_created);
-		    		gameTimer.destroy();
+
+					console.log('[DEBUG SceneMain] After madeChoice() call, destroying timer and transitioning to SceneAskStillThere');
+
+					gameTimer.destroy();
 		    		this.scene.start('SceneAskStillThere', {didMiss: false, flag: currentChoiceFlag, horizon: this.horizon, prob_means: [prob_means[0][currentTrial-1], prob_means[1][currentTrial-1], prob_means[2][currentTrial-1]]});
 		    		isWaiting = true;
 		    		isChoiceMade = true;
+
+					// Disable all interactive elements to prevent double-clicks
 		    		for (let j=1; j<numOptions+1; j++) {
 		    			options['box'+j].visible = false;
+						options['box'+j].disableInteractive();
 		    		}
 		    		options['box_active'+i].visible = false;
+					options['box_active'+i].disableInteractive();
 		    		confirmationContainer.visible= false;
-		    	}
+
+					console.log('[DEBUG SceneMain] Scene transition complete, all interactions disabled');
+		    	} else {
+					console.warn('[DEBUG SceneMain] Double-click detected! isChoiceMade already true, ignoring click');
+				}
 		    }, this);
 		    // pointerover
 			options['box'+i].on('pointerover', function (pointer) {
