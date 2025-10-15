@@ -233,13 +233,15 @@ sequence:
 # Generate your experiment templates
 npm run generate my-study
 
-# Run your experiment
+# Run your experiment (auto-reloads when generated files change)
 npm run experiment
 
 # Test with participants
 # Individual: http://localhost:8000/?subjectID=test1
 # Group: Open multiple tabs with test1, test2, test3...
 ```
+
+**Pro tip:** The `experiment` command automatically reloads when you regenerate, so just keep it running and regenerate whenever you make changes!
 
 ## Advanced Features
 
@@ -320,6 +322,34 @@ Available variables:
 - Runtime: `subjectID`, `totalEarning`, `completionCode`
 
 ## 🔧 Testing Your Experiment
+
+### Basic Testing Workflow
+
+```bash
+# 1. Generate your experiment
+npm run generate my-study
+
+# 2. Run the experiment server (keeps running, auto-reloads on regeneration)
+npm run experiment
+
+# 3. Open browser and test
+# Individual: http://localhost:8000/?subjectID=test1
+# Group: Open multiple tabs with different IDs
+```
+
+### Advanced: Continuous Development
+
+For rapid iteration, use two terminals:
+
+```bash
+# Terminal 1: Auto-regenerate when content files change
+npm run generate:watch my-study
+
+# Terminal 2: Run experiment (auto-reloads when regenerated)
+npm run experiment
+```
+
+Now edit your YAML/Markdown files and the experiment updates automatically!
 
 ### Individual Experiments
 ```bash

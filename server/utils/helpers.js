@@ -157,6 +157,7 @@ function rand(max, min = 0) {
 function proceedToResult (thisRoomStatus, thisRoomName, io) {
     thisRoomStatus['stage'] = 'resultFeedback';
     console.log(' - Feedback collective payoff = ' + (thisRoomStatus['groupTotalPayoff'][thisRoomStatus['pointer']-1]) +' with socialFreq ' + (thisRoomStatus['socialFreq'][thisRoomStatus['pointer']-1]) + ' at trial = ' + (thisRoomStatus['trial']) );
+
     // For both group and individual conditions, proceed to result scene
     // Individual players (n=1) should continue playing, not be kicked out
     io.to(thisRoomName).emit('Proceed to the result scene', thisRoomStatus);

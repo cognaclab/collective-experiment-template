@@ -77,11 +77,13 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 	});
 
 	room.doneNo[p] = (room.doneNo[p] ?? 0) + 1;
-	console.log(` - ${session} (${client.room}) is done (doneNo: ${room.doneNo[p]}) at ${room.trial}`);
+	console.log(` - ${session} (${client.room}) is done (doneNo: ${room.doneNo[p]}) at ${room.trial} (room.n: ${room.n}, p: ${p})`);
 
 	if (room.doneNo[p] < room.n) {
+		console.log(` - Waiting for others: ${room.doneNo[p]}/${room.n} done`);
 		io.to(client.room).emit('these are done subjects', { doneSubject: room.doneId[p] });
 	} else {
+		console.log(` - All done (${room.doneNo[p]}/${room.n}), proceeding to result`);
 		const countPositive = room.socialInfo[p].filter(n => n > -1).length;
 		// Only zero out group payoff if in group condition AND not enough participants
 		if (countPositive < 2 && room.indivOrGroup === 1) {
@@ -91,10 +93,11 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 		}
 
 		if (room.round != null && room.round % 20 === 0) {
-			const worker = createWorker('./worker_threads/savingBehaviouralData_array.js', room.saveDataThisRound);
+			const worker = createWorker('./server/services/savingBehaviouralData_array.js', room.saveDataThisRound);
 			room.saveDataThisRound = [];
 		}
 
+		console.log(` - Calling proceedToResult for ${client.room}`);
 		proceedToResult(room, client.room, io);
 	}
 };

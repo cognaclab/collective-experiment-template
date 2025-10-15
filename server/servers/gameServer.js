@@ -75,10 +75,10 @@ const {isMainThread, Worker} = require('worker_threads');
 
 // Experimental variables
 const horizon = 20 // number of trials
-, sessionNo = 0 // 0 = debug; 
-, maxGroupSize = 5 // maximum size per group 
+, sessionNo = 0 // 0 = debug;
+, maxGroupSize = 5 // maximum size per group
 , minGroupSize = parseInt(process.env.MIN_GROUP_SIZE) || 2 // minimal group size below which the session becomes individual tasks
-, maxWaitingTime = 10 * 1000 // maximum time allowed in the waiting foyer
+, maxWaitingTime = config.maxWaitingTime // imported from config/constants.js
 , K = 3 // number of bandit options (k-armed bandit)
 , maxChoiceStageTime = 10 * 1000 //20*1000 // time limit for decision making
 , maxTimeTestScene = 4 * 60 * 1000 // 4*60*1000

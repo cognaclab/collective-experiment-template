@@ -107,7 +107,7 @@ my-experiment/
 # Generate templates from your experiment
 npm run generate my-experiment
 
-# Run your generated experiment
+# Run your generated experiment (auto-reloads on changes to generated files)
 npm run experiment
 
 # Visit: http://localhost:8000/?subjectID=test2
@@ -115,7 +115,7 @@ npm run experiment
 
 ## 🔧 Development Workflow
 
-### Making Changes
+### Option 1: Manual Regeneration (Recommended for Beginners)
 
 ```bash
 # 1. Edit your content files in content/experiments/my-experiment/
@@ -123,24 +123,26 @@ npm run experiment
 # 2. Regenerate templates
 npm run generate my-experiment
 
-# 3. Restart the experiment server
-# (Kill with Ctrl+C, then run again)
+# 3. The experiment server will auto-reload (if already running)
+# Or start it with:
 npm run experiment
 ```
 
-### Auto-Regeneration
+The `npm run experiment` command watches the generated files and automatically reloads when they change!
 
-For faster development, use the watch mode:
+### Option 2: Auto-Regeneration (Advanced)
+
+For continuous development, use two terminals:
 
 ```bash
-# Start auto-regeneration (in one terminal)
-npm run generate:watch
+# Terminal 1: Auto-regenerate when you edit content files
+npm run generate:watch examples/quick-test
 
-# Start experiment server (in another terminal)
+# Terminal 2: Run the experiment (auto-reloads when files regenerate)
 npm run experiment
 ```
 
-Now your templates will automatically regenerate when you edit content files!
+Now edit your YAML/Markdown files and see changes instantly!
 
 ## Testing with Multiple Participants
 
@@ -166,23 +168,18 @@ db.behaviouraldatas.find().pretty()
 
 ```bash
 # Running experiments
-npm run example          # Original working example
-npm run experiment       # Your generated experiment
+npm run example                      # Run default collective reward experiment
+npm run generate examples/quick-test # Generate from YAML/Markdown content
+npm run experiment                   # Run generated experiment (with auto-reload)
 
 # Content management
-npm run generate [name]  # Generate from experiment content
-npm run generate:clean   # Clear generated files
-npm run generate:watch   # Auto-regenerate on changes
+npm run generate:clean               # Clear all generated files
+npm run generate:watch [name]        # Auto-regenerate when content changes
 
 # Database
-npm run docker:up        # Start MongoDB
-npm run docker:down      # Stop MongoDB
-npm run docker:shell     # Access MongoDB shell
-
-# Development servers (advanced)
-npm run dev:web:example     # Just the web server (example mode)
-npm run dev:web:generated   # Just the web server (generated mode)
-npm run dev:game           # Just the game server (socket.io)
+npm run docker:up                    # Start MongoDB
+npm run docker:down                  # Stop MongoDB
+npm run docker:shell                 # Access MongoDB shell
 ```
 
 ## Troubleshooting

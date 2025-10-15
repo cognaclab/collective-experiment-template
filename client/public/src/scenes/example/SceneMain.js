@@ -155,19 +155,34 @@ class SceneMain extends Phaser.Scene {
 		    }, this);
         	// pointerdown - activated option
         	options['box_active'+i].on('pointerdown', function (pointer) {
-		    	//clearTimeout(countDownChoiceStage);
 		    	if(!isChoiceMade) {
 					let time_madeChoice = new Date();
 		    		madeChoice(currentChoiceFlag, exp_condition, optionOrder, time_madeChoice - time_created);
-		    		gameTimer.destroy();
-		    		this.scene.start('SceneAskStillThere', {didMiss: false, flag: currentChoiceFlag, horizon: this.horizon, prob_means: [prob_means[0][currentTrial-1], prob_means[1][currentTrial-1], prob_means[2][currentTrial-1]]});
+
+					gameTimer.destroy();
+
 		    		isWaiting = true;
 		    		isChoiceMade = true;
+
+					// Disable all interactive elements to prevent double-clicks
 		    		for (let j=1; j<numOptions+1; j++) {
 		    			options['box'+j].visible = false;
+						options['box'+j].disableInteractive();
 		    		}
 		    		options['box_active'+i].visible = false;
+					options['box_active'+i].disableInteractive();
 		    		confirmationContainer.visible= false;
+
+					// Show waiting message in this scene
+					if (!this.waitingText) {
+						if (indivOrGroup == 1) {
+							this.waitingText = this.add.text(configWidth/2, configHeight/2 - 100, 'Please wait for others...',
+								{ fontSize: '30px', fill: '#000', align: "center" }).setOrigin(0.5);
+						} else {
+							this.waitingText = this.add.text(configWidth/2, configHeight/2 - 100, 'Please wait...',
+								{ fontSize: '30px', fill: '#000', align: "center" }).setOrigin(0.5);
+						}
+					}
 		    	}
 		    }, this);
 		    // pointerover

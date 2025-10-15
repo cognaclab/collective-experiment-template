@@ -496,9 +496,15 @@ window.onload = function() {
             }
         }
 
+        // Stop the current active scene
+        const activeScenes = game.scene.getScenes(true);
+        if (activeScenes.length > 0) {
+            const currentSceneKey = activeScenes[0].scene.key;
+            game.scene.stop(currentSceneKey);
+        }
+
         // changing scenes
-        game.scene.stop('SceneAskStillThere');
-        game.scene.start('SceneResultFeedback', 
+        game.scene.start('SceneResultFeedback',
             {gameRound: gameRound
                 , trial: currentTrial
                 , mySocialInfo: mySocialInfo
@@ -506,7 +512,7 @@ window.onload = function() {
                 , horizon: horizon
                 , n: currentGroupSize
                 , groupCumulativePayoff: groupCumulativePayoff[data.gameRound]
-                , taskType: taskType 
+                , taskType: taskType
             });
     });
 

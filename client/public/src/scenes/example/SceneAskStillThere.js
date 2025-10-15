@@ -22,6 +22,17 @@ class SceneAskStillThere extends Phaser.Scene {
 
 	create(){
 
+		// Safety timeout - if no server response within 10 seconds, show error
+		const SAFETY_TIMEOUT = 10000; // 10 seconds
+		this.safetyTimer = this.time.delayedCall(SAFETY_TIMEOUT, () => {
+			console.error('SceneAskStillThere: No server response after 10 seconds (trial ' + currentTrial + ')');
+
+			// Show error message to user
+			if (this.waitOthersText) {
+				this.waitOthersText.setText('Connection issue detected.\nPlease check console (F12) and report this bug.\nTrial: ' + currentTrial);
+			}
+		});
+
 		// loading circle animation
 		let CircleSpinContainer = this.add.container(configWidth/2, configHeight/2 - 50);
 		createCircle(this, CircleSpinContainer, 0, 0, 48, 0xffc3b0); // background = 0xffd6c9, brighter 0xffe9e3
@@ -142,15 +153,15 @@ class SceneAskStillThere extends Phaser.Scene {
 		if (this.didMiss) {
 			payoffText = this.add.text(feedbackTextPosition, slotY_main-80, `Missed!`, { fontSize: '30px', fill: noteColor, fontstyle: 'bold' }).setOrigin(0.5, 0.5);
 		} else {
-	    	// payoffText = this.add.text(feedbackTextPosition, slotY_main-80, `${payoff} points!`, { fontSize: '30px', fill: noteColor, fontstyle: 'bold' }).setOrigin(0.5, 0.5);
+	    	payoffText = this.add.text(feedbackTextPosition, slotY_main-80, `${payoff} points!`, { fontSize: '30px', fill: noteColor, fontstyle: 'bold' }).setOrigin(0.5, 0.5);
 	    	// console.log('individual payoff = ' + this.individual_payoff)
 		}
 		
 		if (indivOrGroup == 1) {
 			if(!this.didMiss) {
-				// When this is a group condition, 
+				// When this is a group condition,
 				// "please wait" message
-				waitOthersText = this.add.text(16, 60, 'Please wait for others...', { fontSize: '30px', fill: '#000', align: "center"});
+				this.waitOthersText = this.add.text(16, 60, 'Please wait for others...', { fontSize: '30px', fill: '#000', align: "center"});
 
 				// setTimeout(function(){
 			    // 	currentChoiceFlag = 0;
@@ -225,6 +236,9 @@ class SceneAskStillThere extends Phaser.Scene {
 				}.bind(this),  1 * 400);
 
 			}
+		} else if (indivOrGroup == 0 && !this.didMiss) {
+			// Individual condition, normal choice - just wait for server to proceed
+			this.waitOthersText = this.add.text(16, 60, 'Please wait...', { fontSize: '30px', fill: '#000', align: "center"});
 		} else if (indivOrGroup == 0 && this.didMiss == true) {
 			// if missed
 			setTimeout(function(){

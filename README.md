@@ -28,10 +28,10 @@ npm run docker:up
 npm run example
 # Visit: http://localhost:8000/?subjectID=test1
 
-# 3. Create your own experiment
-cp -r content/experiments/examples/quick-test content/experiments/my-experiment
-npm run generate my-experiment
+# 3. Generate and run a quick test
+npm run generate examples/quick-test
 npm run experiment
+# Visit: http://localhost:8000/?subjectID=test2
 ```
 
 ## 📚 Documentation
@@ -48,17 +48,18 @@ npm run experiment
 
 ```bash
 # Running experiments
-npm run example          # Working example experiment
-npm run experiment       # Generated experiment
+npm run example                      # Run the default collective reward experiment
+npm run generate examples/quick-test # Generate scenes from YAML/Markdown
+npm run experiment                   # Run last generated experiment (with auto-reload)
 
 # Content management
-npm run generate [name]  # Generate from experiment content
-npm run generate:clean   # Clear generated files
-npm run generate:watch   # Auto-regenerate on changes
+npm run generate:clean               # Clear all generated files
+npm run generate:watch [name]        # Auto-regenerate when content files change
 
-# Development
-npm run docker:up        # Start MongoDB
-npm run docker:down      # Stop MongoDB
+# Database
+npm run docker:up                    # Start MongoDB
+npm run docker:down                  # Stop MongoDB
+npm run docker:shell                 # Access MongoDB shell
 ```
 
 ## 🧪 What's Included

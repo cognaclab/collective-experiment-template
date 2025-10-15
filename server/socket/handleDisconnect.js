@@ -34,11 +34,11 @@ function handleDisconnect({client, config, io, countDownWaiting, total_N_nowRef,
 
   // Save data if group
   if (room.indivOrGroup !== 0) {
-    createWorker('./worker_threads/savingBehaviouralData_array.js', room.saveDataThisRound);
+    createWorker('./server/services/savingBehaviouralData_array.js', room.saveDataThisRound);
     room.saveDataThisRound = [];
     room.n--;
   } else {
-    createWorker('./worker_threads/savingBehaviouralData_array.js', room.saveDataThisRound);
+    createWorker('./server/services/savingBehaviouralData_array.js', room.saveDataThisRound);
     room.saveDataThisRound = [];
   }
 
@@ -80,7 +80,7 @@ function handleDisconnect({client, config, io, countDownWaiting, total_N_nowRef,
     if (countPositive < 2) room.groupTotalPayoff[p] = 0;
 
     if (room.round % 20 === 0) {
-      createWorker('./worker_threads/savingBehaviouralData_array.js', room.saveDataThisRound);
+      createWorker('./server/services/savingBehaviouralData_array.js', room.saveDataThisRound);
       room.saveDataThisRound = [];
     }
 
