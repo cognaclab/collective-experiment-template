@@ -12,7 +12,13 @@ const portnumQuestionnaire = 8000
 	, htmlServer = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
 		? 'http://localhost:' // Development server
 		: 'http://tk2-127-63496.vs.sakura.ne.jp:' // Production server
-	, exceptions = ['INHOUSETEST3', 'wataruDebug']
+	, exceptions = [
+		'wataruDebug',  // Original internal test IDs
+		'test', 'debug', 'quicktest',    // Quick-test recommended IDs
+		'test1', 'test2', 'test3',       // Common test IDs used in docs
+		'alice', 'bob', 'carol',         // Named test users in docs
+		'player1', 'player2', 'player3'  // Player IDs for group testing
+	]
 	, socket = io.connect(htmlServer+portnum, { query: 'subjectID='+subjectID }) // portnum is defined in game;ejs
 	, flatBonus = 1.6 // pounds starling (GBP) 
 ;

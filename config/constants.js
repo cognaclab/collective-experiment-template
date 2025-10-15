@@ -44,7 +44,13 @@ const exp_condition_list = ['groupPayoff'];
 const prob_conditions = 1.0;
 
 // Debug subject IDs that bypass validation and can be reused for testing
-const debugExceptions = ['INHOUSETEST3', 'wataruDebug'];
+const debugExceptions = [
+  'wataruDebug',  // Original internal test IDs
+  'test', 'debug', 'quicktest',    // Quick-test recommended IDs
+  'test1', 'test2', 'test3',       // Common test IDs used in docs
+  'alice', 'bob', 'carol',         // Named test users in docs
+  'player1', 'player2', 'player3'  // Player IDs for group testing
+];
 const prob_0 = [0.7, 0.4, 0.3];
 const prob_1 = [0.8, 0.3, 0.3];
 const prob_2 = [0.3, 0.3, 0.8];
