@@ -142,7 +142,7 @@ class SceneAskStillThere extends Phaser.Scene {
 		if (this.didMiss) {
 			payoffText = this.add.text(feedbackTextPosition, slotY_main-80, `Missed!`, { fontSize: '30px', fill: noteColor, fontstyle: 'bold' }).setOrigin(0.5, 0.5);
 		} else {
-	    	// payoffText = this.add.text(feedbackTextPosition, slotY_main-80, `${payoff} points!`, { fontSize: '30px', fill: noteColor, fontstyle: 'bold' }).setOrigin(0.5, 0.5);
+	    	payoffText = this.add.text(feedbackTextPosition, slotY_main-80, `${payoff} points!`, { fontSize: '30px', fill: noteColor, fontstyle: 'bold' }).setOrigin(0.5, 0.5);
 	    	// console.log('individual payoff = ' + this.individual_payoff)
 		}
 		
@@ -225,6 +225,9 @@ class SceneAskStillThere extends Phaser.Scene {
 				}.bind(this),  1 * 400);
 
 			}
+		} else if (indivOrGroup == 0 && !this.didMiss) {
+			// Individual condition, normal choice - just wait for server to proceed
+			waitOthersText = this.add.text(16, 60, 'Please wait...', { fontSize: '30px', fill: '#000', align: "center"});
 		} else if (indivOrGroup == 0 && this.didMiss == true) {
 			// if missed
 			setTimeout(function(){

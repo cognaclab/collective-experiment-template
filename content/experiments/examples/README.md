@@ -12,7 +12,7 @@ This directory contains simple example experiments that you can use to learn fro
 - ✅ Minimal questionnaire
 
 ```bash
-npm run generate quick-test
+npm run generate examples/quick-test
 npm run experiment
 # Visit: http://localhost:8000/?subjectID=test
 ```
@@ -25,7 +25,7 @@ npm run experiment
 - ✅ Good for studying individual learning
 
 ```bash
-npm run generate 2-armed-individual
+npm run generate examples/2-armed-individual
 npm run experiment
 ```
 
@@ -37,7 +37,7 @@ npm run experiment
 - ✅ Group cooperation focus
 
 ```bash
-npm run generate simple-group-task
+npm run generate examples/simple-group-task
 npm run experiment
 # Open 3 tabs with different subjectIDs to test group formation
 ```
@@ -47,9 +47,9 @@ npm run experiment
 ### 1. Generate and Run
 ```bash
 # Generate templates from any example
-npm run generate [example-name]
+npm run generate examples/quick-test
 
-# Run the generated experiment
+# Run the generated experiment (auto-reloads on changes)
 npm run experiment
 ```
 
@@ -64,7 +64,18 @@ npm run generate my-experiment
 npm run experiment
 ```
 
-### 3. Learn from the Structure
+### 3. Rapid Development
+```bash
+# Terminal 1: Auto-regenerate when content changes
+npm run generate:watch examples/quick-test
+
+# Terminal 2: Run experiment (auto-reloads when regenerated)
+npm run experiment
+
+# Now edit YAML/Markdown files and see changes instantly!
+```
+
+### 4. Learn from the Structure
 
 Each example shows you:
 - **config.yaml** - How to configure different experiment types

@@ -3,9 +3,10 @@
 
 const { makeid } = require('../utils/helpers');
 const { createRoom } = require('../utils/roomFactory');
-const { emitParameters } = require('./paramEmitters'); 
+const { emitParameters } = require('./paramEmitters');
 const { startWaitingStageClock } = require('./waitingTimers');
 const { countDown, startSession, reformNewGroups } = require('./sessionManager');
+const { debugExceptions } = require('../../config/constants');
 
 /**
  * Handle 'core is ready'
@@ -51,6 +52,10 @@ function handleCoreReady({ config, client, data, roomStatus, io, countDownMainSt
     if (!client.room) {
       const newRoomName = makeid(7) + `_session_${config.sessionNo + Object.keys(roomStatus).length - 1}`;
       roomStatus[newRoomName] = createRoom({ name: newRoomName });
+      // Set shorter wait time for debug users (10 seconds instead of 120)
+      if (debugExceptions.includes(client.subjectID)) {
+        roomStatus[newRoomName].restTime = 10 * 1000;
+      }
       client.room = newRoomName;
       countDownMainStage[newRoomName] = {};
       countDownWaiting[newRoomName] = {};
@@ -62,6 +67,7 @@ function handleCoreReady({ config, client, data, roomStatus, io, countDownMainSt
     const newRoomName = `${timestamp}_largeLatency_${config.sessionNo + Object.keys(roomStatus).length - 1}`;
     roomStatus[newRoomName] = createRoom({ name: newRoomName });
     roomStatus[newRoomName].horizon = config.horizon; // Ensure horizon is set for individual rooms
+    roomStatus[newRoomName].restTime = 1000; // Individual condition has 1-second wait time (debug shortcut)
     client.room = newRoomName;
     client.subjectNumber = 1;
   }
