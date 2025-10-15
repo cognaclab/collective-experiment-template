@@ -10,10 +10,10 @@ const logger = require('../utils/logger');
 
 class ExperimentLoader {
     constructor(experimentPath = null) {
-        // Default to 'deployed' directory or use environment variable
+        // Default to 'generated' directory or use environment variable
         this.experimentPath = experimentPath ||
                               process.env.EXPERIMENT_PATH ||
-                              path.join(__dirname, '../../deployed');
+                              path.join(__dirname, '../../client/public/src/generated');
 
         this.config = null;
         this.gameConfig = null;

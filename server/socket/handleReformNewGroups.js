@@ -16,7 +16,7 @@ function handleReformNewGroups(client, config, io, countDownWaiting) {
 
 		// Create a new individual room
 		client.indivRoomName = `${config.myMonth}${config.myDate}${config.myHour}${config.myMin}_sessionIndiv_${config.sessionNo + Object.keys(config.roomStatus).length - 1}`;
-		config.roomStatus[client.indivRoomName] = createRoom({ name: client.indivRoomName });
+		config.roomStatus[client.indivRoomName] = createRoom({ name: client.indivRoomName, config });
 
 		// Move client to new individual room
 		client.leave(oldRoom);

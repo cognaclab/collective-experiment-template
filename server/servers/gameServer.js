@@ -25,6 +25,10 @@ const logger = require('../utils/logger');
 const experimentModeHandler = require('../middleware/templateMode');
 const mainJsRouter = require('../middleware/mainJsRouter');
 
+// Config-driven experiment system
+const ExperimentLoader = require('../services/ExperimentLoader');
+const ExperimentContext = require('../services/ExperimentContext');
+
 // Socket event handlers
 const { onConnectioncConfig } = require('../socket/handlerOnConnection');
 const { handleCoreReady } = require('../socket/coreReadyHandler');
@@ -71,28 +75,54 @@ const express = require('express')
 // multi-threading like thing in Node.js
 const {isMainThread, Worker} = require('worker_threads');
 
+// ==========================================
+// Initialize Config-Driven Experiment System
+// ==========================================
+let experimentLoader;
+let experimentContext;
+let loadedConfig;
 
+try {
+	// Load experiment configuration from deployed directory
+	experimentLoader = new ExperimentLoader();
+	experimentLoader.loadConfig();
+	experimentContext = new ExperimentContext(experimentLoader);
+	loadedConfig = experimentLoader.gameConfig;
 
-// Experimental variables
-const horizon = 20 // number of trials
+	logger.info('Config-driven experiment system initialized', {
+		name: experimentLoader.getMetadata().name,
+		strategy: experimentContext.getStrategyName(),
+		horizon: loadedConfig.horizon,
+		k_armed_bandit: loadedConfig.k_armed_bandit
+	});
+} catch (error) {
+	logger.error('Failed to load experiment config - using fallback defaults', {
+		error: error.message
+	});
+	// Fallback to hardcoded defaults if config loading fails
+	loadedConfig = null;
+}
+
+// Experimental variables (use loaded config or fallback to defaults)
+const horizon = loadedConfig ? loadedConfig.horizon : 20 // number of trials
 , sessionNo = 0 // 0 = debug;
-, maxGroupSize = 5 // maximum size per group
-, minGroupSize = parseInt(process.env.MIN_GROUP_SIZE) || 2 // minimal group size below which the session becomes individual tasks
-, maxWaitingTime = config.maxWaitingTime // imported from config/constants.js
-, K = 3 // number of bandit options (k-armed bandit)
-, maxChoiceStageTime = 10 * 1000 //20*1000 // time limit for decision making
+, maxGroupSize = loadedConfig ? loadedConfig.max_group_size : 5 // maximum size per group
+, minGroupSize = loadedConfig ? loadedConfig.min_group_size : (parseInt(process.env.MIN_GROUP_SIZE) || 2)
+, maxWaitingTime = loadedConfig ? loadedConfig.max_waiting_time : config.maxWaitingTime
+, K = loadedConfig ? loadedConfig.k_armed_bandit : 3 // number of bandit options
+, maxChoiceStageTime = loadedConfig ? loadedConfig.max_choice_time : (10 * 1000)
 , maxTimeTestScene = 4 * 60 * 1000 // 4*60*1000
 , task_order = ['static', 'dynamic'] // ramdomized environmental order (2 rounds)
 , changePoints = [17, 29, 45] // trials from which a new env setting starts
-, totalGameRound = 2 // number of rounds
+, totalGameRound = loadedConfig ? loadedConfig.total_game_rounds : 2
 // , exp_condition_list = ['groupPayoff'] //['binary', 'gaussian'] // noise profiles
-, prob_conditions = 1.0// probability of assigning each exp condition 
-, prob_0 = [0.7, 0.4, 0.3] // environment 0 (static)
-, prob_1 = [0.8, 0.3, 0.3] // environment 1
-, prob_2 = [0.3, 0.3, 0.8] // environment 2
-, prob_3 = [0.8, 0.3, 0.3] // environment 3
-, prob_4 = [0.3, 0.8, 0.3] // environment 4
-, position_best_arm = [ // indeces of the best arm's position 
+, prob_conditions = 1.0// probability of assigning each exp condition
+, prob_0 = loadedConfig?.environments?.static?.prob_0 || [0.7, 0.4, 0.3] // environment 0 (static)
+, prob_1 = loadedConfig?.environments?.static?.prob_1 || [0.8, 0.3, 0.3] // environment 1
+, prob_2 = loadedConfig?.environments?.static?.prob_2 || [0.3, 0.3, 0.8] // environment 2
+, prob_3 = loadedConfig?.environments?.static?.prob_3 || [0.8, 0.3, 0.3] // environment 3
+, prob_4 = loadedConfig?.environments?.static?.prob_4 || [0.3, 0.8, 0.3] // environment 4
+, position_best_arm = [ // indeces of the best arm's position
 	indexOfMax(prob_0) // 'indexOfMax' function defined at the bottom
 	, indexOfMax(prob_1)
 	, indexOfMax(prob_2)
@@ -166,8 +196,25 @@ app.use((err, req, res, next) => {
     res.status(500).send('A technical issue happened in the server...😫')
 });
 
+// Create a lightweight config for room creation (before gameConfig is fully built)
+const roomCreationConfig = {
+	maxGroupSize,
+	numOptions: K,
+	maxWaitingTime,
+	maxChoiceStageTime,
+	totalGameRound,
+	minHorizon: config.minHorizon,
+	static_horizons: config.static_horizons,
+	numEnv: config.numEnv,
+	task_order,
+	options,
+	prob_conditions,
+	exp_condition_list: config.exp_condition_list,
+	horizon
+};
+
 // this 'decoyRoom' is where reconnected subjects are sent
-roomStatus['decoyRoom'] = createRoom({ isDecoy: true, name: 'decoyRoom' });
+roomStatus['decoyRoom'] = createRoom({ isDecoy: true, name: 'decoyRoom', config: roomCreationConfig });
 /*
 // OLD MANUAL CREATION - NOW USING createRoom()
 roomStatus['decoyRoom'] = {
@@ -213,7 +260,7 @@ roomStatus['decoyRoom'] = {
 // The following is the first room
 // Therefore, Object.keys(roomStatus).length = 2 right now
 // A new room will be open once this room becomes full
-roomStatus[firstRoomName] = createRoom({ name: firstRoomName });
+roomStatus[firstRoomName] = createRoom({ name: firstRoomName, config: roomCreationConfig });
 
 
 /**
@@ -261,7 +308,11 @@ const gameConfig = {
 	myDate,
 	myHour,
 	myMin,
-	PORT: config.PORT
+	PORT: config.PORT,
+	// Add experiment context and loader for strategy pattern
+	experimentContext,
+	experimentLoader,
+	loadedConfig
 };
 
 /**

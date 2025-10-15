@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title || "Experiment Page" %></title>
+    <link rel="stylesheet" href="/stylesheets/style.css">
+    <% if (typeof additionalCSS !== 'undefined') { %>
+        <% additionalCSS.forEach(function(css) { %>
+            <link rel="stylesheet" href="<%= css %>">
+        <% }); %>
+    <% } %>
+</head>
+<body class="page-page">
+    <div class="container">
+        <h1>Test Complete!</h1>
+<p>Great! The system is working correctly.</p>
+<h2>Quick Question</h2>
+<fieldset>
+<legend>Which option seemed to give more points?</legend>
+<label><input type="radio" name="which_better" value="Option 1 (Left)" required> Option 1 (Left)</label><br>
+<label><input type="radio" name="which_better" value="Option 2 (Right)" required> Option 2 (Right)</label><br>
+<label><input type="radio" name="which_better" value="About the same" required> About the same</label>
+</fieldset>
+
+<textarea name="comments" placeholder="Any issues with the setup? (optional)" rows="2" class="form-control"></textarea>
+        
+        <% if (typeof customContent !== 'undefined') { %>
+            <%- customContent %>
+        <% } %>
+        
+        <% if (typeof formAction !== 'undefined') { %>
+        <form method="POST" action="<%= formAction %>">
+            <% if (typeof hiddenFields !== 'undefined') { %>
+                <% Object.keys(hiddenFields).forEach(function(key) { %>
+                    <input type="hidden" name="<%= key %>" value="<%= hiddenFields[key] %>">
+                <% }); %>
+            <% } %>
+            
+            <% if (typeof submitButton !== 'undefined') { %>
+                <button type="submit" class="btn btn-primary"><%= submitButton %></button>
+            <% } %>
+        </form>
+        <% } %>
+    </div>
+    
+    <% if (typeof additionalJS !== 'undefined') { %>
+        <% additionalJS.forEach(function(js) { %>
+            <script src="<%= js %>"></script>
+        <% }); %>
+    <% } %>
+</body>
+</html>

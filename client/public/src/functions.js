@@ -657,7 +657,9 @@ export function madeChoice (optionLocation, choiceType, optionOrder, reactionTim
         } 
     } else {
         // choiceType == 'groupPayoff'
-        payoffGenerator(optionLocation, thisChoice-1, prob_means[thisChoice-1][currentTrial-1], [prob_means[0][currentTrial-1], prob_means[1][currentTrial-1], prob_means[2][currentTrial-1]], reactionTime);
+        // Build prob_means array dynamically based on number of options
+        const currentTrialProbs = prob_means.map(armProbs => armProbs[currentTrial-1]);
+        payoffGenerator(optionLocation, thisChoice-1, prob_means[thisChoice-1][currentTrial-1], currentTrialProbs, reactionTime);
         // let individual_payoff = payoffGenerator(optionLocation, thisChoice-1, optionsKeyList[thisChoice-1], payoffList[optionsKeyList[thisChoice-1]], probabilityList[optionsKeyList[thisChoice-1]], mySocialInfo);
     }
     // score += individual_payoff;

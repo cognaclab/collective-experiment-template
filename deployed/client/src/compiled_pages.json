@@ -1,0 +1,53 @@
+{
+  "generated": "2025-10-15T07:05:53.390Z",
+  "config": {
+    "experiment": {
+      "name": "Quick Test",
+      "description": "Minimal experiment for testing setup",
+      "author": "Lab Template"
+    },
+    "game": {
+      "horizon": 3,
+      "total_game_rounds": 1,
+      "k_armed_bandit": 2,
+      "max_choice_time": 15000,
+      "max_waiting_time": 2000
+    },
+    "groups": {
+      "max_group_size": 1,
+      "min_group_size": 1
+    },
+    "conditions": {
+      "indivOrGroup": "individual",
+      "taskType": "static",
+      "exp_condition": "quick_test"
+    },
+    "environments": {
+      "static": {
+        "prob_0": [
+          0.9,
+          0.1
+        ]
+      }
+    },
+    "payment": {
+      "flat_fee": 0.5,
+      "completion_fee": 0
+    },
+    "debug": {
+      "subject_exceptions": [
+        "test",
+        "debug",
+        "quicktest"
+      ]
+    }
+  },
+  "pages": {
+    "questionnaire": {
+      "content": "# Test Complete!\n\nGreat! The system is working correctly.\n\n## Quick Question\n\n{radio: which_better, \"Which option seemed to give more points?\", required}\n- Option 1 (Left)\n- Option 2 (Right)\n- About the same\n{/radio}\n\n{textarea: comments, \"Any issues with the setup? (optional)\", rows=2, optional}",
+      "metadata": {},
+      "filename": "questionnaire.md",
+      "generated": "2025-10-15T07:05:53.380Z"
+    }
+  }
+}

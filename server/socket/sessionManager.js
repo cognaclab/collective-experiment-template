@@ -6,26 +6,48 @@ const { createRoom } = require('../utils/roomFactory');
 
 function countDown(room, config, io, countDownWaiting) {
 	const this_n = config.roomStatus[room]['n'];
+	const thisRoom = config.roomStatus[room];
 
 	config.roomStatus[room]['restTime'] -= 500;
 	if (config.roomStatus[room]['restTime'] < 0) {
 		console.log(` - targetGroupSizes ${config.targetGroupSizes} and this_n = ${this_n}`)
-		if ( 
-			// if this_n is not listed as the target group sizes,
-			// they should be regrouped 
-			!config.targetGroupSizes.includes(this_n) && 
-			this_n >= config.minGroupSize 
-		) {
-			reformNewGroups(room, config, io, countDownWaiting, this_n);
-		}
-		else if(
-			this_n < config.minGroupSize && 
-			config.roomStatus[room]['indivOrGroup'] != 0
-		) {
-			config.roomStatus[room]['starting'] = 1;
-			io.to(room).emit('you guys are individual condition');
+
+		// Use strategy pattern if experimentContext is available
+		if (config.experimentContext) {
+			const shouldWait = config.experimentContext.shouldWaitForPlayers(thisRoom);
+
+			if (shouldWait && this_n < config.minGroupSize) {
+				// Below minimum players, switch to individual mode
+				config.roomStatus[room]['starting'] = 1;
+				config.roomStatus[room]['indivOrGroup'] = 0; // Set to individual
+				io.to(room).emit('you guys are individual condition');
+			} else if (
+				!config.targetGroupSizes.includes(this_n) &&
+				this_n >= config.minGroupSize
+			) {
+				// Not target size but above minimum - regroup
+				reformNewGroups(room, config, io, countDownWaiting, this_n);
+			} else {
+				// Ready to start
+				startSession(room, config, io, countDownWaiting);
+			}
 		} else {
-			startSession(room, config, io, countDownWaiting);
+			// Fallback to original logic if no experimentContext
+			if (
+				!config.targetGroupSizes.includes(this_n) &&
+				this_n >= config.minGroupSize
+			) {
+				reformNewGroups(room, config, io, countDownWaiting, this_n);
+			}
+			else if(
+				this_n < config.minGroupSize &&
+				config.roomStatus[room]['indivOrGroup'] != 0
+			) {
+				config.roomStatus[room]['starting'] = 1;
+				io.to(room).emit('you guys are individual condition');
+			} else {
+				startSession(room, config, io, countDownWaiting);
+			}
 		}
 	//clearTimeout(countDownWaiting[room]);
 	} else {
@@ -40,23 +62,43 @@ function startSession (room, config, io, countDownWaiting) {
 		clearTimeout(countDownWaiting[room]);
 	}
 	config.roomStatus[room]['starting'] = 1;
-	if (config.roomStatus[room]['n'] < config.minGroupSize) {
-		config.roomStatus[room]['indivOrGroup'] = 0; // individual condition
+
+	// Use strategy pattern if experimentContext is available
+	if (config.experimentContext) {
+		const thisRoom = config.roomStatus[room];
+		const isReady = config.experimentContext.isRoomReady(thisRoom);
+
+		if (isReady) {
+			// Set indivOrGroup based on strategy
+			if (config.experimentContext.isIndividual()) {
+				config.roomStatus[room]['indivOrGroup'] = 0; // individual
+			} else {
+				config.roomStatus[room]['indivOrGroup'] = 1; // group
+			}
+		} else {
+			// Fallback: not enough players
+			config.roomStatus[room]['indivOrGroup'] = 0;
+		}
 	} else {
-		config.roomStatus[room]['indivOrGroup'] = 1; // group condition
+		// Fallback to original logic
+		if (config.roomStatus[room]['n'] < config.minGroupSize) {
+			config.roomStatus[room]['indivOrGroup'] = 0; // individual condition
+		} else {
+			config.roomStatus[room]['indivOrGroup'] = 1; // group condition
+		}
 	}
 
 	const room_n = config.roomStatus[room]['n'];
-	io.to(room).emit('this room gets started', 
+	io.to(room).emit('this room gets started',
 		{room: room
 		, n: room_n
 		, exp_condition: config.roomStatus[room]['exp_condition']
 		, indivOrGroup: config.roomStatus[room]['indivOrGroup']
 		, optionOrder: config.roomStatus[room]['optionOrder']
 		, maxChoiceStageTime: config.maxChoiceStageTime
-		, taskOrder: config.roomStatus[room]['taskOrder'] 
-		, horizon: config.roomStatus[room]['horizon'] 
-		, taskType: config.roomStatus[room]['taskType'] 
+		, taskOrder: config.roomStatus[room]['taskOrder']
+		, horizon: config.roomStatus[room]['horizon']
+		, taskType: config.roomStatus[room]['taskType']
 	});
 	console.log(` - session started in ${room} (n = ${room_n})`);
 }
@@ -75,9 +117,9 @@ function reformNewGroups (room, config, io, countDownWaiting, this_n) {
 	const newRoomName_1 = makeid(7) + `_room_${config.sessionNo + Object.keys(config.roomStatus).length - 1}`;
 	const newRoomName_2 = makeid(7) + `_room_${config.sessionNo + Object.keys(config.roomStatus).length }`;
 	const newRoomName_3 = makeid(7) + `_room_${config.sessionNo + Object.keys(config.roomStatus).length + 1}`;
-	config.roomStatus[newRoomName_1] = createRoom({ name: newRoomName_1 });
-	config.roomStatus[newRoomName_2] = createRoom({ name: newRoomName_2 });
-	config.roomStatus[newRoomName_3] = createRoom({ name: newRoomName_3 });
+	config.roomStatus[newRoomName_1] = createRoom({ name: newRoomName_1, config });
+	config.roomStatus[newRoomName_2] = createRoom({ name: newRoomName_2, config });
+	config.roomStatus[newRoomName_3] = createRoom({ name: newRoomName_3, config });
 	// to avoid new participants arriving
 	config.roomStatus[newRoomName_1]['starting'] = 1; 
 	config.roomStatus[newRoomName_2]['starting'] = 1;

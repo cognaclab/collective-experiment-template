@@ -1,7 +1,7 @@
 'use strict';
 // utils/roomFactory.js
 
-const { 
+const {
     createArray
     , createArrayOfEmptyArrays
     , createNestedFilledArray
@@ -9,27 +9,33 @@ const {
     , getRandomIntInclusive
     , shuffle
     , shuffleAndTakeFirst
-    , weightedRand2 
-} = require('./helpers'); 
-const {
-    maxGroupSize,
-    numOptions,
-    maxWaitingTime,
-    maxChoiceStageTime,
-    totalGameRound,
-    minHorizon,
-    static_horizons,
-    numEnv,
-    taskList,
-    task_order,
-    options,
-    prob_conditions,
-    exp_condition_list
-} = require('../../config/constants'); 
+    , weightedRand2
+} = require('./helpers');
+const constants = require('../../config/constants');
 
-const totalHorizon = minHorizon * numEnv;
+/**
+ * Create a room with configuration
+ * @param {Object} options - Room creation options
+ * @param {boolean} options.isDecoy - Whether this is a decoy room
+ * @param {string} options.name - Room name
+ * @param {Object} options.config - Game configuration (optional, uses constants as fallback)
+ */
+function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null } = {}) {
+    // Use provided config or fall back to constants
+    const maxGroupSize = config?.maxGroupSize || constants.maxGroupSize;
+    const numOptions = config?.numOptions || constants.numOptions;
+    const maxWaitingTime = config?.maxWaitingTime || constants.maxWaitingTime;
+    const maxChoiceStageTime = config?.maxChoiceStageTime || constants.maxChoiceStageTime;
+    const totalGameRound = config?.totalGameRound || constants.totalGameRound;
+    const minHorizon = config?.minHorizon || constants.minHorizon;
+    const static_horizons = config?.static_horizons || constants.static_horizons;
+    const numEnv = config?.numEnv || constants.numEnv;
+    const task_order = config?.task_order || constants.task_order;
+    const options = config?.options || constants.options;
+    const prob_conditions = config?.prob_conditions || constants.prob_conditions;
+    const exp_condition_list = config?.exp_condition_list || constants.exp_condition_list;
 
-function createRoom({ isDecoy = false, name = 'unnamedRoom' } = {}) {
+    const totalHorizon = minHorizon * numEnv;
     const taskOrder = shuffle(task_order);
     const taskType = taskOrder[0];//shuffleAndTakeFirst(taskList);
 

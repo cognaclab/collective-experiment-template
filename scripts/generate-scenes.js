@@ -118,6 +118,15 @@ class SceneGenerator {
             process.exit(1);
         }
 
+        // Check if output directory exists and has files - prompt for confirmation
+        if (await this.shouldPromptForOverwrite()) {
+            const confirmed = await this.promptForConfirmation();
+            if (!confirmed) {
+                console.log('❌ Generation cancelled by user');
+                process.exit(0);
+            }
+        }
+
         try {
             // Ensure output directory exists
             this.ensureDirectoryExists(this.outputDir);
@@ -148,7 +157,10 @@ class SceneGenerator {
             // Save compiled data
             this.saveCompiledScenes();
             this.saveCompiledPages();
-            
+
+            // Copy config.yaml to generated directory
+            this.copyConfigToGenerated();
+
             console.log('✅ Scene and page generation completed successfully!');
             
         } catch (error) {
@@ -673,8 +685,77 @@ export default ExperimentFlow;
         console.log('💾 Saved compiled pages data');
     }
 
+    /**
+     * Copy config.yaml to generated directory
+     */
+    copyConfigToGenerated() {
+        const sourceConfig = path.join(this.contentDir, 'config.yaml');
+        const destConfig = path.join(this.outputDir, 'config.yaml');
+
+        if (!fs.existsSync(sourceConfig)) {
+            console.warn('⚠️  Warning: config.yaml not found in experiment directory');
+            return;
+        }
+
+        try {
+            fs.copyFileSync(sourceConfig, destConfig);
+            console.log('📋 Copied config.yaml to generated directory');
+        } catch (error) {
+            console.error('❌ Failed to copy config.yaml:', error.message);
+        }
+    }
+
     toPascalCase(str) {
         return str.replace(/(?:^|_)(.)/g, (_, char) => char.toUpperCase());
+    }
+
+    /**
+     * Check if we should prompt for overwrite confirmation
+     * Returns true if output directory exists and contains files
+     */
+    async shouldPromptForOverwrite() {
+        // Check if output directory exists
+        if (!fs.existsSync(this.outputDir)) {
+            return false;
+        }
+
+        // Check if it has any files (excluding .gitkeep)
+        try {
+            const files = fs.readdirSync(this.outputDir);
+            const hasFiles = files.some(f => f !== '.gitkeep' && f !== '.DS_Store');
+            return hasFiles;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    /**
+     * Prompt user for confirmation to overwrite existing files
+     * Returns true if user confirms (y/Y), false otherwise
+     */
+    async promptForConfirmation() {
+        const readline = require('readline');
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+
+        return new Promise((resolve) => {
+            console.log('');
+            console.log('⚠️  WARNING: Generated files already exist in client/public/src/generated/');
+            console.log('⚠️  This will overwrite existing generated files.');
+            console.log('⚠️  Make sure your source files in content/experiments/ are up to date.');
+            console.log('');
+            rl.question('Overwrite existing files? (y/N): ', (answer) => {
+                rl.close();
+                const confirmed = answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+                if (confirmed) {
+                    console.log('✅ Proceeding with generation...');
+                    console.log('');
+                }
+                resolve(confirmed);
+            });
+        });
     }
 }
 
