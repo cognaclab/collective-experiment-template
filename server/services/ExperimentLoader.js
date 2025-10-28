@@ -17,6 +17,7 @@ class ExperimentLoader {
 
         this.config = null;
         this.gameConfig = null;
+        this.sequence = null;
     }
 
     /**
@@ -174,6 +175,45 @@ class ExperimentLoader {
             description: this.config.experiment.description,
             author: this.config.experiment.author
         };
+    }
+
+    /**
+     * Load experiment sequence from sequences/main.yaml
+     * This is needed for server-controlled flow
+     */
+    loadSequence() {
+        try {
+            const sequencePath = path.join(this.experimentPath, 'sequences', 'main.yaml');
+
+            if (!fs.existsSync(sequencePath)) {
+                throw new Error(`Sequence file not found at: ${sequencePath}`);
+            }
+
+            const sequenceContent = fs.readFileSync(sequencePath, 'utf8');
+            this.sequence = yaml.load(sequenceContent);
+
+            logger.info('Experiment sequence loaded successfully', {
+                scenes: this.sequence.sequence ? this.sequence.sequence.length : 0
+            });
+
+            return this.sequence;
+        } catch (error) {
+            logger.error('Failed to load experiment sequence', {
+                path: this.experimentPath,
+                error: error.message
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Get the sequence array
+     */
+    getSequence() {
+        if (!this.sequence) {
+            throw new Error('Sequence not loaded. Call loadSequence() first.');
+        }
+        return this.sequence.sequence;
     }
 }
 

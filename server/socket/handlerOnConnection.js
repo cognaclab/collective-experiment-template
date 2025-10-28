@@ -21,6 +21,45 @@ function onConnectioncConfig({ config, client, io }) {
         client.session = client.id; // assign new session
         client.join(client.session);
         config.sessionNameSpace[client.session] = 1;
+
+        // For individual experiments, assign to a room immediately
+        // This enables server-controlled flow to work without waiting for 'core is ready'
+        if (config.experimentLoader && config.experimentLoader.gameConfig) {
+            const mode = config.experimentLoader.gameConfig.mode;
+            if (mode === 'individual') {
+                // Create individual room for this client
+                client.room = client.session; // Use session as room name
+                client.join(client.room);
+
+                // Initialize room in roomStatus if it doesn't exist
+                if (!config.roomStatus[client.room]) {
+                    const { createRoom } = require('../utils/roomFactory');
+                    config.roomStatus[client.room] = createRoom({
+                        name: client.room,
+                        config: {
+                            maxGroupSize: 1,
+                            numOptions: config.experimentLoader.gameConfig.k_armed_bandit,
+                            maxWaitingTime: config.experimentLoader.gameConfig.max_waiting_time,
+                            maxChoiceStageTime: config.experimentLoader.gameConfig.max_choice_time,
+                            totalGameRound: config.experimentLoader.gameConfig.total_game_rounds,
+                            minHorizon: config.minHorizon,
+                            static_horizons: config.static_horizons,
+                            numEnv: config.numEnv,
+                            task_order: [],
+                            options: Array.from({length: config.experimentLoader.gameConfig.k_armed_bandit}, (_, i) => i + 1),
+                            prob_conditions: 1.0,
+                            exp_condition_list: config.exp_condition_list,
+                            horizon: config.experimentLoader.gameConfig.horizon
+                        }
+                    });
+                    config.roomStatus[client.room].n = 1; // Set group size to 1
+                    config.roomStatus[client.room].membersID = [client.subjectID];
+                }
+
+                console.log(`- Room ${client.room} assigned for individual experiment (n=1)`);
+            }
+        }
+
         console.log(`- Exp. ID ${client.session} assigned to ${client.subjectID}`);
 
     // Case 2: Reconnection from a completed session

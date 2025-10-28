@@ -184,14 +184,22 @@ class SceneTemplate extends Phaser.Scene {
     handleNext() {
         if (this.onComplete) {
             this.onComplete.call(this);
-        } else if (window.experimentFlow) {
-            const currentKey = this.scene.key;
+        } else if (window.socket && window.experimentFlow) {
+            // Use contentKey (YAML scene identifier) instead of scene.key (Phaser scene name)
+            // e.g., "welcome" instead of "SceneWelcome"
+            const sceneIdentifier = this.contentKey || this.scene.key;
+
             // Clean shutdown of this scene before transitioning
             this.scene.stop();
-            // Then let ExperimentFlow handle the transition
-            window.experimentFlow.next(currentKey);
+
+            // Server-controlled flow: Notify server that scene is complete
+            // Server will coordinate with all players and tell us which scene to start next
+            window.socket.emit('scene_complete', {
+                scene: sceneIdentifier,
+                sequence: window.experimentFlow.sequence
+            });
         } else {
-            console.warn('ExperimentFlow not available');
+            console.warn('Socket or ExperimentFlow not available');
         }
     }
 

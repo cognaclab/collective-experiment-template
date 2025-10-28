@@ -140,13 +140,17 @@ class SceneResultFeedback extends Phaser.Scene {
                 this.timeLeft --;
 
                 if(this.timeLeft < 0){
-                    // currentChoiceFlag = -1
-                    // for (let i=1; i<numOptions+1; i++) {
-                    // 	objects_resultStage['box'+i].visible = false;
-                    // }
-					socket.emit('result feedback ended',
-						{thisTrial: currentTrial}
-					);
+					if (window.socket && window.experimentFlow) {
+						window.socket.emit('scene_complete', {
+							scene: 'SceneResultFeedback',
+							sequence: window.experimentFlow.sequence
+						});
+					} else {
+						socket.emit('result feedback ended',
+							{thisTrial: currentTrial}
+						);
+					}
+
 					isWaiting = false;
 					gameTimer.destroy();
                 }

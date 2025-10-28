@@ -158,8 +158,9 @@ class SceneGenerator {
             this.saveCompiledScenes();
             this.saveCompiledPages();
 
-            // Copy config.yaml to generated directory
+            // Copy config.yaml and sequences to generated directory
             this.copyConfigToGenerated();
+            this.copySequencesToGenerated();
 
             // Generate custom main-generated.js with only required scenes
             this.generateMainJs();
@@ -594,14 +595,26 @@ class ExperimentFlow {
         this.sequence = ${JSON.stringify(this.sequences.sequence, null, 8)};
         this.currentSceneIndex = 0;
         this.sceneHistory = [];
+        this.preloadComplete = false;
     }
 
     start() {
+        // Start with preload scene to load all assets
+        console.log('ExperimentFlow: Starting asset preload');
+        this.game.scene.start('ScenePreload');
+    }
+
+    onPreloadComplete() {
+        // Called by ScenePreload when assets are loaded
+        this.preloadComplete = true;
+        console.log('ExperimentFlow: Preload complete, starting first scene');
+
+        // Start the actual first scene
         const firstScene = this.sequence[0];
         this.startScene(firstScene);
     }
 
-    startScene(sceneConfig) {
+    startScene(sceneConfig, sceneData = {}) {
         console.log('ExperimentFlow: Starting scene:', sceneConfig.scene);
 
         // Store in history
@@ -643,11 +656,15 @@ class ExperimentFlow {
             }
         });
 
-        // Start the scene
-        this.game.scene.start(sceneKey, {
+        // Start the scene with combined data
+        // Merge sceneConfig and sceneData for backward compatibility
+        const initData = {
             sceneConfig: sceneConfig,
-            flow: this
-        });
+            flow: this,
+            ...sceneData  // Spread sceneData so scene.init() receives it directly
+        };
+
+        this.game.scene.start(sceneKey, initData);
     }
 
     next(currentSceneKey) {
@@ -738,6 +755,36 @@ export default ExperimentFlow;
         }
     }
 
+    copySequencesToGenerated() {
+        const sourceSequencesDir = path.join(this.contentDir, 'sequences');
+        const destSequencesDir = path.join(this.outputDir, 'sequences');
+
+        if (!fs.existsSync(sourceSequencesDir)) {
+            console.warn('⚠️  Warning: sequences directory not found in experiment directory');
+            return;
+        }
+
+        try {
+            // Create sequences directory if it doesn't exist
+            if (!fs.existsSync(destSequencesDir)) {
+                fs.mkdirSync(destSequencesDir, { recursive: true });
+            }
+
+            // Copy main.yaml
+            const sourceMainYaml = path.join(sourceSequencesDir, 'main.yaml');
+            const destMainYaml = path.join(destSequencesDir, 'main.yaml');
+
+            if (fs.existsSync(sourceMainYaml)) {
+                fs.copyFileSync(sourceMainYaml, destMainYaml);
+                console.log('📋 Copied sequences/main.yaml to generated directory');
+            } else {
+                console.warn('⚠️  Warning: sequences/main.yaml not found');
+            }
+        } catch (error) {
+            console.error('❌ Failed to copy sequences:', error.message);
+        }
+    }
+
     toPascalCase(str) {
         // Capitalize first letter and any letter after underscore
         return str.charAt(0).toUpperCase() + str.slice(1).replace(/_(.)/g, (_, char) => char.toUpperCase());
@@ -769,10 +816,13 @@ export default ExperimentFlow;
      */
     getRequiredExampleScenes() {
         if (!this.sequences || !this.sequences.sequence) {
-            return [];
+            return ['ScenePreload']; // Always include preload scene
         }
 
         const requiredScenes = new Set();
+
+        // Always include ScenePreload first
+        requiredScenes.add('ScenePreload');
 
         this.sequences.sequence.forEach(sceneConfig => {
             // Skip instruction type as they're auto-generated
@@ -855,8 +905,25 @@ async function loadTemplateSystem() {
     }
 }
 
+// Wait for socket to be available before initializing experiment
+// This handles the race condition between ES6 module loading and global_values.js script
+function waitForSocket(callback, maxAttempts = 50, attempt = 0) {
+    if (window.socket) {
+        console.log('✅ Socket available, initializing experiment');
+        callback();
+    } else if (attempt < maxAttempts) {
+        console.log(\`⏳ Waiting for socket... (attempt \${attempt + 1}/\${maxAttempts})\`);
+        setTimeout(() => waitForSocket(callback, maxAttempts, attempt + 1), 100);
+    } else {
+        console.error('❌ Socket failed to initialize after', maxAttempts, 'attempts');
+        console.error('⚠️  Server-controlled flow will not work without socket connection');
+        callback(); // Proceed anyway but flow will be broken
+    }
+}
+
 // Initialize experiment
 loadTemplateSystem().then(({ scenesData, generatedSceneImports }) => {
+    waitForSocket(() => {
     // Combine generated scenes with required example scenes
     const allScenes = [
         ...generatedSceneImports,
@@ -904,8 +971,65 @@ ${exampleScenesList}
     console.log('🎮 Dynamic experiment loaded:', generatedSceneImports.length, 'generated +', ${requiredScenes.length}, 'example scenes');
     console.log('📋 Example scenes:', ${JSON.stringify(requiredScenes)});
 
-    // Start experiment flow
-    experimentFlow.start();
+    // ===== Server-Controlled Flow Socket Listeners =====
+    // Listen for server instructions to start specific scenes
+    if (window.socket) {
+        // Initialize experiment parameters (global variables for SceneMain)
+        window.socket.on('init_experiment_params', (params) => {
+            console.log('Initializing experiment parameters:', params);
+
+            // Set global variables needed by game scenes (declared in global_values.js)
+            numOptions = params.numOptions;
+            maxChoiceStageTime = params.maxChoiceStageTime;
+            indivOrGroup = params.indivOrGroup;
+            exp_condition = params.exp_condition;
+            prob_means = params.prob_means;
+            horizon = params.horizon;
+
+            // Calculate positions based on number of options
+            const calculated_space = params.numOptions === 2 ? 350 : 185;
+            const calculated_position = params.numOptions === 2 ? 225 : 122.5;
+
+            space_between_boxes = calculated_space;
+            option1_positionX = calculated_position;
+            optionOrder = params.optionOrder || Array.from({length: params.numOptions}, (_, i) => i);
+
+            console.log('Parameters initialized - numOptions:', numOptions, 'prob_means:', prob_means, 'horizon:', horizon);
+        });
+
+        // Server tells client which scene to start next
+        window.socket.on('start_scene', (data) => {
+            console.log('🎬 Server instructed to start scene:', data.scene);
+            const sceneConfig = data.sceneConfig;
+            const sceneData = data.sceneData;
+
+            if (sceneConfig) {
+                experimentFlow.startScene(sceneConfig, sceneData);
+            } else {
+                console.error('No scene config provided by server');
+            }
+        });
+
+        // Server redirects to a page (e.g., completion)
+        window.socket.on('redirect', (data) => {
+            console.log('🔀 Server instructed redirect to:', data.url);
+            window.location.href = data.url;
+        });
+
+        // Experiment completed
+        window.socket.on('experiment_complete', (data) => {
+            console.log('✅ Experiment complete:', data.message);
+            // Could show a completion message or automatically redirect
+        });
+
+        console.log('📡 Server-controlled flow listeners registered');
+    } else {
+        console.warn('⚠️  Socket not available - server-controlled flow disabled');
+    }
+
+        // Start experiment flow
+        experimentFlow.start();
+    });
 });
 `;
 

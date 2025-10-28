@@ -40,6 +40,7 @@ const { handleDataFromIndiv } = require('../socket/handleDataFromIndiv');
 const { handleResultFeedbackEnded } = require('../socket/handleResultFeedbackEnded');
 const { handleNewGameRoundReady } = require('../socket/handleNewGameRoundReady');
 const { handleDisconnect } = require('../socket/handleDisconnect');
+const handleSceneComplete = require('../socket/handleSceneComplete');
 
 // Session management utilities
 const { countDown, startSession, reformNewGroups } = require('../socket/sessionManager');
@@ -86,6 +87,7 @@ try {
 	// Load experiment configuration from deployed directory
 	experimentLoader = new ExperimentLoader();
 	experimentLoader.loadConfig();
+	experimentLoader.loadSequence(); // Load sequence for server-controlled flow
 	experimentContext = new ExperimentContext(experimentLoader);
 	loadedConfig = experimentLoader.gameConfig;
 
@@ -93,7 +95,8 @@ try {
 		name: experimentLoader.getMetadata().name,
 		strategy: experimentContext.getStrategyName(),
 		horizon: loadedConfig.horizon,
-		k_armed_bandit: loadedConfig.k_armed_bandit
+		k_armed_bandit: loadedConfig.k_armed_bandit,
+		sequenceScenes: experimentLoader.sequence?.sequence?.length || 0
 	});
 } catch (error) {
 	logger.error('Failed to load experiment config - using fallback defaults', {
@@ -397,6 +400,13 @@ io.on('connection', function (client) {
 	client.on('new gameRound ready', function(data) {
 		firstTrialStartingTimeRef[client.room] = new Date();
 		handleNewGameRoundReady(client, data, gameConfig, io, firstTrialStartingTimeRef);
+	});
+
+	// ===== Event Handler: 'scene_complete' =====
+	// Server-controlled flow: Client notifies server when scene is complete
+	// Server coordinates across all players and instructs which scene to start next
+	client.on('scene_complete', function(data) {
+		handleSceneComplete(client, data, gameConfig, io);
 	});
 
 	// ===== Event Handler: 'disconnect' =====

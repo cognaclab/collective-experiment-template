@@ -8,7 +8,11 @@ sequence:
     type: "game"
     environment: "static"
     trials: 3
-    next: "SceneGoToQuestionnaire"
+    next: "SceneResultFeedback"
+
+  - scene: "SceneResultFeedback"
+    type: "feedback"
+    next: "SceneMain"
 
   - scene: "SceneGoToQuestionnaire"
     type: "questionnaire"

@@ -29,7 +29,8 @@ class SceneMain extends Phaser.Scene {
 
 	create(){
 
-		// console.log('scene main: gameRound = ' + this.gameRound + ' trial = ' + this.trial)
+		console.log('SceneMain.create() - gameRound:', this.gameRound, 'trial:', this.trial, 'horizon:', this.horizon);
+		console.log('SceneMain.create() - numOptions:', numOptions, 'space:', space_between_boxes, 'position:', option1_positionX);
 		// console.log('scene main: social info = ' + this.mySocialInfo)
 		// console.log('scene main: groupCumulativePayoff = ' + this.groupCumulativePayoff)
 
@@ -51,9 +52,11 @@ class SceneMain extends Phaser.Scene {
 
 		// Creating options
 	    for (let i=1; i<numOptions+1; i++) {
-			// console.log('creating machine'+(i + numOptions*this.gameRound)+'_normal');
-	    	options['box'+i] = this.add.sprite(option1_positionX+space_between_boxes*(i-1), slotY_main, 'machine'+(i + numOptions*this.gameRound)+'_normal');
-	    	options['box_active'+i] = this.add.sprite(option1_positionX+space_between_boxes*(i-1), slotY_main, 'machine'+(i + numOptions*this.gameRound)+'_active');
+			const machineKey = 'machine'+(i + numOptions*this.gameRound)+'_normal';
+			const machineActiveKey = 'machine'+(i + numOptions*this.gameRound)+'_active';
+			console.log('Creating machine sprites - normal:', machineKey, 'active:', machineActiveKey);
+	    	options['box'+i] = this.add.sprite(option1_positionX+space_between_boxes*(i-1), slotY_main, machineKey);
+	    	options['box_active'+i] = this.add.sprite(option1_positionX+space_between_boxes*(i-1), slotY_main, machineActiveKey);
 	    	options['box'+i].setDisplaySize(optionWidth, optionHeight).setInteractive({ cursor: 'pointer' });
 	    	options['box_active'+i].setDisplaySize(optionWidth, optionHeight).setInteractive({ cursor: 'pointer' });
 	    	options['box_active'+i].visible = false;
@@ -182,6 +185,13 @@ class SceneMain extends Phaser.Scene {
 							this.waitingText = this.add.text(configWidth/2, configHeight/2 - 100, 'Please wait...',
 								{ fontSize: '30px', fill: '#000', align: "center" }).setOrigin(0.5);
 						}
+					}
+
+					if (window.socket && window.experimentFlow) {
+						window.socket.emit('scene_complete', {
+							scene: 'SceneMain',
+							sequence: window.experimentFlow.sequence
+						});
 					}
 		    	}
 		    }, this);
