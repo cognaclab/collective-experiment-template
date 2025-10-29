@@ -83,6 +83,157 @@ class ExperimentLoader {
                 throw new Error(`Missing required game config field: ${field}`);
             }
         }
+
+        // Validate environment probabilities
+        this.validateEnvironmentProbabilities();
+    }
+
+    /**
+     * Validate environment probability configurations
+     * Checks that probability arrays match the number of machines (k_armed_bandit)
+     */
+    validateEnvironmentProbabilities() {
+        const numMachines = this.config.game.k_armed_bandit;
+        const environments = this.config.environments;
+
+        if (!environments) {
+            throw new Error('No environments defined in configuration');
+        }
+
+        for (const [envName, envConfig] of Object.entries(environments)) {
+            // Check if using new array format
+            if (envConfig.probabilities) {
+                if (!Array.isArray(envConfig.probabilities)) {
+                    throw new Error(
+                        `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                        `Environment '${envName}': 'probabilities' must be an array!\n` +
+                        `  Got: ${typeof envConfig.probabilities}\n` +
+                        `  Expected: Array of ${numMachines} probabilities\n` +
+                        `  Example: probabilities: [0.9, 0.1]\n\n` +
+                        `Location: config.yaml\n` +
+                        `Section: environments.${envName}`
+                    );
+                }
+
+                if (envConfig.probabilities.length !== numMachines) {
+                    throw new Error(
+                        `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                        `Environment '${envName}': Probability length mismatch!\n` +
+                        `  Expected: ${numMachines} probabilities (k_armed_bandit: ${numMachines})\n` +
+                        `  Got: ${envConfig.probabilities.length} probabilities: [${envConfig.probabilities.join(', ')}]\n` +
+                        `  Fix: Adjust array length to match k_armed_bandit setting\n\n` +
+                        `Location: config.yaml\n` +
+                        `Section: environments.${envName}`
+                    );
+                }
+
+                // Validate each probability is between 0 and 1
+                for (let i = 0; i < envConfig.probabilities.length; i++) {
+                    const prob = envConfig.probabilities[i];
+                    if (typeof prob !== 'number' || prob < 0 || prob > 1) {
+                        throw new Error(
+                            `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                            `Environment '${envName}': Invalid probability value!\n` +
+                            `  Machine ${i}: ${prob}\n` +
+                            `  Probabilities must be numbers between 0 and 1\n` +
+                            `  Example: 0.9 means 90% chance of reward\n\n` +
+                            `Location: config.yaml\n` +
+                            `Section: environments.${envName}.probabilities[${i}]`
+                        );
+                    }
+                }
+            }
+            // Check if using old prob_0, prob_1 format
+            else {
+                // Count how many prob_X keys exist
+                const probKeys = Object.keys(envConfig).filter(key => key.startsWith('prob_'));
+
+                if (probKeys.length === 0) {
+                    throw new Error(
+                        `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                        `Environment '${envName}': No probabilities defined!\n` +
+                        `  Please use one of these formats:\n\n` +
+                        `  New format (recommended):\n` +
+                        `    probabilities: [0.9, 0.1]\n\n` +
+                        `  Old format (legacy):\n` +
+                        `    prob_0: 0.9\n` +
+                        `    prob_1: 0.1\n\n` +
+                        `Location: config.yaml\n` +
+                        `Section: environments.${envName}`
+                    );
+                }
+
+                if (probKeys.length !== numMachines) {
+                    throw new Error(
+                        `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                        `Environment '${envName}': Probability count mismatch!\n` +
+                        `  Expected: ${numMachines} probabilities (k_armed_bandit: ${numMachines})\n` +
+                        `  Got: ${probKeys.length} probabilities: ${probKeys.join(', ')}\n` +
+                        `  Fix: Add/remove prob_X entries to match k_armed_bandit\n\n` +
+                        `  Consider using new format:\n` +
+                        `    probabilities: [0.9, 0.1]\n\n` +
+                        `Location: config.yaml\n` +
+                        `Section: environments.${envName}`
+                    );
+                }
+
+                // Validate each prob_X value
+                for (let i = 0; i < numMachines; i++) {
+                    const probKey = `prob_${i}`;
+                    const prob = envConfig[probKey];
+
+                    if (prob === undefined) {
+                        throw new Error(
+                            `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                            `Environment '${envName}': Missing probability!\n` +
+                            `  Missing: ${probKey}\n` +
+                            `  Found: ${probKeys.join(', ')}\n` +
+                            `  All prob_X keys must be sequential (prob_0, prob_1, ...)\n\n` +
+                            `Location: config.yaml\n` +
+                            `Section: environments.${envName}`
+                        );
+                    }
+
+                    if (typeof prob !== 'number' || prob < 0 || prob > 1) {
+                        throw new Error(
+                            `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                            `Environment '${envName}': Invalid probability value!\n` +
+                            `  ${probKey}: ${prob}\n` +
+                            `  Probabilities must be numbers between 0 and 1\n` +
+                            `  Example: 0.9 means 90% chance of reward\n\n` +
+                            `Location: config.yaml\n` +
+                            `Section: environments.${envName}.${probKey}`
+                        );
+                    }
+                }
+            }
+        }
+
+        logger.info('Environment probability validation passed', {
+            environments: Object.keys(environments).length,
+            numMachines
+        });
+    }
+
+    /**
+     * Normalize environment probabilities to consistent array format
+     * Supports both old (prob_0, prob_1) and new (probabilities: []) formats
+     */
+    normalizeEnvironmentProbabilities(envConfig) {
+        const numMachines = this.config.game.k_armed_bandit;
+
+        // If already using new format, return as-is
+        if (envConfig.probabilities) {
+            return envConfig.probabilities;
+        }
+
+        // Convert old format to array
+        const probArray = [];
+        for (let i = 0; i < numMachines; i++) {
+            probArray.push(envConfig[`prob_${i}`]);
+        }
+
+        return probArray;
     }
 
     /**
@@ -150,13 +301,14 @@ class ExperimentLoader {
 
     /**
      * Get environment probabilities for a specific environment
+     * Returns normalized array format regardless of config format
      */
     getEnvironmentProbs(envName) {
         const env = this.config.environments[envName];
         if (!env) {
             throw new Error(`Environment not found: ${envName}`);
         }
-        return env;
+        return this.normalizeEnvironmentProbabilities(env);
     }
 
     /**

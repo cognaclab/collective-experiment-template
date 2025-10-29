@@ -17,7 +17,6 @@ sequence:
   - scene: SceneMain
     type: game
     environment: static
-    trials: 50
     next: SceneGoToQuestionnaire
 
   - scene: SceneGoToQuestionnaire

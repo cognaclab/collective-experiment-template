@@ -623,7 +623,8 @@ export function showPublicInfo (shared_payoff, shared_option_position, socialInf
 }
 
 // madeChoice
-export function madeChoice (optionLocation, choiceType, optionOrder, reactionTime) {
+export function madeChoice (optionLocation, choiceType, optionOrder, reactionTime, trial = null) {
+    const thisTrial = trial !== null ? trial : currentTrial;
 
     let thisChoice;
     if (optionLocation == -1) {
@@ -643,33 +644,37 @@ export function madeChoice (optionLocation, choiceType, optionOrder, reactionTim
         payoff = 0;
         // didShare = 0;
         if (indivOrGroup > -1) { // if don't want to send indiv data, indivOrGroup == 1
-            // socket.emit('choice made', 
+            // socket.emit('choice made',
             //     {chosenOptionFlag:-1 // chosen option's id
             //         , num_choice: -1 // miss == -1
             //         , individual_payoff: 0
             //         , subjectNumber: subjectNumber
-            //         , thisTrial: currentTrial
+            //         , thisTrial: thisTrial
             //     });
-            socket.emit('miss this trial', 
+            socket.emit('miss this trial',
                 {subjectNumber: subjectNumber
-                ,    thisTrial: currentTrial
+                ,    thisTrial: thisTrial
                 });
-        } 
+        }
     } else {
         // choiceType == 'groupPayoff'
         // Build prob_means array dynamically based on number of options
-        const currentTrialProbs = prob_means.map(armProbs => armProbs[currentTrial-1]);
-        payoffGenerator(optionLocation, thisChoice-1, prob_means[thisChoice-1][currentTrial-1], currentTrialProbs, reactionTime);
+        const currentTrialProbs = prob_means.map(armProbs => armProbs[thisTrial-1]);
+        // Use thisChoice (machine ID) to index prob_means, not optionLocation (screen position)
+        // prob_means is indexed by machine ID - probabilities stay with machines even when positions shuffle
+        payoffGenerator(optionLocation, thisChoice-1, prob_means[thisChoice-1][thisTrial-1], currentTrialProbs, reactionTime, thisTrial);
         // let individual_payoff = payoffGenerator(optionLocation, thisChoice-1, optionsKeyList[thisChoice-1], payoffList[optionsKeyList[thisChoice-1]], probabilityList[optionsKeyList[thisChoice-1]], mySocialInfo);
     }
     // score += individual_payoff;
     // scoreText.setText('Total score: ' + score);
     // payoffText.setText(payoff);
     // payoffText.visible = true;
-    trialText.setText(' - Current trial: ' + currentTrial + ' / ' + horizon);
+    trialText.setText(' - Current trial: ' + thisTrial + ' / ' + horizon);
 }
 
-export function payoffGenerator(chosenOptionLocation, num_choice, payoffProb, prob_means, reactionTime) {
+export function payoffGenerator(chosenOptionLocation, num_choice, payoffProb, prob_means, reactionTime, trial = null) {
+    const thisTrial = trial !== null ? trial : currentTrial;
+
     let roulette = Math.random()
     let this_individual_payoff
     if (payoffProb >= roulette) { // reward event
@@ -679,14 +684,14 @@ export function payoffGenerator(chosenOptionLocation, num_choice, payoffProb, pr
         this_individual_payoff = 0;
         myChoices.push(num_choice);
     }
-    
+
     myLastChoiceFlag = chosenOptionLocation;
-    socket.emit('choice made', 
+    socket.emit('choice made',
         {chosenOptionLocation: chosenOptionLocation // location of the chosen option
             , num_choice: num_choice // chosen option's id
             , individual_payoff: this_individual_payoff
             , subjectNumber: subjectNumber
-            , thisTrial: currentTrial
+            , thisTrial: thisTrial
             , miss: false
             , prob_means: prob_means
             , reactionTime: reactionTime

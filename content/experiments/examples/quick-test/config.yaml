@@ -4,7 +4,7 @@ experiment:
   author: "Lab Template"
 
 game:
-  horizon: 3                  # Just 3 trials
+  horizon: 5                  # 5 trials for testing
   total_game_rounds: 1        # One round only
   k_armed_bandit: 2          # 2 options
   max_choice_time: 15000     # 15 seconds per choice
@@ -20,9 +20,10 @@ conditions:
   exp_condition: quick_test
 
 # Very clear probabilities for testing
+# Probabilities indexed by machine ID (positions randomized for counterbalancing)
 environments:
   static:
-    prob_0: [0.9, 0.1]  # Option 1: 90% (clearly better), Option 2: 10%
+    probabilities: [0.9, 0.1]  # Machine 1: 90%, Machine 2: 10% (positions shuffled)
 
 payment:
   flat_fee: 0.50  # Minimal payment for test

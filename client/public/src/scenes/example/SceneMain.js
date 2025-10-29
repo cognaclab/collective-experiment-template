@@ -25,6 +25,7 @@ class SceneMain extends Phaser.Scene {
 		this.n = data.n
 		this.groupCumulativePayoff = data.groupCumulativePayoff
 		this.taskType = data.taskType
+		this.optionOrder = data.optionOrder || [1, 2, 3] // Machine ID order for counterbalancing
 	}
 
 	create(){
@@ -51,6 +52,8 @@ class SceneMain extends Phaser.Scene {
 	    ;
 
 		// Creating options
+		// Machines always appear in sequential order (1, 2, 3...)
+		// Only the probability mapping is shuffled internally via optionOrder
 	    for (let i=1; i<numOptions+1; i++) {
 			const machineKey = 'machine'+(i + numOptions*this.gameRound)+'_normal';
 			const machineActiveKey = 'machine'+(i + numOptions*this.gameRound)+'_active';
@@ -130,8 +133,8 @@ class SceneMain extends Phaser.Scene {
 	    //             options.box2.visible = false;
 					// options.box2_active.visible = false;
 					let time_madeChoice = new Date();
-					madeChoice(currentChoiceFlag, 'miss', optionOrder, time_madeChoice - time_created);
-					this.scene.start('SceneAskStillThere', {didMiss: true, flag: currentChoiceFlag, horizon: this.horizon, prob_means: [prob_means[0][currentTrial-1], prob_means[1][currentTrial-1], prob_means[2][currentTrial-1]]});
+					madeChoice(currentChoiceFlag, 'miss', optionOrder, time_madeChoice - time_created, this.trial);
+					this.scene.start('SceneAskStillThere', {didMiss: true, flag: currentChoiceFlag, horizon: this.horizon, prob_means: [prob_means[0][this.trial-1], prob_means[1][this.trial-1], prob_means[2][this.trial-1]]});
 					isWaiting = true;
 					gameTimer.destroy();
                 }
@@ -160,7 +163,7 @@ class SceneMain extends Phaser.Scene {
         	options['box_active'+i].on('pointerdown', function (pointer) {
 		    	if(!isChoiceMade) {
 					let time_madeChoice = new Date();
-		    		madeChoice(currentChoiceFlag, exp_condition, optionOrder, time_madeChoice - time_created);
+		    		madeChoice(currentChoiceFlag, exp_condition, optionOrder, time_madeChoice - time_created, this.trial);
 
 					gameTimer.destroy();
 
@@ -187,12 +190,8 @@ class SceneMain extends Phaser.Scene {
 						}
 					}
 
-					if (window.socket && window.experimentFlow) {
-						window.socket.emit('scene_complete', {
-							scene: 'SceneMain',
-							sequence: window.experimentFlow.sequence
-						});
-					}
+					// Server will emit scene_complete after processing the choice
+					// This prevents race condition with payoff calculation
 		    	}
 		    }, this);
 		    // pointerover
@@ -208,16 +207,12 @@ class SceneMain extends Phaser.Scene {
 	    // ------------ Texts appear above the slots
 	    if (this.taskType === 'static') {
 			trialText = this.add.text(16, trialText_Y
-				, `Current trial: ${currentTrial} / ${this.horizon} (Period ${this.gameRound + 1})`
-				// , 'Current trial: ' + this.trial + ' / ' + this.horizon
-				// , ''
+				, `Current trial: ${this.trial} / ${this.horizon} (Round ${this.gameRound + 1})`
 				, { fontSize: '30px', fill: nomalTextColor });
-		} 
+		}
 		else {
 			trialText = this.add.text(16, trialText_Y
-				, `Current trial: ${currentTrial} / ${this.horizon}`
-				// , 'Current trial: ' + this.trial + ' / ' + this.horizon
-				// , ''
+				, `Current trial: ${this.trial} / ${this.horizon}`
 				, { fontSize: '30px', fill: nomalTextColor });
 		} 
 		

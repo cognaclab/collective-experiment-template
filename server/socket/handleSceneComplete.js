@@ -125,10 +125,19 @@ function handleSceneComplete(client, data, config, io) {
         return;
     }
 
-    // Handle trial progression for game scenes
-    if (sceneKey === 'SceneMain') {
-        // Increment trial counter after completing SceneMain
+    // Handle trial progression - increment AFTER feedback, not after main scene
+    if (sceneKey === 'SceneResultFeedback') {
+        // Increment trial counter after showing feedback for completed trial
         room.trial = (room.trial || 0) + 1;
+
+        // Reset groupTotalPayoff for next trial and increment pointer (matching legacy behavior)
+        const currentPointer = (room.pointer || 1);
+        room.pointer = currentPointer + 1;
+        const nextPointer = room.pointer - 1;
+        room.groupTotalPayoff[nextPointer] = 0;
+
+        // Also reset doneNo for next trial to track readiness
+        room.doneNo[nextPointer] = 0;
     }
 
     // Determine next scene based on trial progression
@@ -138,9 +147,9 @@ function handleSceneComplete(client, data, config, io) {
     if (sceneKey === 'SceneResultFeedback' && currentSceneConfig) {
         // After feedback, check if we should loop back to SceneMain or proceed
         const gameScene = sequence.find(s => s.scene === 'SceneMain');
-        const horizon = gameScene?.trials || config.experimentLoader?.gameConfig?.horizon || config.horizon;
+        const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
 
-        if (room.trial < horizon) {
+        if (room.trial <= horizon) {
             // Continue to next trial
             nextScene = gameScene;
         } else {
@@ -188,26 +197,37 @@ function handleSceneComplete(client, data, config, io) {
 
         // Get environment probabilities from config
         const numOptions = config.experimentLoader?.gameConfig?.k_armed_bandit || config.numOptions;
-        const horizon = nextScene.trials || config.experimentLoader?.gameConfig?.horizon || config.horizon;
+        const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
         const envKey = nextScene.environment || 'static';
 
         // Build prob_means array from environment probabilities
         let prob_means;
-        if (config.experimentLoader?.environments?.[envKey]) {
-            const envProbs = config.experimentLoader.environments[envKey];
-            // Extract prob_0, prob_1, etc. and expand to full horizon
-            prob_means = [];
-            for (let i = 0; i < numOptions; i++) {
-                const probKey = `prob_${i}`;
-                if (envProbs[probKey]) {
-                    // If it's an array, repeat it for each trial; if single value, expand to array
-                    const probValue = Array.isArray(envProbs[probKey]) ? envProbs[probKey][0] : envProbs[probKey];
-                    prob_means.push(Array(horizon).fill(probValue));
-                }
+        if (config.experimentLoader) {
+            try {
+                // Get normalized probabilities (works with both old and new format)
+                const probArray = config.experimentLoader.getEnvironmentProbs(envKey);
+
+                // Expand each probability to full horizon length
+                prob_means = probArray.map(prob => Array(horizon).fill(prob));
+
+                logger.info('Built prob_means from environment', {
+                    envKey,
+                    probabilities: probArray,
+                    numOptions,
+                    horizon,
+                    prob_means
+                });
+            } catch (error) {
+                logger.error('Failed to get environment probabilities', {
+                    envKey,
+                    error: error.message
+                });
+                throw error;
             }
         } else {
             // Fallback to legacy config format
             prob_means = [config.prob_0, config.prob_1, config.prob_2, config.prob_3, config.prob_4].slice(0, numOptions);
+            logger.info('Using legacy prob_means', { prob_means });
         }
 
         io.to(client.room).emit('init_experiment_params', {
@@ -225,32 +245,76 @@ function handleSceneComplete(client, data, config, io) {
 
     // Prepare scene-specific data to pass to scene.init()
     let sceneData = {};
+    const currentGameRound = room.gameRound || 0;
+    const currentPointer = (room.pointer || 1) - 1;
+
     if (nextScene.type === 'game') {
         sceneData = {
-            gameRound: room.gameRound || 0,
+            gameRound: currentGameRound,
             trial: room.trial || 1,
-            horizon: nextScene.trials || config.experimentLoader?.gameConfig?.horizon || config.horizon,
+            horizon: config.experimentLoader?.gameConfig?.horizon || config.horizon,
             n: room.n,
             taskType: nextScene.environment || 'static',
-            groupTotalScore: room.groupTotalScore || 0,
-            groupCumulativePayoff: room.groupCumulativePayoff || [0, 0],
-            mySocialInfo: {}
+            groupTotalScore: room.groupTotalPayoff?.[currentPointer] || 0,
+            groupCumulativePayoff: room.groupCumulativePayoff?.[currentGameRound] || 0,
+            mySocialInfo: {},
+            optionOrder: room.optionOrder || [1, 2, 3] // Machine ID order for counterbalancing
         };
     } else if (nextScene.type === 'feedback') {
         const gameScene = sequence.find(s => s.scene === 'SceneMain');
-        const horizon = gameScene?.trials || config.experimentLoader?.gameConfig?.horizon || config.horizon;
-        const p = room.pointer - 1;
+        const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
 
         sceneData = {
-            gameRound: room.gameRound || 0,
+            gameRound: currentGameRound,
             trial: room.trial || 1,
             horizon: horizon,
             n: room.n,
             taskType: room.taskType || 'static',
-            groupTotalScore: room.groupTotalPayoff?.[p] || 0,
-            groupCumulativePayoff: room.groupCumulativePayoff?.[room.gameRound || 0] || 0,
-            mySocialInfo: room.socialInfo?.[p] || {}
+            groupTotalScore: room.groupTotalPayoff?.[currentPointer] || 0,
+            groupCumulativePayoff: room.groupCumulativePayoff?.[currentGameRound] || 0,
+            mySocialInfo: room.socialInfo?.[currentPointer] || {}
         };
+    } else if (nextScene.type === 'questionnaire') {
+        // Calculate totals across all rounds for summary display
+        const totalPointsAllRounds = room.groupCumulativePayoff?.reduce((sum, val) => sum + (val || 0), 0) || 0;
+        const roundBreakdown = room.groupCumulativePayoff || [0];
+        const totalGameRounds = config.experimentLoader?.gameConfig?.total_game_rounds || 1;
+        const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
+
+        // Get prob_means for machine probability display
+        let prob_means_summary = null;
+        if (config.experimentLoader) {
+            try {
+                const envKey = nextScene.environment || 'static';
+                const probArray = config.experimentLoader.getEnvironmentProbs(envKey);
+                prob_means_summary = probArray.map(prob => Array(horizon).fill(prob));
+
+                logger.debug('Built prob_means for questionnaire summary', {
+                    envKey,
+                    probabilities: probArray,
+                    prob_means: prob_means_summary
+                });
+            } catch (error) {
+                logger.warn('Could not get prob_means for summary', { error: error.message });
+            }
+        }
+
+        sceneData = {
+            gameRound: currentGameRound,
+            totalPointsAllRounds: totalPointsAllRounds,
+            roundBreakdown: roundBreakdown,
+            totalGameRounds: totalGameRounds,
+            optionOrder: room.optionOrder || [1, 2, 3],
+            horizon: horizon,
+            n: room.n,
+            prob_means: prob_means_summary
+        };
+
+        logger.info('Preparing questionnaire with summary data', {
+            totalPointsAllRounds,
+            roundBreakdown,
+            totalGameRounds
+        });
     }
 
     // Broadcast next scene to all players in room

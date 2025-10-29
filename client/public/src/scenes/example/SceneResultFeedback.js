@@ -38,16 +38,12 @@ class SceneResultFeedback extends Phaser.Scene {
 		// Texts appear above the slots
 		if (this.taskType === 'static') {
 			trialText = this.add.text(16, trialText_Y
-				, `Current trial: ${currentTrial} / ${this.horizon} (Round ${this.gameRound + 1})`
-				// , 'Current trial: ' + this.trial + ' / ' + this.horizon
-				// , ''
+				, `Current trial: ${this.trial} / ${this.horizon} (Round ${this.gameRound + 1})`
 				, { fontSize: '30px', fill: nomalTextColor });
-		} 
+		}
 		else {
 			trialText = this.add.text(16, trialText_Y
-				, `Current trial: ${currentTrial} / ${this.horizon}`
-				// , 'Current trial: ' + this.trial + ' / ' + this.horizon
-				// , ''
+				, `Current trial: ${this.trial} / ${this.horizon}`
 				, { fontSize: '30px', fill: nomalTextColor });
 		} 
 		

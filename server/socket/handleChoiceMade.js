@@ -97,7 +97,19 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 			room.saveDataThisRound = [];
 		}
 
-		console.log(` - Calling proceedToResult for ${client.room}`);
-		proceedToResult(room, client.room, io);
+		// For new config-driven experiments, call handleSceneComplete directly
+		if (config.experimentLoader && config.experimentLoader.sequence) {
+			console.log(` - Calling handleSceneComplete for SceneMain (config-driven flow)`);
+			const handleSceneComplete = require('./handleSceneComplete');
+			const sceneCompleteData = {
+				scene: 'SceneMain',
+				sequence: config.experimentLoader.sequence.sequence
+			};
+			handleSceneComplete(client, sceneCompleteData, config, io);
+		} else {
+			// Legacy flow: call proceedToResult
+			console.log(` - Calling proceedToResult for ${client.room} (legacy flow)`);
+			proceedToResult(room, client.room, io);
+		}
 	}
 };

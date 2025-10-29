@@ -31,6 +31,9 @@ function onConnectioncConfig({ config, client, io }) {
                 client.room = client.session; // Use session as room name
                 client.join(client.room);
 
+                // Set subject number for individual experiments
+                client.subjectNumber = 1;
+
                 // Initialize room in roomStatus if it doesn't exist
                 if (!config.roomStatus[client.room]) {
                     const { createRoom } = require('../utils/roomFactory');

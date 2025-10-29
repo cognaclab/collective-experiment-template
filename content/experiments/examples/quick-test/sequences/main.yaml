@@ -7,7 +7,6 @@ sequence:
   - scene: "SceneMain"
     type: "game"
     environment: "static"
-    trials: 3
     next: "SceneResultFeedback"
 
   - scene: "SceneResultFeedback"
