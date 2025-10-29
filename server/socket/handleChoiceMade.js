@@ -52,6 +52,9 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 	const hadClickedBeforeTimeout = data.hadClickedBeforeTimeout || false;
 	const timedOut = data.timedOut || false;
 
+	console.log(`[SERVER RECEIVE] choice=${choice}, timedOut=${timedOut}, hadClickedBeforeTimeout=${hadClickedBeforeTimeout}, data.miss=${data.miss}`);
+	console.log(`[SERVER RECEIVE] Full data:`, data);
+
 	const choiceData = {
 		thisChoice: choice,
 		optionLocation: data.chosenOptionLocation,
@@ -64,6 +67,23 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 		wasTimeout: timedOut && hadClickedBeforeTimeout,  // Clicked but didn't confirm
 		wasMiss: timedOut && !hadClickedBeforeTimeout     // Never clicked at all
 	};
+
+	// Store timeout/miss flags for routing decisions
+	if (!room.timeoutFlags) room.timeoutFlags = {};
+	if (!room.missFlags) room.missFlags = {};
+	if (!room.timeoutFlags[p]) room.timeoutFlags[p] = [];
+	if (!room.missFlags[p]) room.missFlags[p] = [];
+
+	if (timedOut) {
+		console.log(`[SERVER FLAGS] Setting timeout/miss flag. doneNum=${doneNum}, p=${p}, hadClickedBeforeTimeout=${hadClickedBeforeTimeout}`);
+		if (hadClickedBeforeTimeout) {
+			room.timeoutFlags[p][doneNum - 1] = true;
+			console.log(`[SERVER FLAGS] Set timeoutFlags[${p}][${doneNum - 1}] = true`);
+		} else {
+			room.missFlags[p][doneNum - 1] = true;
+			console.log(`[SERVER FLAGS] Set missFlags[${p}][${doneNum - 1}] = true`);
+		}
+	}
 
 	// Use new flexible data structure
 	const trialData = buildTrialData(client, room, choiceData, config);
@@ -130,10 +150,29 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 		// For new config-driven experiments, call handleSceneComplete directly
 		if (config.experimentLoader && config.experimentLoader.sequence) {
 			console.log(` - Calling handleSceneComplete for SceneMain (config-driven flow)`);
+
+			// Determine trigger type from room state
+			const hasTimeout = room.timeoutFlags[p] && room.timeoutFlags[p].some(flag => flag === true);
+			const hasMiss = room.missFlags[p] && room.missFlags[p].some(flag => flag === true);
+
+			console.log(` - Checking timeout/miss flags: hasTimeout=${hasTimeout}, hasMiss=${hasMiss}`);
+			console.log(` - room.timeoutFlags[${p}]:`, room.timeoutFlags[p]);
+			console.log(` - room.missFlags[${p}]:`, room.missFlags[p]);
+
+			let triggerType = 'default';
+			if (hasTimeout) {
+				triggerType = 'timeout';
+			} else if (hasMiss) {
+				triggerType = 'miss';
+			}
+
+			console.log(` - Determined triggerType: ${triggerType}`);
+
 			const handleSceneComplete = require('./handleSceneComplete');
 			const sceneCompleteData = {
 				scene: 'SceneMain',
-				sequence: config.experimentLoader.sequence.sequence
+				sequence: config.experimentLoader.sequence.sequence,
+				triggerType: triggerType
 			};
 			handleSceneComplete(client, sceneCompleteData, config, io);
 		} else {

@@ -8,10 +8,16 @@ sequence:
     type: "game"
     environment: "static"
     next: "SceneResultFeedback"
+    next_on_timeout: "SceneAskStillThere"
+    next_on_miss: "SceneAskStillThere"
 
   - scene: "SceneResultFeedback"
     type: "feedback"
     next: "SceneMain"
+
+  - scene: "SceneAskStillThere"
+    type: "warning"
+    next: "SceneResultFeedback"
 
   - scene: "SceneGoToQuestionnaire"
     type: "questionnaire"

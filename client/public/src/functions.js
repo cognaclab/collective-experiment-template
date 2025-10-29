@@ -643,23 +643,21 @@ export function madeChoice (optionLocation, choiceType, optionOrder, reactionTim
     if (choiceType == 'miss') {
         payoff = 0;
         // didShare = 0;
-        if (indivOrGroup > -1) { // if don't want to send indiv data, indivOrGroup == 1
-            // Send complete data even for timeout/miss scenarios
-            // This allows server to distinguish wasMiss vs wasTimeout
-            const currentTrialProbs = prob_means.map(armProbs => armProbs[thisTrial-1]);
-            socket.emit('choice made',
-                {chosenOptionLocation: -1 // no choice was confirmed
-                    , num_choice: -1 // miss == -1
-                    , individual_payoff: 0
-                    , subjectNumber: subjectNumber
-                    , thisTrial: thisTrial
-                    , miss: true
-                    , prob_means: currentTrialProbs
-                    , reactionTime: reactionTime
-                    , hadClickedBeforeTimeout: hadClickedBeforeTimeout
-                    , timedOut: true
-                });
-        }
+        // Send complete data even for timeout/miss scenarios
+        // This allows server to distinguish wasMiss vs wasTimeout
+        const currentTrialProbs = prob_means.map(armProbs => armProbs[thisTrial-1]);
+        socket.emit('choice made',
+            {chosenOptionLocation: -1 // no choice was confirmed
+                , num_choice: -1 // miss == -1
+                , individual_payoff: 0
+                , subjectNumber: subjectNumber
+                , thisTrial: thisTrial
+                , miss: true
+                , prob_means: currentTrialProbs
+                , reactionTime: reactionTime
+                , hadClickedBeforeTimeout: hadClickedBeforeTimeout
+                , timedOut: true
+            });
     } else {
         // choiceType == 'groupPayoff'
         // Build prob_means array dynamically based on number of options
@@ -721,22 +719,9 @@ export function randomChoiceFromBinary(chosenOptionFlag, num_choice, choice, pay
         myChoices.push(choice);
     }
     myLastChoiceFlag = chosenOptionFlag;
-    if (indivOrGroup > -1) { // if don't want to send indiv data, indivOrGroup == 1
-        socket.emit('choice made', 
-            {chosenOptionFlag:chosenOptionFlag
-                , num_choice: num_choice
-                , choice: choice
-                , payoff: thisPayoff
-                , socialInfo:socialInfo
-                , publicInfo:publicInfo
-                , totalEarning: (totalEarning+thisPayoff)
-                , subjectNumber:subjectNumber
-                // , riskDistributionId:riskDistributionId
-                , thisTrial:currentTrial
-            });
-    } else {
-        saveChoiceDataLocally(
-            {chosenOptionFlag:chosenOptionFlag
+    socket.emit('choice made',
+        {chosenOptionFlag:chosenOptionFlag
+            , num_choice: num_choice
             , choice: choice
             , payoff: thisPayoff
             , socialInfo:socialInfo
@@ -744,8 +729,8 @@ export function randomChoiceFromBinary(chosenOptionFlag, num_choice, choice, pay
             , totalEarning: (totalEarning+thisPayoff)
             , subjectNumber:subjectNumber
             // , riskDistributionId:riskDistributionId
+            , thisTrial:currentTrial
         });
-    }
     //console.log('choice was made: choice = ' + choice + ' and payoff = ' + thisPayoff + '.');
     return thisPayoff;
 }
@@ -778,30 +763,17 @@ export function randomChoiceFromFour_decreasing(this_trial, chosenOptionFlag, nu
         myChoices.push(choice);
     }
     myLastChoiceFlag = chosenOptionFlag;
-    if (indivOrGroup > -1) { // if don't want to send indiv data, indivOrGroup == 1
-        socket.emit('choice made 4ab', 
-            {chosenOptionFlag:chosenOptionFlag
-                , num_choice: num_choice
-                , choice: choice
-                , payoff: thisPayoff
-                , socialInfo:socialInfo
-                , publicInfo:publicInfo
-                , totalEarning: (totalEarning+thisPayoff)
-                , subjectNumber:subjectNumber
-                // , riskDistributionId:riskDistributionId
-                , thisTrial:currentTrial});
-    } else {
-        saveChoiceDataLocally(
-            {chosenOptionFlag:chosenOptionFlag
-                , choice: choice
-                , payoff: thisPayoff
-                , socialInfo:socialInfo
-                , publicInfo:publicInfo
-                , totalEarning: (totalEarning+thisPayoff)
-                , subjectNumber:subjectNumber
-                // , riskDistributionId:riskDistributionId
-            });
-    }
+    socket.emit('choice made 4ab',
+        {chosenOptionFlag:chosenOptionFlag
+            , num_choice: num_choice
+            , choice: choice
+            , payoff: thisPayoff
+            , socialInfo:socialInfo
+            , publicInfo:publicInfo
+            , totalEarning: (totalEarning+thisPayoff)
+            , subjectNumber:subjectNumber
+            // , riskDistributionId:riskDistributionId
+            , thisTrial:currentTrial});
     //console.log('choice was made: choice = ' + choice + ' and payoff = ' + thisPayoff + '.');
     return thisPayoff;
 }
@@ -821,28 +793,16 @@ export function randomChoiceFromGaussian(choice, socialInfo, publicInfo) {
 
     if (thisPayoff < 0 ) thisPayoff = 0
     if (thisPayoff > 2*mean_risky*100 ) thisPayoff = 2*mean_risky*100
-    if (indivOrGroup > -1) { // if don't want to send indiv data, indivOrGroup == 1
-        socket.emit('choice made', 
-            {choice: choice
-                , payoff: thisPayoff
-                , socialInfo:socialInfo
-                , publicInfo:publicInfo
-                , totalEarning: (totalEarning+thisPayoff)
-                , subjectNumber:subjectNumber
-                // , riskDistributionId:riskDistributionId
-                , thisTrial:currentTrial
-            });
-    } else {
-        saveChoiceDataLocally(
-            {choice: choice
-                , payoff: thisPayoff
-                , socialInfo:socialInfo
-                , publicInfo:publicInfo
-                , totalEarning: (totalEarning+thisPayoff)
-                , subjectNumber:subjectNumber
-                // , riskDistributionId:riskDistributionId
-            });
-    }
+    socket.emit('choice made',
+        {choice: choice
+            , payoff: thisPayoff
+            , socialInfo:socialInfo
+            , publicInfo:publicInfo
+            , totalEarning: (totalEarning+thisPayoff)
+            , subjectNumber:subjectNumber
+            // , riskDistributionId:riskDistributionId
+            , thisTrial:currentTrial
+        });
     // console.log('choice was made: choice = ' + choice + ' and payoff = ' + thisPayoff + '.');
     return thisPayoff;
 }

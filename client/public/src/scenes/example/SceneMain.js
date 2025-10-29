@@ -130,13 +130,20 @@ class SceneMain extends Phaser.Scene {
                     	options['box'+i].visible = false;
                     	options['box_active'+i].visible = false;
                     }
-	    //             options.box1.visible = false;
-					// options.box1_active.visible = false;
-	    //             options.box2.visible = false;
-					// options.box2_active.visible = false;
+
 					let time_madeChoice = new Date();
 					madeChoice(currentChoiceFlag, 'miss', optionOrder, time_madeChoice - time_created, this.trial, hadClickedBeforeTimeout);
-					this.scene.start('SceneAskStillThere', {didMiss: true, flag: currentChoiceFlag, horizon: this.horizon, prob_means: [prob_means[0][this.trial-1], prob_means[1][this.trial-1], prob_means[2][this.trial-1]]});
+
+					if (!this.waitingText) {
+						if (indivOrGroup == 1) {
+							this.waitingText = this.add.text(configWidth/2, configHeight/2 - 100, 'Please wait for others...',
+								{ fontSize: '30px', fill: '#000', align: "center" }).setOrigin(0.5);
+						} else {
+							this.waitingText = this.add.text(configWidth/2, configHeight/2 - 100, 'Processing...',
+								{ fontSize: '30px', fill: '#000', align: "center" }).setOrigin(0.5);
+						}
+					}
+
 					isWaiting = true;
 					gameTimer.destroy();
                 }
@@ -220,15 +227,17 @@ class SceneMain extends Phaser.Scene {
 		
 		if (this.groupCumulativePayoff != 1) point_or_points = ' points'
 
+		const scoreLabel = indivOrGroup === 1 ? 'Total team score so far: ' : 'Total score so far: ';
 	    groupTotalScoreText = this.add.text(16, groupTotalScoreText_Y
-	    	, 'Total team score so far: ' + this.groupCumulativePayoff + point_or_points
+	    	, scoreLabel + this.groupCumulativePayoff + point_or_points
 	    	, { fontSize: '30px', fill: nomalTextColor });
 
-	    this.groupSizeText = this.add.text(16, scoreText_Y
-	    	// , 'Total score: ' + score
-	    	, 'Number of players: ' + currentGroupSize.toString()
-	    	// , 'Your net score: ' + (totalPayoff_perIndiv - info_share_cost_total)
-	    	, { fontSize: '30px', fill: nomalTextColor });
+	    // Only show "Number of players" for group experiments
+	    if (indivOrGroup === 1) {
+	        this.groupSizeText = this.add.text(16, scoreText_Y
+	            , 'Number of players: ' + currentGroupSize.toString()
+	            , { fontSize: '30px', fill: nomalTextColor });
+	    }
 	    timeText = this.add.text(16, energyBar_Y
 	    	, 'Remaining time: '
 	    	, { fontSize: '30px', fill: nomalTextColor });
@@ -303,7 +312,10 @@ class SceneMain extends Phaser.Scene {
 	}
 
 	update(){
-		this.groupSizeText.setText('Number of players: ' + currentGroupSize?.toString());
+		// Only update groupSizeText if it exists (group experiments only)
+		if (this.groupSizeText) {
+			this.groupSizeText.setText('Number of players: ' + currentGroupSize?.toString());
+		}
 	}
 
 };

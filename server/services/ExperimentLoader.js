@@ -84,6 +84,34 @@ class ExperimentLoader {
             }
         }
 
+        // Validate conditions.indivOrGroup
+        if (!this.config.conditions.indivOrGroup) {
+            throw new Error(
+                `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                `Missing required field: conditions.indivOrGroup\n` +
+                `  This field specifies whether the experiment is individual or group-based\n` +
+                `  Allowed values: 'individual' or 'group'\n` +
+                `  Example:\n` +
+                `    conditions:\n` +
+                `      indivOrGroup: individual\n\n` +
+                `Location: config.yaml\n` +
+                `Section: conditions`
+            );
+        }
+
+        const validModes = ['individual', 'group'];
+        if (!validModes.includes(this.config.conditions.indivOrGroup)) {
+            throw new Error(
+                `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                `Invalid value for conditions.indivOrGroup: '${this.config.conditions.indivOrGroup}'\n` +
+                `  Allowed values: 'individual' or 'group'\n` +
+                `  Got: '${this.config.conditions.indivOrGroup}'\n` +
+                `  Fix: Set to either 'individual' or 'group'\n\n` +
+                `Location: config.yaml\n` +
+                `Section: conditions.indivOrGroup`
+            );
+        }
+
         // Validate environment probabilities
         this.validateEnvironmentProbabilities();
     }
@@ -344,6 +372,8 @@ class ExperimentLoader {
             const sequenceContent = fs.readFileSync(sequencePath, 'utf8');
             this.sequence = yaml.load(sequenceContent);
 
+            this.validateSequenceConditionalRouting();
+
             logger.info('Experiment sequence loaded successfully', {
                 scenes: this.sequence.sequence ? this.sequence.sequence.length : 0
             });
@@ -366,6 +396,33 @@ class ExperimentLoader {
             throw new Error('Sequence not loaded. Call loadSequence() first.');
         }
         return this.sequence.sequence;
+    }
+
+    validateSequenceConditionalRouting() {
+        if (!this.sequence) {
+            throw new Error('Sequence not loaded. Call loadSequence() first.');
+        }
+
+        const sequence = this.sequence.sequence;
+        const sceneNames = sequence.map(s => s.scene);
+
+        for (const scene of sequence) {
+            const conditionalFields = ['next_on_timeout', 'next_on_miss', 'next_on_error'];
+
+            for (const field of conditionalFields) {
+                if (scene[field]) {
+                    if (!sceneNames.includes(scene[field])) {
+                        logger.warn(
+                            `Scene '${scene.scene}' references non-existent scene in ${field}: ${scene[field]}`
+                        );
+                    }
+                }
+            }
+        }
+
+        logger.info('Sequence conditional routing validation passed', {
+            scenes: sequence.length
+        });
     }
 }
 

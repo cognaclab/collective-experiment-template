@@ -17,13 +17,13 @@
 const logger = require('../utils/logger');
 
 /**
- * Get next scene from sequence
+ * Get next scene from sequence with conditional routing support
  * @param {string} currentSceneKey - Current scene identifier
  * @param {Array} sequence - Experiment sequence from YAML
+ * @param {string} triggerType - Optional trigger type: 'default', 'timeout', 'miss', 'error'
  * @returns {Object|null} Next scene config or null if experiment complete
  */
-function getNextScene(currentSceneKey, sequence) {
-    // Find current scene in sequence
+function getNextScene(currentSceneKey, sequence, triggerType = 'default') {
     const currentScene = sequence.find(s => s.scene === currentSceneKey);
 
     if (!currentScene) {
@@ -31,21 +31,46 @@ function getNextScene(currentSceneKey, sequence) {
         return null;
     }
 
-    // Get next scene identifier
-    const nextSceneId = currentScene.next;
+    let nextSceneId;
+
+    switch (triggerType) {
+        case 'timeout':
+            nextSceneId = currentScene.next_on_timeout || currentScene.next;
+            logger.info('Using timeout routing', {
+                scene: currentSceneKey,
+                next: nextSceneId,
+                hadConditionalRoute: !!currentScene.next_on_timeout
+            });
+            break;
+        case 'miss':
+            nextSceneId = currentScene.next_on_miss || currentScene.next;
+            logger.info('Using miss routing', {
+                scene: currentSceneKey,
+                next: nextSceneId,
+                hadConditionalRoute: !!currentScene.next_on_miss
+            });
+            break;
+        case 'error':
+            nextSceneId = currentScene.next_on_error || currentScene.next;
+            break;
+        case 'default':
+        default:
+            nextSceneId = currentScene.next;
+            break;
+    }
 
     if (!nextSceneId) {
-        logger.info('No next scene - experiment complete', { currentSceneKey });
+        logger.info('No next scene - experiment complete', { currentSceneKey, triggerType });
         return null;
     }
 
-    // Find next scene config
     const nextScene = sequence.find(s => s.scene === nextSceneId);
 
     if (!nextScene) {
         logger.warn('Next scene not found in sequence', {
             currentSceneKey,
-            nextSceneId
+            nextSceneId,
+            triggerType
         });
         return null;
     }
@@ -56,13 +81,16 @@ function getNextScene(currentSceneKey, sequence) {
 /**
  * Handle scene completion event
  * @param {Object} client - Socket.io client
- * @param {Object} data - Event data { scene: string, sequence: Array }
+ * @param {Object} data - Event data { scene: string, sequence: Array, triggerType?: string }
  * @param {Object} config - Game configuration
  * @param {Object} io - Socket.io server instance
  */
 function handleSceneComplete(client, data, config, io) {
     const room = config.roomStatus[client.room];
     const sceneKey = data.scene;
+    const triggerType = data.triggerType || 'default';
+
+    console.log(`[SCENE COMPLETE] scene=${sceneKey}, triggerType=${triggerType}, room.trial=${room?.trial}`);
 
     if (!room) {
         logger.error('Room not found for scene completion', {
@@ -128,7 +156,9 @@ function handleSceneComplete(client, data, config, io) {
     // Handle trial progression - increment AFTER feedback, not after main scene
     if (sceneKey === 'SceneResultFeedback') {
         // Increment trial counter after showing feedback for completed trial
+        const oldTrial = room.trial;
         room.trial = (room.trial || 0) + 1;
+        console.log(`[TRIAL INCREMENT] After SceneResultFeedback: ${oldTrial} → ${room.trial}`);
 
         // Reset groupTotalPayoff for next trial and increment pointer (matching legacy behavior)
         const currentPointer = (room.pointer || 1);
@@ -155,10 +185,10 @@ function handleSceneComplete(client, data, config, io) {
         } else {
             // All trials completed, find the scene that should come after the game loop
             const questionnaireScene = sequence.find(s => s.type === 'questionnaire');
-            nextScene = questionnaireScene || getNextScene(sceneKey, sequence);
+            nextScene = questionnaireScene || getNextScene(sceneKey, sequence, triggerType);
         }
     } else {
-        nextScene = getNextScene(sceneKey, sequence);
+        nextScene = getNextScene(sceneKey, sequence, triggerType);
     }
 
     if (!nextScene) {
@@ -321,6 +351,31 @@ function handleSceneComplete(client, data, config, io) {
             totalPointsAllRounds,
             roundBreakdown,
             totalGameRounds
+        });
+    } else if (nextScene.type === 'warning') {
+        const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
+        const currentTrial = room.trial || 1;
+
+        const didMiss = (triggerType === 'miss');
+        const flag = -1;
+
+        const probArray = config.experimentLoader?.getEnvironmentProbs('static') || [0.9, 0.1];
+        const prob_means_current = probArray.map(prob => prob);
+
+        sceneData = {
+            gameRound: currentGameRound,
+            trial: currentTrial,
+            horizon: horizon,
+            n: room.n,
+            didMiss: didMiss,
+            flag: flag,
+            prob_means: prob_means_current
+        };
+
+        logger.info('Preparing warning scene', {
+            didMiss,
+            triggerType,
+            trial: currentTrial
         });
     }
 

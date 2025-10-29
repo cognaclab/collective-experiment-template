@@ -43,6 +43,7 @@ function onConnectioncConfig({ config, client, io }) {
                     const { createRoom } = require('../utils/roomFactory');
                     config.roomStatus[client.room] = createRoom({
                         name: client.room,
+                        mode: config.experimentLoader.gameConfig.mode, // Pass mode from YAML config
                         config: {
                             maxGroupSize: 1,
                             numOptions: config.experimentLoader.gameConfig.k_armed_bandit,

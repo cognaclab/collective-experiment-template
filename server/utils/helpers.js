@@ -154,6 +154,17 @@ function rand(max, min = 0) {
     return Math.floor(Math.random() * (max - min + 1) + min);
 }
 
+/**
+ * Converts experiment mode string to numeric value
+ * @param {string} mode - The mode string from YAML config ('individual' or 'group')
+ * @returns {number} 0 for individual, 1 for group, -1 for unknown/error
+ */
+function modeToNumeric(mode) {
+    if (mode === 'individual') return 0;
+    if (mode === 'group') return 1;
+    return -1; // Unknown/error state
+}
+
 function proceedToResult (thisRoomStatus, thisRoomName, io) {
     thisRoomStatus['stage'] = 'resultFeedback';
     console.log(' - Feedback collective payoff = ' + (thisRoomStatus['groupTotalPayoff'][thisRoomStatus['pointer']-1]) +' with socialFreq ' + (thisRoomStatus['socialFreq'][thisRoomStatus['pointer']-1]) + ' at trial = ' + (thisRoomStatus['trial']) );
@@ -272,6 +283,7 @@ module.exports = {
     , shuffleAndTakeFirst
     , createRoomStatus
     , rand
+    , modeToNumeric
     , proceedToResult
     , proceedTrial
     , startWaitingStageClock

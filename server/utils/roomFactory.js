@@ -10,6 +10,7 @@ const {
     , shuffle
     , shuffleAndTakeFirst
     , weightedRand2
+    , modeToNumeric
 } = require('./helpers');
 const constants = require('../../config/constants');
 
@@ -19,8 +20,9 @@ const constants = require('../../config/constants');
  * @param {boolean} options.isDecoy - Whether this is a decoy room
  * @param {string} options.name - Room name
  * @param {Object} options.config - Game configuration (optional, uses constants as fallback)
+ * @param {string} options.mode - Experiment mode ('individual' or 'group', optional)
  */
-function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null } = {}) {
+function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode = null } = {}) {
     // Use provided config or fall back to constants
     const maxGroupSize = config?.maxGroupSize || constants.maxGroupSize;
     const numOptions = config?.numOptions || constants.numOptions;
@@ -39,6 +41,9 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null } = {
     const taskOrder = shuffle(task_order);
     const taskType = taskOrder[0];//shuffleAndTakeFirst(taskList);
 
+    // Convert mode string to numeric if provided, otherwise use -1
+    const indivOrGroupValue = mode ? modeToNumeric(mode) : -1;
+
     return {
         roomId: name, // Store room identifier for database
         exp_condition: isDecoy ? 'decoyRoom' : exp_condition_list[weightedRand2({ 0: prob_conditions, 1: (1 - prob_conditions) })],
@@ -46,7 +51,7 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null } = {
         optionOrder: shuffle(options),
         taskType: taskType,
         taskOrder: taskOrder,
-        indivOrGroup: -1,
+        indivOrGroup: indivOrGroupValue,
         horizon: taskType === 'static' ? static_horizons[0] : totalHorizon,
         n: 0,
         membersID: [],
