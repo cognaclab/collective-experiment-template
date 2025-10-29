@@ -12,6 +12,7 @@ const flatFeeValue = 2.0 // GBP
 const logger = require('../utils/logger')
 const experimentModeHandler = require('../middleware/templateMode')
 const mainJsRouter = require('../middleware/mainJsRouter')
+const Session = require('../database/models/Session')
 const createError = require('http-errors')
 , express = require('express')
 , path = require('path')
@@ -147,12 +148,15 @@ app.post('/endPage', function(req, res) {
   save_data.q4 = req.body.q4;
   save_data.q5 = req.body.q5;
   csvStream.write(save_data);  // csvStream is defined in app.js
-  
+
   logger.info('Data written to CSV', {
     subjectID: req.body.subjectID,
     totalPayment: save_data.totalPayment,
     confirmationID: req.body.confirmationID
   });
+
+  // Update session record with completion data
+  completeSessionRecord(req.body, save_data);
   // console.log('totalEarning = ' + Math.round(parseInt(req.body.totalEarning)));
   // console.log('bonus_for_waiting = ' + Math.round(parseInt(req.body.bonus_for_waiting))/100);
   // console.log('totalPayment = ' + Math.round(10*(parseInt(req.body.bonus_for_waiting)/100 + parseFloat(req.body.totalEarning) + completionFee))/10);
@@ -241,5 +245,75 @@ app.use(function(err, req, res, next) {
     support_contact: 'btcc.cognac@gmail.com'
   });
 });
+
+/**
+ * Complete session record when participant submits questionnaire
+ * @param {Object} reqBody - Request body from questionnaire submission
+ * @param {Object} saveData - Processed data object
+ */
+async function completeSessionRecord(reqBody, saveData) {
+  try {
+    const confirmationID = reqBody.confirmationID;
+
+    // Find session by confirmationID (which maps to our client.session)
+    // We need to find sessions where the sessionId contains this confirmationID
+    const sessionQuery = {
+      sessionId: { $regex: confirmationID }
+    };
+
+    const updateData = {
+      endTime: new Date(),
+      status: 'completed',
+      'performance.finalPayment': saveData.totalPayment,
+      'performance.waitingBonus': saveData.bonus_for_waiting * 100, // Convert back to pence
+      'performance.totalPayoff': parseFloat(saveData.totalEarning),
+      questionnaire: {
+        age: reqBody.age,
+        sex: reqBody.sex,
+        country: reqBody.country,
+        q1: reqBody.q1,
+        q2: reqBody.q2,
+        q3: reqBody.q3,
+        q4: reqBody.q4,
+        q5: reqBody.q5
+      },
+      'demographics.age': reqBody.age ? parseInt(reqBody.age) : null,
+      'demographics.gender': reqBody.sex
+    };
+
+    // Calculate duration if we have startTime
+    const session = await Session.findOne(sessionQuery);
+    if (session && session.startTime) {
+      const durationMs = new Date() - new Date(session.startTime);
+      updateData.duration = durationMs;
+    }
+
+    const result = await Session.findOneAndUpdate(
+      sessionQuery,
+      { $set: updateData },
+      { new: true }
+    );
+
+    if (result) {
+      logger.info('Session completed and saved to database', {
+        sessionId: result.sessionId,
+        subjectId: reqBody.subjectID,
+        finalPayment: saveData.totalPayment,
+        duration: updateData.duration ? `${Math.round(updateData.duration / 1000)}s` : 'unknown'
+      });
+    } else {
+      logger.warn('Session not found for completion update', {
+        confirmationID: confirmationID,
+        subjectID: reqBody.subjectID
+      });
+    }
+  } catch (error) {
+    logger.error('Failed to complete session record', {
+      error: error.message,
+      confirmationID: reqBody.confirmationID,
+      subjectID: reqBody.subjectID
+    });
+  }
+}
 
 module.exports = app;

@@ -40,6 +40,7 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null } = {
     const taskType = taskOrder[0];//shuffleAndTakeFirst(taskList);
 
     return {
+        roomId: name, // Store room identifier for database
         exp_condition: isDecoy ? 'decoyRoom' : exp_condition_list[weightedRand2({ 0: prob_conditions, 1: (1 - prob_conditions) })],
         riskDistributionId: getRandomIntInclusive(13, 13),
         optionOrder: shuffle(options),

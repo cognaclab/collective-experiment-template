@@ -2,7 +2,10 @@
 // ./modules/handleChoiceMade.js
 
 const { createWorker, proceedToResult } = require('../utils/helpers');
-// const proceedToResult = require('../utils/proceedToResult');
+const { buildTrialData } = require('../utils/dataBuilders');
+const Trial = require('../database/models/Trial');
+const Session = require('../database/models/Session');
+const logger = require('../utils/logger');
 
 module.exports = function handleChoiceMade(client, data, config, io, firstTrialStartingTimeRef) {
 	const room   = config.roomStatus[client.room];
@@ -42,6 +45,27 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 	const iso = now.toISOString();
 	const timeElapsed = now - firstTrialStartingTimeRef[client.room];
 
+	// Build choice data for data builders
+	const choiceData = {
+		thisChoice: choice,
+		optionLocation: data.chosenOptionLocation,
+		payoff: this_indiv_payoff,
+		reactionTime: data.reactionTime,
+		timeElapsed: timeElapsed,
+		latency: client.latency,
+		clientTimestamp: now,
+		prob_means: data.prob_means,
+		wasTimeout: false,
+		wasMiss: choice === -1
+	};
+
+	// Use new flexible data structure
+	const trialData = buildTrialData(client, room, choiceData, config);
+
+	// Save trial data immediately to database (new approach)
+	saveTrialData(trialData);
+
+	// Also keep legacy format for backward compatibility during migration
 	room.saveDataThisRound.push({
 		date: iso.slice(0, 10),
 		time: iso.slice(11, 19),
@@ -113,3 +137,51 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 		}
 	}
 };
+
+/**
+ * Save trial data to database asynchronously
+ * @param {Object} trialData - Trial data object from buildTrialData
+ */
+async function saveTrialData(trialData) {
+	try {
+		const trial = new Trial(trialData);
+		const savedTrial = await trial.save();
+		logger.info('Trial data saved', {
+			experimentName: trialData.experimentName,
+			sessionId: trialData.sessionId,
+			trial: trialData.trial,
+			subjectId: trialData.subjectId,
+			_id: savedTrial._id
+		});
+	} catch (error) {
+		logger.error('Failed to save trial data', {
+			error: error.message,
+			stack: error.stack,
+			validationErrors: error.errors,
+			experimentName: trialData.experimentName,
+			sessionId: trialData.sessionId,
+			trial: trialData.trial
+		});
+	}
+}
+
+/**
+ * Update session performance data in database
+ * @param {String} sessionId - Session ID
+ * @param {Object} updateData - Data to update
+ */
+async function updateSessionData(sessionId, updateData) {
+	try {
+		await Session.findOneAndUpdate(
+			{ sessionId: sessionId },
+			{ $set: updateData },
+			{ upsert: true, new: true }
+		);
+		logger.info('Session data updated', { sessionId: sessionId });
+	} catch (error) {
+		logger.error('Failed to update session data', {
+			error: error.message,
+			sessionId: sessionId
+		});
+	}
+}

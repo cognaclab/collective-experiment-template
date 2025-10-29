@@ -230,6 +230,13 @@ function handleSceneComplete(client, data, config, io) {
             logger.info('Using legacy prob_means', { prob_means });
         }
 
+        // Build vals array (payoff values - typically 100 for all options)
+        const vals = Array(numOptions).fill(null).map(() => Array(horizon).fill(100));
+
+        // Store on room object for database tracking
+        room.prob_means = prob_means;
+        room.vals = vals;
+
         io.to(client.room).emit('init_experiment_params', {
             numOptions: numOptions,
             maxChoiceStageTime: config.experimentLoader?.gameConfig?.max_choice_time || config.maxChoiceStageTime,

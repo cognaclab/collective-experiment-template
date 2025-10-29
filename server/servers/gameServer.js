@@ -29,6 +29,10 @@ const mainJsRouter = require('../middleware/mainJsRouter');
 const ExperimentLoader = require('../services/ExperimentLoader');
 const ExperimentContext = require('../services/ExperimentContext');
 
+// Database models
+const { buildExperimentData } = require('../utils/dataBuilders');
+const Experiment = require('../database/models/Experiment');
+
 // Socket event handlers
 const { onConnectioncConfig } = require('../socket/handlerOnConnection');
 const { handleCoreReady } = require('../socket/coreReadyHandler');
@@ -98,6 +102,9 @@ try {
 		k_armed_bandit: loadedConfig.k_armed_bandit,
 		sequenceScenes: experimentLoader.sequence?.sequence?.length || 0
 	});
+
+	// Create or update experiment metadata in database
+	initializeExperimentMetadata(experimentLoader);
 } catch (error) {
 	logger.error('Failed to load experiment config - using fallback defaults', {
 		error: error.message
@@ -315,7 +322,9 @@ const gameConfig = {
 	// Add experiment context and loader for strategy pattern
 	experimentContext,
 	experimentLoader,
-	loadedConfig
+	loadedConfig,
+	// Add experiment name for database tracking
+	experimentName: experimentLoader ? experimentLoader.getMetadata().name : 'unknown'
 };
 
 /**
@@ -424,3 +433,71 @@ io.on('connection', function (client) {
 		total_N_now = total_N_nowRef.value;
 	});
 });
+
+/**
+ * Initialize experiment metadata in database
+ * Creates or updates experiment record on server startup
+ * @param {ExperimentLoader} loader - ExperimentLoader instance
+ */
+async function initializeExperimentMetadata(loader) {
+	try {
+		const metadata = loader.getMetadata();
+		const experimentName = metadata.name;
+
+		// Build experiment data
+		const experimentData = buildExperimentData({
+			experimentName: experimentName,
+			version: metadata.version,
+			title: metadata.title,
+			description: metadata.description,
+			author: metadata.author,
+			experimentLoader: loader,
+			game: loader.gameConfig,
+			horizon: loader.gameConfig?.horizon
+		});
+
+		// Check if experiment already exists
+		const existing = await Experiment.findOne({ experimentName: experimentName });
+
+		if (existing) {
+			// Update existing experiment with new config
+			await Experiment.findOneAndUpdate(
+				{ experimentName: experimentName },
+				{
+					$set: {
+						config: experimentData.config,
+						experimentVersion: experimentData.experimentVersion,
+						'changelog': [
+							...(existing.changelog || []),
+							{
+								date: new Date(),
+								version: experimentData.experimentVersion,
+								changes: 'Experiment reloaded on server startup',
+								author: experimentData.author
+							}
+						]
+					}
+				}
+			);
+
+			logger.info('Experiment metadata updated', {
+				experimentName: experimentName,
+				version: experimentData.experimentVersion
+			});
+		} else {
+			// Create new experiment record
+			const experiment = new Experiment(experimentData);
+			await experiment.save();
+
+			logger.info('Experiment metadata created', {
+				experimentName: experimentName,
+				version: experimentData.experimentVersion
+			});
+		}
+	} catch (error) {
+		logger.error('Failed to initialize experiment metadata', {
+			error: error.message,
+			stack: error.stack
+		});
+	}
+}

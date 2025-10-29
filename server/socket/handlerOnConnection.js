@@ -7,6 +7,10 @@
  * @param {Object} io
  */
 
+const { buildSessionData } = require('../utils/dataBuilders');
+const Session = require('../database/models/Session');
+const logger = require('../utils/logger');
+
 function onConnectioncConfig({ config, client, io }) {
 
   // Assign client's unique identifier
@@ -60,7 +64,13 @@ function onConnectioncConfig({ config, client, io }) {
                 }
 
                 console.log(`- Room ${client.room} assigned for individual experiment (n=1)`);
+
+                // Create session record in database
+                createSessionRecord(client, config.roomStatus[client.room], config);
             }
+        } else {
+            // For non-config-driven experiments, still create session record if room assigned later
+            client.pendingSessionCreation = true;
         }
 
         console.log(`- Exp. ID ${client.session} assigned to ${client.subjectID}`);
@@ -93,6 +103,37 @@ function onConnectioncConfig({ config, client, io }) {
         console.log(` - ${incomingSessionName} (${client.subjectID}) in room ${client.request._query.roomName} reconnected`);
     }
 
+}
+
+/**
+ * Create session record in database
+ * @param {Object} client - Socket client
+ * @param {Object} room - Room object
+ * @param {Object} config - Experiment config
+ */
+async function createSessionRecord(client, room, config) {
+    try {
+        // Store sessionId on client for later reference
+        client.sessionId = `${config.experimentName || 'exp'}_${client.session}_${Date.now()}`;
+        client.startTime = new Date();
+
+        const sessionData = buildSessionData(client, room, config);
+
+        const session = new Session(sessionData);
+        await session.save();
+
+        logger.info('Session record created', {
+            sessionId: client.sessionId,
+            experimentName: config.experimentName,
+            subjectId: client.subjectID
+        });
+    } catch (error) {
+        logger.error('Failed to create session record', {
+            error: error.message,
+            sessionId: client.sessionId,
+            subjectId: client.subjectID
+        });
+    }
 }
 
 module.exports = { onConnectioncConfig };

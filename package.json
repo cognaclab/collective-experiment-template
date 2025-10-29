@@ -19,7 +19,9 @@
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f mongodb",
     "docker:clean": "docker-compose down -v",
-    "docker:shell": "docker exec -it collective-bandit-mongodb mongosh"
+    "docker:shell": "docker exec -it collective-bandit-mongodb mongosh",
+    "db:clean": "node scripts/db-clean.js",
+    "db:shell": "docker exec -it collective-bandit-mongodb mongosh collective_reward_exp"
   },
   "dependencies": {
     "ajv": "^8.17.1",
