@@ -123,7 +123,9 @@ class SceneMain extends Phaser.Scene {
                 	isChoiceMade = true;
                 }
                 if(this.timeLeft < 0){
-                    currentChoiceFlag = -1
+                    // Preserve whether user had clicked before timeout
+                    let hadClickedBeforeTimeout = currentChoiceFlag > 0;
+                    currentChoiceFlag = -1;
                     for (let i=1; i<numOptions+1; i++) {
                     	options['box'+i].visible = false;
                     	options['box_active'+i].visible = false;
@@ -133,7 +135,7 @@ class SceneMain extends Phaser.Scene {
 	    //             options.box2.visible = false;
 					// options.box2_active.visible = false;
 					let time_madeChoice = new Date();
-					madeChoice(currentChoiceFlag, 'miss', optionOrder, time_madeChoice - time_created, this.trial);
+					madeChoice(currentChoiceFlag, 'miss', optionOrder, time_madeChoice - time_created, this.trial, hadClickedBeforeTimeout);
 					this.scene.start('SceneAskStillThere', {didMiss: true, flag: currentChoiceFlag, horizon: this.horizon, prob_means: [prob_means[0][this.trial-1], prob_means[1][this.trial-1], prob_means[2][this.trial-1]]});
 					isWaiting = true;
 					gameTimer.destroy();

@@ -623,7 +623,7 @@ export function showPublicInfo (shared_payoff, shared_option_position, socialInf
 }
 
 // madeChoice
-export function madeChoice (optionLocation, choiceType, optionOrder, reactionTime, trial = null) {
+export function madeChoice (optionLocation, choiceType, optionOrder, reactionTime, trial = null, hadClickedBeforeTimeout = false) {
     const thisTrial = trial !== null ? trial : currentTrial;
 
     let thisChoice;
@@ -644,16 +644,20 @@ export function madeChoice (optionLocation, choiceType, optionOrder, reactionTim
         payoff = 0;
         // didShare = 0;
         if (indivOrGroup > -1) { // if don't want to send indiv data, indivOrGroup == 1
-            // socket.emit('choice made',
-            //     {chosenOptionFlag:-1 // chosen option's id
-            //         , num_choice: -1 // miss == -1
-            //         , individual_payoff: 0
-            //         , subjectNumber: subjectNumber
-            //         , thisTrial: thisTrial
-            //     });
-            socket.emit('miss this trial',
-                {subjectNumber: subjectNumber
-                ,    thisTrial: thisTrial
+            // Send complete data even for timeout/miss scenarios
+            // This allows server to distinguish wasMiss vs wasTimeout
+            const currentTrialProbs = prob_means.map(armProbs => armProbs[thisTrial-1]);
+            socket.emit('choice made',
+                {chosenOptionLocation: -1 // no choice was confirmed
+                    , num_choice: -1 // miss == -1
+                    , individual_payoff: 0
+                    , subjectNumber: subjectNumber
+                    , thisTrial: thisTrial
+                    , miss: true
+                    , prob_means: currentTrialProbs
+                    , reactionTime: reactionTime
+                    , hadClickedBeforeTimeout: hadClickedBeforeTimeout
+                    , timedOut: true
                 });
         }
     } else {
@@ -695,6 +699,8 @@ export function payoffGenerator(chosenOptionLocation, num_choice, payoffProb, pr
             , miss: false
             , prob_means: prob_means
             , reactionTime: reactionTime
+            , hadClickedBeforeTimeout: false // User confirmed their choice
+            , timedOut: false // Choice was confirmed before timeout
         });
     // return this_individual_payoff;
 }

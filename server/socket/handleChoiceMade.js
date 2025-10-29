@@ -46,6 +46,12 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 	const timeElapsed = now - firstTrialStartingTimeRef[client.room];
 
 	// Build choice data for data builders
+	// Determine wasMiss and wasTimeout based on client flags
+	// wasMiss: User never clicked any machine before timeout (complete disengagement)
+	// wasTimeout: User clicked a machine but didn't confirm before timeout (incomplete action)
+	const hadClickedBeforeTimeout = data.hadClickedBeforeTimeout || false;
+	const timedOut = data.timedOut || false;
+
 	const choiceData = {
 		thisChoice: choice,
 		optionLocation: data.chosenOptionLocation,
@@ -55,8 +61,8 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 		latency: client.latency,
 		clientTimestamp: now,
 		prob_means: data.prob_means,
-		wasTimeout: false,
-		wasMiss: choice === -1
+		wasTimeout: timedOut && hadClickedBeforeTimeout,  // Clicked but didn't confirm
+		wasMiss: timedOut && !hadClickedBeforeTimeout     // Never clicked at all
 	};
 
 	// Use new flexible data structure
