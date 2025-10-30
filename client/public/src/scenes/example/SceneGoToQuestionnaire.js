@@ -21,6 +21,7 @@ class SceneGoToQuestionnaire extends Phaser.Scene {
 		this.horizon = data.horizon || 0;
 		this.n = data.n || 1;
 		this.prob_means = data.prob_means || null;
+		this.payment = data.payment || null;
 	}
 
 	create(){
@@ -94,8 +95,21 @@ class SceneGoToQuestionnaire extends Phaser.Scene {
 		// Monetary conversion section
 		yPosition += 20;
 
-		const totalEarning_GBP = Math.round((totalPayoff_perIndiv * cent_per_point)) / 100;
-		const waitingBonus_GBP = Math.round(waitingBonus) / 100;
+		// Use payment data from server if available, otherwise fall back to globals
+		let paymentBreakdown;
+		if (this.payment && this.payment.breakdown) {
+			paymentBreakdown = this.payment.breakdown;
+		} else {
+			// Legacy fallback using global variables
+			const totalEarning_GBP = Math.round((totalPayoff_perIndiv * cent_per_point)) / 100;
+			const waitingBonus_GBP = Math.round(waitingBonus) / 100;
+			paymentBreakdown = {
+				flatFee: 0,
+				pointsAmount: totalEarning_GBP,
+				completionBonus: 0,
+				waitingBonus: waitingBonus_GBP
+			};
+		}
 
 		this.add.text(configWidth/2, yPosition, 'Payment Summary:', {
 			fontSize: '28px',
@@ -104,17 +118,53 @@ class SceneGoToQuestionnaire extends Phaser.Scene {
 		}).setOrigin(0.5);
 		yPosition += 45;
 
-		this.add.text(configWidth/2, yPosition, `Your total game reward: £${totalEarning_GBP.toFixed(2)}`, {
+		// Base participation fee (if present)
+		if (paymentBreakdown.flatFee > 0) {
+			const currency = this.payment?.currency || 'GBP';
+			const symbol = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency;
+			this.add.text(configWidth/2, yPosition, `Base participation fee: ${symbol}${paymentBreakdown.flatFee.toFixed(2)}`, {
+				fontSize: '22px',
+				fill: '#666'
+			}).setOrigin(0.5);
+			yPosition += 35;
+		}
+
+		// Points earned
+		const currency = this.payment?.currency || 'GBP';
+		const symbol = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency;
+		this.add.text(configWidth/2, yPosition, `Points reward (${this.totalPointsAllRounds} pts): ${symbol}${paymentBreakdown.pointsAmount.toFixed(2)}`, {
 			fontSize: '26px',
 			fill: '#ff6600'
 		}).setOrigin(0.5);
 		yPosition += 40;
 
-		this.add.text(configWidth/2, yPosition, `Waiting bonus: £${waitingBonus_GBP.toFixed(2)}`, {
-			fontSize: '26px',
-			fill: '#ff6600'
+		// Waiting bonus (if present)
+		if (paymentBreakdown.waitingBonus > 0) {
+			this.add.text(configWidth/2, yPosition, `Waiting bonus: ${symbol}${paymentBreakdown.waitingBonus.toFixed(2)}`, {
+				fontSize: '26px',
+				fill: '#ff6600'
+			}).setOrigin(0.5);
+			yPosition += 40;
+		}
+
+		// Completion bonus (if present)
+		if (paymentBreakdown.completionBonus > 0) {
+			this.add.text(configWidth/2, yPosition, `Completion bonus: ${symbol}${paymentBreakdown.completionBonus.toFixed(2)}`, {
+				fontSize: '26px',
+				fill: '#ff6600'
+			}).setOrigin(0.5);
+			yPosition += 40;
+		}
+
+		// Total payment
+		yPosition += 10;
+		const totalPayment = this.payment?.formatted || `${symbol}0.00`;
+		this.add.text(configWidth/2, yPosition, `Total Payment: ${totalPayment}`, {
+			fontSize: '32px',
+			fill: '#008800',
+			fontStyle: 'bold'
 		}).setOrigin(0.5);
-		yPosition += 70;
+		yPosition += 60;
 
 		// isThisGameCompleted status changes
 		isThisGameCompleted = true;

@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const logger = require('../utils/logger');
+const PaymentCalculator = require('../utils/PaymentCalculator');
 
 class ExperimentLoader {
     constructor(experimentPath = null) {
@@ -39,6 +40,9 @@ class ExperimentLoader {
 
             // Build game configuration object
             this.gameConfig = this.buildGameConfig();
+
+            // Initialize PaymentCalculator with payment config
+            this.paymentCalculator = new PaymentCalculator(this.gameConfig.payment);
 
             logger.info('Experiment configuration loaded successfully', {
                 name: this.config.experiment.name,
@@ -77,11 +81,16 @@ class ExperimentLoader {
         }
 
         // Validate game fields
-        const gameRequired = ['horizon', 'k_armed_bandit', 'max_choice_time', 'max_waiting_time'];
+        const gameRequired = ['horizon', 'k_armed_bandit', 'max_choice_time', 'max_lobby_wait_time'];
         for (const field of gameRequired) {
             if (this.config.game[field] === undefined) {
                 throw new Error(`Missing required game config field: ${field}`);
             }
+        }
+
+        // max_scene_wait_time is optional (defaults to 0 = wait indefinitely)
+        if (this.config.game.max_scene_wait_time === undefined) {
+            this.config.game.max_scene_wait_time = 0;
         }
 
         // Validate conditions.indivOrGroup
@@ -274,7 +283,8 @@ class ExperimentLoader {
             total_game_rounds: this.config.game.total_game_rounds || 1,
             k_armed_bandit: this.config.game.k_armed_bandit,
             max_choice_time: this.config.game.max_choice_time,
-            max_waiting_time: this.config.game.max_waiting_time,
+            max_lobby_wait_time: this.config.game.max_lobby_wait_time,
+            max_scene_wait_time: this.config.game.max_scene_wait_time || 0,
 
             // Group settings
             max_group_size: this.config.groups.max_group_size,

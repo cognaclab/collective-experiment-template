@@ -44,10 +44,12 @@ function onConnectioncConfig({ config, client, io }) {
                     config.roomStatus[client.room] = createRoom({
                         name: client.room,
                         mode: config.experimentLoader.gameConfig.mode, // Pass mode from YAML config
+                        expCondition: config.experimentLoader.gameConfig.exp_condition, // Pass exp_condition from YAML
                         config: {
                             maxGroupSize: 1,
                             numOptions: config.experimentLoader.gameConfig.k_armed_bandit,
-                            maxWaitingTime: config.experimentLoader.gameConfig.max_waiting_time,
+                            maxLobbyWaitTime: config.experimentLoader.gameConfig.max_lobby_wait_time,
+                            maxSceneWaitTime: config.experimentLoader.gameConfig.max_scene_wait_time || 0,
                             maxChoiceStageTime: config.experimentLoader.gameConfig.max_choice_time,
                             totalGameRound: config.experimentLoader.gameConfig.total_game_rounds,
                             minHorizon: config.minHorizon,
@@ -55,8 +57,6 @@ function onConnectioncConfig({ config, client, io }) {
                             numEnv: config.numEnv,
                             task_order: [],
                             options: Array.from({length: config.experimentLoader.gameConfig.k_armed_bandit}, (_, i) => i + 1),
-                            prob_conditions: 1.0,
-                            exp_condition_list: config.exp_condition_list,
                             horizon: config.experimentLoader.gameConfig.horizon
                         }
                     });

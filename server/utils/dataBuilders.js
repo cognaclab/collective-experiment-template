@@ -76,7 +76,7 @@ function buildTrialData(client, room, choiceData, config) {
         // ==========================================
         // PAYMENT/BONUS DATA
         // ==========================================
-        payment: buildPaymentData(client, room, choiceData),
+        payment: buildPaymentData(client, room, choiceData, config),
 
         // ==========================================
         // TECHNICAL METADATA
@@ -254,16 +254,31 @@ function buildSynchronizationData(room, client) {
 /**
  * Build payment/bonus data
  */
-function buildPaymentData(client, room, choiceData) {
+function buildPaymentData(client, room, choiceData, config) {
     const pointer = room.pointer || 0;
     const clientIdx = client.subjectNumber - 1;
 
-    return {
+    // Get PaymentCalculator if available
+    const paymentCalculator = config?.experimentLoader?.paymentCalculator;
+
+    const paymentData = {
         individualPayoff: choiceData.payoff || 0,
         cumulativePayoff: room.totalPayoff_perIndiv?.[clientIdx] || 0,
         waitingBonus: client.waitingBonus || 0,
         informationCost: room.totalShareCostPaid?.[clientIdx] || 0
     };
+
+    // Add formatted currency amounts if PaymentCalculator is available
+    if (paymentCalculator) {
+        paymentData.trialPaymentFormatted = paymentCalculator.formatCurrency(
+            paymentCalculator.pointsToAmount(choiceData.payoff || 0)
+        );
+        paymentData.cumulativePaymentFormatted = paymentCalculator.formatCurrency(
+            paymentCalculator.pointsToAmount(room.totalPayoff_perIndiv?.[clientIdx] || 0)
+        );
+    }
+
+    return paymentData;
 }
 
 /**
@@ -356,30 +371,48 @@ function buildSessionData(client, room, config) {
  * @param {Object} sessionData - Current session data
  * @param {Object} client - Socket client object
  * @param {Object} room - Room object with experiment state
+ * @param {Object} config - Experiment configuration
  * @returns {Object} Updated performance object
  */
-function updateSessionPerformance(sessionData, client, room) {
+function updateSessionPerformance(sessionData, client, room, config) {
     const clientIdx = client.subjectNumber - 1;
+    const finalPaymentData = calculateFinalPayment(client, room, config);
+
+    // Handle both old (number) and new (object) return types
+    const finalPaymentAmount = typeof finalPaymentData === 'number'
+        ? finalPaymentData
+        : finalPaymentData.total;
 
     return {
         totalPoints: room.totalPayoff_perIndiv?.[clientIdx] || 0,
         totalPayoff: room.totalPayoff_perIndiv?.[clientIdx] || 0,
         waitingBonus: client.waitingBonus || 0,
         informationCosts: room.totalShareCostPaid?.[clientIdx] || 0,
-        finalPayment: calculateFinalPayment(client, room),
+        finalPayment: finalPaymentAmount,
+        finalPaymentBreakdown: typeof finalPaymentData === 'object' ? finalPaymentData : null,
         trialsCompleted: (room.pointer || 0) + 1,
         trialsMissed: sessionData.performance.trialsMissed || 0
     };
 }
 
 /**
- * Calculate final payment in currency
+ * Calculate final payment in currency using PaymentCalculator
+ * @param {Object} client - Socket client object
+ * @param {Object} room - Room object with experiment state
+ * @param {Object} config - Experiment configuration
+ * @returns {number|Object} Payment amount (number for legacy, object with breakdown if PaymentCalculator available)
  */
-function calculateFinalPayment(client, room) {
+function calculateFinalPayment(client, room, config) {
+    const paymentCalculator = config?.experimentLoader?.paymentCalculator;
+
+    if (paymentCalculator) {
+        // Use PaymentCalculator for proper calculation
+        return paymentCalculator.calculateFinalPayment(client, room);
+    }
+
+    // Legacy fallback (shouldn't be reached with new config system)
     const clientIdx = client.subjectNumber - 1;
     const totalPoints = room.totalPayoff_perIndiv?.[clientIdx] || 0;
-
-    // Convert points to currency (will be configurable later)
     const centPerPoint = global.cent_per_point || 1;
     const pointsPayment = (totalPoints * centPerPoint) / 100;
     const waitingBonus = (client.waitingBonus || 0) / 100;

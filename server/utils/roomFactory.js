@@ -8,8 +8,6 @@ const {
     , createFilledArray
     , getRandomIntInclusive
     , shuffle
-    , shuffleAndTakeFirst
-    , weightedRand2
     , modeToNumeric
 } = require('./helpers');
 const constants = require('../../config/constants');
@@ -21,8 +19,9 @@ const constants = require('../../config/constants');
  * @param {string} options.name - Room name
  * @param {Object} options.config - Game configuration (optional, uses constants as fallback)
  * @param {string} options.mode - Experiment mode ('individual' or 'group', optional)
+ * @param {string} options.expCondition - Experimental condition label (optional)
  */
-function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode = null } = {}) {
+function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode = null, expCondition = null } = {}) {
     // Use provided config or fall back to constants
     const maxGroupSize = config?.maxGroupSize || constants.maxGroupSize;
     const numOptions = config?.numOptions || constants.numOptions;
@@ -34,8 +33,6 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode
     const numEnv = config?.numEnv || constants.numEnv;
     const task_order = config?.task_order || constants.task_order;
     const options = config?.options || constants.options;
-    const prob_conditions = config?.prob_conditions || constants.prob_conditions;
-    const exp_condition_list = config?.exp_condition_list || constants.exp_condition_list;
 
     const totalHorizon = minHorizon * numEnv;
     const taskOrder = shuffle(task_order);
@@ -44,9 +41,12 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode
     // Convert mode string to numeric if provided, otherwise use -1
     const indivOrGroupValue = mode ? modeToNumeric(mode) : -1;
 
+    // Use provided expCondition from YAML config
+    const expConditionValue = isDecoy ? 'decoyRoom' : (expCondition || 'default');
+
     return {
         roomId: name, // Store room identifier for database
-        exp_condition: isDecoy ? 'decoyRoom' : exp_condition_list[weightedRand2({ 0: prob_conditions, 1: (1 - prob_conditions) })],
+        exp_condition: expConditionValue,
         riskDistributionId: getRandomIntInclusive(13, 13),
         optionOrder: shuffle(options),
         taskType: taskType,

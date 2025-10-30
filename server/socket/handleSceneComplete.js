@@ -100,9 +100,12 @@ function handleSceneComplete(client, data, config, io) {
         return;
     }
 
-    // Initialize scene ready counter if not exists
+    // Initialize scene ready counter and timers if not exists
     if (!room.sceneReadyCount) {
         room.sceneReadyCount = {};
+    }
+    if (!room.sceneTimers) {
+        room.sceneTimers = {};
     }
 
     // Increment ready count for this scene
@@ -120,13 +123,54 @@ function handleSceneComplete(client, data, config, io) {
     const allReady = room.sceneReadyCount[sceneKey] >= room.n;
 
     if (!allReady) {
+        // Get max_scene_wait_time from config (0 = wait indefinitely)
+        const maxSceneWaitTime = config.experimentLoader?.gameConfig?.max_scene_wait_time || 0;
+
+        // Start timer on first player ready (only if timeout is configured and n > 1)
+        if (room.sceneReadyCount[sceneKey] === 1 && maxSceneWaitTime > 0 && room.n > 1) {
+            logger.info('Starting scene wait timer', {
+                room: client.room,
+                scene: sceneKey,
+                timeout: maxSceneWaitTime,
+                ready: 1,
+                required: room.n
+            });
+
+            room.sceneTimers[sceneKey] = setTimeout(() => {
+                logger.warn('Scene wait timeout - proceeding with ready players', {
+                    room: client.room,
+                    scene: sceneKey,
+                    ready: room.sceneReadyCount[sceneKey],
+                    required: room.n,
+                    timeout: maxSceneWaitTime
+                });
+
+                // Force proceed with whoever is ready
+                room.sceneReadyCount[sceneKey] = room.n;
+
+                // Recursively call this handler to trigger progression
+                handleSceneComplete(client, data, config, io);
+            }, maxSceneWaitTime);
+        }
+
         logger.debug('Waiting for other players', {
             room: client.room,
             scene: sceneKey,
             ready: room.sceneReadyCount[sceneKey],
-            required: room.n
+            required: room.n,
+            hasTimer: !!room.sceneTimers[sceneKey]
         });
-        return; // Wait for other players
+        return; // Wait for other players or timeout
+    }
+
+    // Clear timer if it exists (all players ready before timeout)
+    if (room.sceneTimers[sceneKey]) {
+        clearTimeout(room.sceneTimers[sceneKey]);
+        delete room.sceneTimers[sceneKey];
+        logger.debug('Cleared scene wait timer - all players ready', {
+            room: client.room,
+            scene: sceneKey
+        });
     }
 
     // Reset ready counter for this scene
@@ -336,6 +380,38 @@ function handleSceneComplete(client, data, config, io) {
             }
         }
 
+        // Calculate payment for each client in the room
+        const paymentCalculator = config.experimentLoader?.paymentCalculator;
+        let paymentData = null;
+
+        if (paymentCalculator) {
+            // Create a temporary client object with cumulative points
+            const tempClient = {
+                waitingBonus: 0 // TODO: Track waiting bonus per client
+            };
+
+            // Create a temporary room object with total points
+            const tempRoom = {
+                totalPayoff_perIndiv: [totalPointsAllRounds],
+                n: room.n
+            };
+
+            try {
+                paymentData = paymentCalculator.calculateSessionPayment(
+                    totalPointsAllRounds,
+                    tempClient.waitingBonus,
+                    true // completed
+                );
+
+                logger.info('Calculated payment for questionnaire', {
+                    totalPoints: totalPointsAllRounds,
+                    payment: paymentData.formatted
+                });
+            } catch (error) {
+                logger.error('Failed to calculate payment', { error: error.message });
+            }
+        }
+
         sceneData = {
             gameRound: currentGameRound,
             totalPointsAllRounds: totalPointsAllRounds,
@@ -344,13 +420,15 @@ function handleSceneComplete(client, data, config, io) {
             optionOrder: room.optionOrder || [1, 2, 3],
             horizon: horizon,
             n: room.n,
-            prob_means: prob_means_summary
+            prob_means: prob_means_summary,
+            payment: paymentData // Add payment data to scene data
         };
 
         logger.info('Preparing questionnaire with summary data', {
             totalPointsAllRounds,
             roundBreakdown,
-            totalGameRounds
+            totalGameRounds,
+            payment: paymentData?.formatted
         });
     } else if (nextScene.type === 'warning') {
         const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
