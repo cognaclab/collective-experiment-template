@@ -192,11 +192,26 @@ conditions:
   taskType: "static"              # "static" or "dynamic"
   exp_condition: "control"        # Condition label
 
+# Reward System - Generic payoff calculation supporting multiple game types
+reward_system:
+  type: "probabilistic"           # "payoff_matrix", "probabilistic", "deterministic", "function"
+
+# For probabilistic rewards (bandit tasks), define environments
 environments:
   static:
     probabilities: [0.9, 0.1]     # Payoff probabilities per arm
   dynamic:
     probabilities: [0.9, 0.1]
+
+# For matrix games (Prisoner's Dilemma, coordination games, etc.)
+# reward_system:
+#   type: "payoff_matrix"
+#   matrix_type: "prisoners_dilemma"  # Optional label
+#   payoffs:
+#     "[0,0]": [3, 3]   # Both cooperate: [player1_payoff, player2_payoff]
+#     "[0,1]": [0, 5]   # P1 cooperates, P2 defects
+#     "[1,0]": [5, 0]   # P1 defects, P2 cooperates
+#     "[1,1]": [1, 1]   # Both defect
 
 payment:
   flat_fee: 0.50                  # Base payment (GBP)
@@ -204,6 +219,25 @@ payment:
   points_to_currency: 0.0006      # Conversion rate (6p per 100 pts)
   currency: "GBP"                 # Currency code
 ```
+
+**Reward System Types:**
+
+1. **`payoff_matrix`** - For N-player strategic games (Prisoner's Dilemma, coordination games, public goods games)
+   - Payoffs defined as: `[choice1, choice2, ...]: [payoff1, payoff2, ...]`
+   - Matrix dimensions implicitly define number of players
+   - Server calculates payoffs after all players choose
+
+2. **`probabilistic`** - For multi-armed bandit tasks
+   - Each option has a probability of returning reward (0 or 1)
+   - Uses `environments` field to define probabilities per arm
+   - Supports static and dynamic environments
+
+3. **`deterministic`** - For fixed rewards per choice
+   - Each option always returns the same reward value
+   - Defined as: `rewards: [10, 20, 30]`
+
+4. **`function`** - For custom reward functions (future extension)
+   - Allows JavaScript function evaluation for complex reward logic
 
 ### Scene Sequences (sequences/main.yaml)
 
@@ -590,6 +624,66 @@ Phaser games are organized into scenes. Each scene represents a distinct phase o
 ---
 
 ## Payment System
+
+### RewardCalculator (server/utils/RewardCalculator.js)
+
+**Purpose:** Generic reward/payoff calculation system supporting multiple game types.
+
+**Supported Reward Types:**
+1. `payoff_matrix` - Strategic N-player games (Prisoner's Dilemma, coordination, public goods)
+2. `probabilistic` - Multi-armed bandit tasks with probability distributions
+3. `deterministic` - Fixed rewards per choice
+4. `function` - Custom reward functions (future extension)
+
+**Configuration (from YAML):**
+```yaml
+# Matrix game example (Prisoner's Dilemma)
+reward_system:
+  type: "payoff_matrix"
+  matrix_type: "prisoners_dilemma"
+  payoffs:
+    "[0,0]": [3, 3]   # Both cooperate
+    "[0,1]": [0, 5]   # P1 cooperates, P2 defects
+    "[1,0]": [5, 0]   # P1 defects, P2 cooperates
+    "[1,1]": [1, 1]   # Both defect
+
+# Probabilistic example (bandit task)
+reward_system:
+  type: "probabilistic"
+environments:
+  static:
+    probabilities: [0.9, 0.1]
+```
+
+**Usage:**
+```javascript
+const calculator = new RewardCalculator(config);
+
+// For matrix games (N-player)
+const choices = [0, 1];  // Player 1 chose 0, Player 2 chose 1
+const payoffs = calculator.calculateReward(choices, context);
+// Returns: [0, 5]  (Player 1 gets 0, Player 2 gets 5)
+
+// For probabilistic rewards (individual)
+const choice = 0;  // Chose option 0
+const reward = calculator.calculateReward(choice, { environment: 'static' });
+// Returns: 0 or 1 based on probability
+```
+
+**Key Methods:**
+- `calculateReward(choices, context)` - Main entry point, routes to appropriate method
+- `calculateMatrixPayoff(choices, context)` - For N-player strategic games
+- `calculateProbabilisticReward(choices, context)` - For bandit tasks
+- `calculateDeterministicReward(choices, context)` - For fixed rewards
+- `validateConfig()` - Validates reward_system configuration at load time
+
+**Matrix Game Logic:**
+- Accepts array of player choices: `[choice1, choice2, ...]`
+- Looks up payoffs using JSON key: `"[0, 1]"` → `[0, 5]`
+- Returns array of payoffs: `[payoff1, payoff2, ...]`
+- Works for any number of players (N-player games)
+
+---
 
 ### PaymentCalculator (server/utils/PaymentCalculator.js)
 

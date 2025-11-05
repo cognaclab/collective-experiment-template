@@ -26,10 +26,13 @@ function onConnectioncConfig({ config, client, io }) {
         client.join(client.session);
         config.sessionNameSpace[client.session] = 1;
 
-        // For individual experiments, assign to a room immediately
-        // This enables server-controlled flow to work without waiting for 'core is ready'
+        // Assign to a room immediately for all experiments
+        // This ensures room exists before scene_complete events fire
         if (config.experimentLoader && config.experimentLoader.gameConfig) {
             const mode = config.experimentLoader.gameConfig.mode;
+            const maxGroupSize = config.experimentLoader.gameConfig.max_group_size;
+            const minGroupSize = config.experimentLoader.gameConfig.min_group_size;
+
             if (mode === 'individual') {
                 // Create individual room for this client
                 client.room = client.session; // Use session as room name
@@ -43,8 +46,8 @@ function onConnectioncConfig({ config, client, io }) {
                     const { createRoom } = require('../utils/roomFactory');
                     config.roomStatus[client.room] = createRoom({
                         name: client.room,
-                        mode: config.experimentLoader.gameConfig.mode, // Pass mode from YAML config
-                        expCondition: config.experimentLoader.gameConfig.exp_condition, // Pass exp_condition from YAML
+                        mode: config.experimentLoader.gameConfig.mode,
+                        expCondition: config.experimentLoader.gameConfig.exp_condition,
                         config: {
                             maxGroupSize: 1,
                             numOptions: config.experimentLoader.gameConfig.k_armed_bandit,
@@ -60,11 +63,51 @@ function onConnectioncConfig({ config, client, io }) {
                             horizon: config.experimentLoader.gameConfig.horizon
                         }
                     });
-                    config.roomStatus[client.room].n = 1; // Set group size to 1
+                    config.roomStatus[client.room].n = 1;
                     config.roomStatus[client.room].membersID = [client.subjectID];
                 }
 
                 console.log(`- Room ${client.room} assigned for individual experiment (n=1)`);
+
+                // Create session record in database
+                createSessionRecord(client, config.roomStatus[client.room], config);
+            } else if (mode === 'group') {
+                // For group experiments, create a placeholder room on connection
+                // Actual room assignment happens in coreReadyHandler, but this ensures room exists
+                client.room = client.session; // Temporary room assignment
+                client.join(client.room);
+
+                // Set subject number (will be updated when joining actual group room)
+                client.subjectNumber = 1;
+
+                // Initialize temporary room structure
+                if (!config.roomStatus[client.room]) {
+                    const { createRoom } = require('../utils/roomFactory');
+                    config.roomStatus[client.room] = createRoom({
+                        name: client.room,
+                        mode: config.experimentLoader.gameConfig.mode,
+                        expCondition: config.experimentLoader.gameConfig.exp_condition,
+                        config: {
+                            maxGroupSize: maxGroupSize,
+                            numOptions: config.experimentLoader.gameConfig.k_armed_bandit,
+                            maxLobbyWaitTime: config.experimentLoader.gameConfig.max_lobby_wait_time,
+                            maxSceneWaitTime: config.experimentLoader.gameConfig.max_scene_wait_time || 0,
+                            maxChoiceStageTime: config.experimentLoader.gameConfig.max_choice_time,
+                            totalGameRound: config.experimentLoader.gameConfig.total_game_rounds,
+                            minHorizon: config.minHorizon,
+                            static_horizons: config.static_horizons,
+                            numEnv: config.numEnv,
+                            task_order: [],
+                            options: Array.from({length: config.experimentLoader.gameConfig.k_armed_bandit}, (_, i) => i + 1),
+                            horizon: config.experimentLoader.gameConfig.horizon
+                        }
+                    });
+                    config.roomStatus[client.room].n = 1; // Will be updated in coreReadyHandler
+                    config.roomStatus[client.room].membersID = [client.subjectID];
+                    config.roomStatus[client.room].isTemporary = true; // Mark as temporary
+                }
+
+                console.log(`- Temporary room ${client.room} created for group experiment (will be assigned in waiting room)`);
 
                 // Create session record in database
                 createSessionRecord(client, config.roomStatus[client.room], config);

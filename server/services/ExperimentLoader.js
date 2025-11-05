@@ -8,6 +8,7 @@ const path = require('path');
 const yaml = require('js-yaml');
 const logger = require('../utils/logger');
 const PaymentCalculator = require('../utils/PaymentCalculator');
+const RewardCalculator = require('../utils/RewardCalculator');
 
 class ExperimentLoader {
     constructor(experimentPath = null) {
@@ -44,6 +45,9 @@ class ExperimentLoader {
             // Initialize PaymentCalculator with payment config
             this.paymentCalculator = new PaymentCalculator(this.gameConfig.payment);
 
+            // Initialize RewardCalculator with full config
+            this.rewardCalculator = new RewardCalculator(this.config);
+
             logger.info('Experiment configuration loaded successfully', {
                 name: this.config.experiment.name,
                 mode: this.getMode(),
@@ -70,14 +74,18 @@ class ExperimentLoader {
             'experiment',
             'game',
             'groups',
-            'conditions',
-            'environments'
+            'conditions'
         ];
 
         for (const field of required) {
             if (!this.config[field]) {
                 throw new Error(`Missing required config field: ${field}`);
             }
+        }
+
+        // Validate reward system (reward_system or environments must be present)
+        if (!this.config.reward_system && !this.config.environments) {
+            throw new Error('Config must have either reward_system or environments field');
         }
 
         // Validate game fields
@@ -121,8 +129,10 @@ class ExperimentLoader {
             );
         }
 
-        // Validate environment probabilities
-        this.validateEnvironmentProbabilities();
+        // Validate environment probabilities if using legacy format
+        if (this.config.environments) {
+            this.validateEnvironmentProbabilities();
+        }
     }
 
     /**
@@ -295,7 +305,10 @@ class ExperimentLoader {
             task_type: this.config.conditions.taskType, // 'static' | 'dynamic'
             exp_condition: this.config.conditions.exp_condition,
 
-            // Environments (bandit probabilities)
+            // Reward system (new generic format)
+            reward_system: this.config.reward_system,
+
+            // Environments (legacy bandit probabilities - kept for backward compatibility)
             environments: this.config.environments,
 
             // Payment settings

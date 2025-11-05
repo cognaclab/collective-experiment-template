@@ -20,11 +20,15 @@ conditions:
   taskType: static
   exp_condition: quick_test
 
-# Very clear probabilities for testing
-# Probabilities indexed by machine ID (positions randomized for counterbalancing)
+# Reward System - Probabilistic rewards for bandit task
+reward_system:
+  type: "probabilistic"
+
+# Environments define reward probabilities for each arm
+# Machine 1: 90%, Machine 2: 10% (positions shuffled for counterbalancing)
 environments:
   static:
-    probabilities: [0.9, 0.1]  # Machine 1: 90%, Machine 2: 10% (positions shuffled)
+    probabilities: [0.9, 0.1]
 
 payment:
   flat_fee: 0.50              # Base payment for participation (GBP)

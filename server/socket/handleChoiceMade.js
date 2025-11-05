@@ -20,9 +20,23 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 
 	room.doneId[p].push(number);
 	const doneNum = room.doneId[p].length;
-	const this_indiv_payoff = Number(data.individual_payoff);
 	const this_trial = data.thisTrial;
 	const gameType = room.taskType;
+
+	// Initialize storage for choices if needed (for matrix games and group experiments)
+	if (!room.playerChoices) room.playerChoices = {};
+	if (!room.playerChoices[p]) room.playerChoices[p] = {};
+
+	// Store this player's choice
+	room.playerChoices[p][number] = choice;
+
+	// Calculate payoff based on reward system type
+	let this_indiv_payoff = Number(data.individual_payoff);
+
+	// If using reward_system config, payoffs will be calculated server-side
+	if (config.experimentLoader && config.experimentLoader.config.reward_system) {
+		this_indiv_payoff = 0; // Will be calculated after all required players choose
+	}
 
 	room.socialInfo[p][doneNum - 1]  = choice;
 	room.choiceOrder[p][doneNum - 1] = number;
@@ -134,6 +148,12 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 		io.to(client.room).emit('these are done subjects', { doneSubject: room.doneId[p] });
 	} else {
 		console.log(` - All done (${room.doneNo[p]}/${room.n}), proceeding to result`);
+
+		// Calculate rewards using RewardCalculator if applicable (must wait for all players)
+		if (config.experimentLoader && config.experimentLoader.rewardCalculator) {
+			calculateRewards(room, p, config);
+		}
+
 		const countPositive = room.socialInfo[p].filter(n => n > -1).length;
 		// Only zero out group payoff if in group condition AND not enough participants
 		if (countPositive < 2 && room.indivOrGroup === 1) {
@@ -182,6 +202,60 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 		}
 	}
 };
+
+/**
+ * Calculate rewards for all players using RewardCalculator
+ * Works for all reward types: payoff_matrix, probabilistic, deterministic
+ * @param {Object} room - Room object
+ * @param {Number} p - Pointer index (trial - 1)
+ * @param {Object} config - Experiment configuration
+ */
+function calculateRewards(room, p, config) {
+	const rewardCalculator = config.experimentLoader.rewardCalculator;
+	const choices = room.playerChoices[p];
+
+	console.log(`[REWARD CALC] Calculating rewards for trial ${p + 1}`);
+	console.log(`[REWARD CALC] Player choices:`, choices);
+
+	// Get player numbers (ordered array of subject numbers)
+	const playerNumbers = Object.keys(choices).map(n => parseInt(n)).sort((a, b) => a - b);
+
+	// Build choices array in order [choice1, choice2, ...]
+	const choicesArray = playerNumbers.map(playerNum => choices[playerNum]);
+
+	console.log(`[REWARD CALC] Player numbers:`, playerNumbers);
+	console.log(`[REWARD CALC] Choices array:`, choicesArray);
+
+	// Calculate rewards using RewardCalculator
+	const context = {
+		trial: p + 1,
+		environment: room.currentEnv,
+		taskType: room.taskType
+	};
+
+	const payoffs = rewardCalculator.calculateReward(choicesArray, context);
+
+	console.log(`[REWARD CALC] Calculated payoffs:`, payoffs);
+
+	// Store payoffs in room structure for later retrieval
+	if (!room.rewards) room.rewards = {};
+	if (!room.rewards[p]) room.rewards[p] = {};
+
+	// Map payoffs back to player numbers
+	let totalPayoff = 0;
+	playerNumbers.forEach((playerNum, index) => {
+		const payoff = Array.isArray(payoffs) ? payoffs[index] : payoffs;
+		room.rewards[p][playerNum] = payoff;
+		totalPayoff += payoff;
+		console.log(`[REWARD CALC] Player ${playerNum} reward: ${payoff}`);
+	});
+
+	// Update group total payoffs
+	room.groupTotalPayoff[p] = (room.groupTotalPayoff[p] || 0) + totalPayoff;
+	room.groupCumulativePayoff[room.gameRound] = (room.groupCumulativePayoff[room.gameRound] || 0) + totalPayoff;
+
+	console.log(`[REWARD CALC] Updated group total payoff: ${room.groupTotalPayoff[p]}`);
+}
 
 /**
  * Save trial data to database asynchronously

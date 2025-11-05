@@ -355,6 +355,49 @@ function handleSceneComplete(client, data, config, io) {
             groupCumulativePayoff: room.groupCumulativePayoff?.[currentGameRound] || 0,
             mySocialInfo: room.socialInfo?.[currentPointer] || {}
         };
+    } else if (nextScene.scene === 'ScenePDResults' || nextScene.type === 'pd_results') {
+        // Matrix game results scene - show both players' choices and payoffs
+        const rewards = room.rewards?.[currentPointer] || {};
+        const playerChoices = room.playerChoices?.[currentPointer] || {};
+        const socialInfo = room.socialInfo?.[currentPointer] || [];
+
+        // Get current player's data
+        const myChoice = playerChoices[client.subjectNumber];
+        const myPayoff = rewards[client.subjectNumber];
+
+        // Get partner's data (the other player in a 2-player game)
+        const playerNumbers = Object.keys(playerChoices).map(n => parseInt(n));
+        const partnerNumber = playerNumbers.find(n => n !== client.subjectNumber);
+        const partnerChoice = partnerNumber !== undefined ? playerChoices[partnerNumber] : null;
+        const partnerPayoff = partnerNumber !== undefined ? rewards[partnerNumber] : null;
+
+        // Calculate cumulative points for this player
+        let totalPoints = 0;
+        for (let i = 0; i <= currentPointer; i++) {
+            if (room.rewards?.[i]?.[client.subjectNumber] !== undefined) {
+                totalPoints += room.rewards[i][client.subjectNumber];
+            }
+        }
+
+        sceneData = {
+            trial: room.trial || 1,
+            myChoice: myChoice !== undefined ? myChoice : null,
+            partnerChoice: partnerChoice !== null ? partnerChoice : null,
+            myPayoff: myPayoff !== undefined ? myPayoff : 0,
+            partnerPayoff: partnerPayoff !== null ? partnerPayoff : 0,
+            totalPoints: totalPoints,
+            wasMiss: room.missFlags?.[currentPointer]?.some(f => f) || false,
+            wasTimeout: room.timeoutFlags?.[currentPointer]?.some(f => f) || false
+        };
+
+        logger.info('Preparing matrix game results scene', {
+            trial: room.trial,
+            myChoice,
+            partnerChoice,
+            myPayoff,
+            partnerPayoff,
+            totalPoints
+        });
     } else if (nextScene.type === 'questionnaire') {
         // Calculate totals across all rounds for summary display
         const totalPointsAllRounds = room.groupCumulativePayoff?.reduce((sum, val) => sum + (val || 0), 0) || 0;

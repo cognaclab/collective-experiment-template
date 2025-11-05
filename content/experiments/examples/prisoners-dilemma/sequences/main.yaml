@@ -1,0 +1,31 @@
+sequence:
+  # Welcome and instructions
+  - scene: "welcome"
+    type: "instruction"
+    content: "welcome.md"
+    next: "SceneWaitingRoom"
+
+  # Wait for partner to join
+  - scene: "SceneWaitingRoom"
+    type: "waiting"
+    next: "ScenePDChoice"
+
+  # Main game loop - PD choices and results
+  - scene: "ScenePDChoice"
+    type: "pd_choice"
+    next: "ScenePDResults"
+    next_on_timeout: "SceneAskStillThere"
+    next_on_miss: "SceneAskStillThere"
+
+  - scene: "SceneAskStillThere"
+    type: "warning"
+    next: "ScenePDResults"
+
+  - scene: "ScenePDResults"
+    type: "pd_results"
+    next: "ScenePDChoice"
+
+  # End of experiment (after horizon trials)
+  - scene: "SceneGoToQuestionnaire"
+    type: "questionnaire"
+    redirect: "/questionnaire"
