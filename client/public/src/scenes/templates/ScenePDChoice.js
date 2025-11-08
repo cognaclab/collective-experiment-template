@@ -6,7 +6,7 @@ class ScenePDChoice extends Phaser.Scene {
 
     constructor() {
         super({ key: 'ScenePDChoice', active: false });
-        this.choiceMade = false;
+        this.choiceConfirmed = false;
         this.selectedChoice = null;
     }
 
@@ -14,13 +14,16 @@ class ScenePDChoice extends Phaser.Scene {
     }
 
     init(data) {
+        console.log('ScenePDChoice.init() received data:', data);
         this.trial = data.trial || 1;
         this.totalTrials = data.totalTrials || 3;
         this.maxChoiceTime = data.maxChoiceTime || 10000;
         this.showTimer = data.showTimer !== undefined ? data.showTimer : true;
 
+        console.log('ScenePDChoice.init() - maxChoiceTime set to:', this.maxChoiceTime);
+
         // Reset choice state
-        this.choiceMade = false;
+        this.choiceConfirmed = false;
         this.selectedChoice = null;
     }
 
@@ -91,13 +94,25 @@ class ScenePDChoice extends Phaser.Scene {
 
             timerBar = this.add.graphics();
 
-            timerText = this.add.text(400, 500, 'Time remaining: 10s', {
+            const initialSeconds = Math.ceil(this.maxChoiceTime / 1000);
+            timerText = this.add.text(400, 500, `Time remaining: ${initialSeconds}s`, {
                 fontSize: '18px',
                 fill: '#666'
             }).setOrigin(0.5);
         }
 
-        // Waiting message (shown after choice)
+        // Confirmation button (shown after selection, hidden initially)
+        const confirmButton = this.add.rectangle(400, 400, 200, 60, 0x2196F3)
+            .setInteractive({ cursor: 'pointer' })
+            .setVisible(false);
+
+        const confirmText = this.add.text(400, 400, 'Click to Confirm', {
+            fontSize: '20px',
+            fill: '#FFF',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setVisible(false);
+
+        // Waiting message (shown after confirmation)
         const waitingText = this.add.text(400, 520, 'Waiting for your partner...', {
             fontSize: '20px',
             fill: '#FF9800',
@@ -107,99 +122,176 @@ class ScenePDChoice extends Phaser.Scene {
 
         // Timestamp for reaction time
         const timeCreated = new Date();
+        let selectionTime = null;
 
-        // Handle choice selection
-        const handleChoice = (choiceId, choiceName, button, otherButton) => {
-            if (this.choiceMade) return;
+        // Step 1: Handle choice selection (first click)
+        const selectChoice = (choiceId, choiceName, button, otherButton) => {
+            if (this.selectedChoice !== null) return;
 
-            this.choiceMade = true;
             this.selectedChoice = choiceId;
+            selectionTime = new Date();
 
-            // Visual feedback
+            // Visual feedback - highlight selected button
             button.setFillStyle(choiceId === 0 ? 0x45a049 : 0xe53935);
-            otherButton.setAlpha(0.3);
-            otherButton.disableInteractive();
+            otherButton.setAlpha(0.5);
 
-            // Calculate reaction time
+            // Update instructions
+            instructions.setText(`You selected: ${choiceName}`);
+
+            // Show confirmation button
+            confirmButton.setVisible(true);
+            confirmText.setVisible(true);
+
+            console.log('Choice selected:', choiceName);
+        };
+
+        // Step 2: Handle confirmation (second click or confirm button)
+        const confirmChoice = () => {
+            if (this.choiceConfirmed || this.selectedChoice === null) return;
+
+            this.choiceConfirmed = true;
+
+            const choiceName = this.selectedChoice === 0 ? 'Cooperate' : 'Defect';
+
+            // Disable all interactive elements
+            cooperateButton.disableInteractive();
+            defectButton.disableInteractive();
+            confirmButton.disableInteractive();
+            confirmButton.setVisible(false);
+            confirmText.setVisible(false);
+
+            // Calculate reaction time from initial scene load
             const reactionTime = new Date() - timeCreated;
+
+            // Stop choice timer
+            if (this.timerEvent) {
+                this.timerEvent.remove();
+                this.timerEvent = null;
+            }
 
             // Show waiting message
             waitingText.visible = true;
             instructions.setText(`You chose: ${choiceName}`);
 
+            // Start partner waiting timer (max_scene_wait_time = 10 seconds)
+            const maxWaitTime = 10000; // From config: max_scene_wait_time
+            this.waitTimeLeft = Math.ceil(maxWaitTime / 1000);
+
+            if (this.showTimer) {
+                timerText.setText(`Waiting for partner: ${this.waitTimeLeft}s`);
+
+                this.waitingTimerEvent = this.time.addEvent({
+                    delay: 1000,
+                    callback: () => {
+                        if (this.waitTimeLeft > 0) {
+                            this.waitTimeLeft--;
+                        }
+                        timerText.setText(`Waiting for partner: ${this.waitTimeLeft}s`);
+
+                        // Update progress bar with orange color for waiting
+                        const progress = this.waitTimeLeft / Math.ceil(maxWaitTime / 1000);
+                        timerBar.clear();
+                        timerBar.fillStyle(0xff9800, 1); // Orange for waiting
+                        timerBar.fillRect(255, 455, 290 * progress, 20);
+                    },
+                    callbackScope: this,
+                    loop: true
+                });
+            }
+
             // Emit choice to server
-            socket.emit('choiceMade', {
-                sessionId: sessionId,
-                roomId: roomId,
-                subjectId: subjectId,
-                trial: this.trial,
-                optionId: choiceId,
-                screenPosition: choiceId,
+            window.socket.emit('choice made', {
+                sessionId: window.sessionId,
+                roomId: window.roomId,
+                subjectId: window.subjectId,
+                num_choice: this.selectedChoice,
+                chosenOptionLocation: this.selectedChoice,
+                thisTrial: this.trial,
+                hadClickedBeforeTimeout: true,
+                timedOut: false,
+                individual_payoff: 0,
+                timestamp: new Date().toISOString(),
                 reactionTime: reactionTime,
-                timestamp: new Date().toISOString()
+                prob_means: []
             });
 
-            console.log('Choice made:', choiceName, 'RT:', reactionTime, 'ms');
+            console.log('Choice confirmed:', choiceName, 'RT:', reactionTime, 'ms');
         };
 
-        // Button click handlers
+        // Button click handlers - selection (first click)
         cooperateButton.on('pointerdown', () => {
-            handleChoice(0, 'Cooperate', cooperateButton, defectButton);
+            selectChoice(0, 'Cooperate', cooperateButton, defectButton);
         });
 
         defectButton.on('pointerdown', () => {
-            handleChoice(1, 'Defect', defectButton, cooperateButton);
+            selectChoice(1, 'Defect', defectButton, cooperateButton);
         });
 
-        // Hover effects
+        // Confirmation button click handler
+        confirmButton.on('pointerdown', () => {
+            confirmChoice();
+        });
+
+        // Hover effects for choice buttons
         cooperateButton.on('pointerover', () => {
-            if (!this.choiceMade) cooperateButton.setFillStyle(0x45a049);
+            if (this.selectedChoice === null) cooperateButton.setFillStyle(0x45a049);
         });
         cooperateButton.on('pointerout', () => {
-            if (!this.choiceMade) cooperateButton.setFillStyle(0x4CAF50);
+            if (this.selectedChoice === null) cooperateButton.setFillStyle(0x4CAF50);
         });
 
         defectButton.on('pointerover', () => {
-            if (!this.choiceMade) defectButton.setFillStyle(0xe53935);
+            if (this.selectedChoice === null) defectButton.setFillStyle(0xe53935);
         });
         defectButton.on('pointerout', () => {
-            if (!this.choiceMade) defectButton.setFillStyle(0xF44336);
+            if (this.selectedChoice === null) defectButton.setFillStyle(0xF44336);
+        });
+
+        // Hover effects for confirm button
+        confirmButton.on('pointerover', () => {
+            confirmButton.setFillStyle(0x1976D2);
+        });
+        confirmButton.on('pointerout', () => {
+            confirmButton.setFillStyle(0x2196F3);
         });
 
         // Timer countdown
         if (this.showTimer) {
-            const startTime = this.time.now;
-            this.timerEvent = this.time.addEvent({
-                delay: 100,
-                callback: () => {
-                    const elapsed = this.time.now - startTime;
-                    const remaining = Math.max(0, this.maxChoiceTime - elapsed);
-                    const progress = remaining / this.maxChoiceTime;
+            this.timeLeft = Math.ceil(this.maxChoiceTime / 1000);
 
-                    // Update bar
+            this.timerEvent = this.time.addEvent({
+                delay: 1000,
+                callback: () => {
+                    // Guard to prevent negative countdown
+                    if (this.timeLeft > 0) {
+                        this.timeLeft--;
+                    }
+
+                    const secondsRemaining = Math.max(0, this.timeLeft);
+                    timerText.setText(`Time remaining: ${secondsRemaining}s`);
+
+                    // Update progress bar
+                    const progress = this.timeLeft / Math.ceil(this.maxChoiceTime / 1000);
                     timerBar.clear();
                     timerBar.fillStyle(progress > 0.3 ? 0x00a5ff : 0xff5a00, 1);
                     timerBar.fillRect(255, 455, 290 * progress, 20);
 
-                    // Update text
-                    const secondsRemaining = Math.ceil(remaining / 1000);
-                    timerText.setText(`Time remaining: ${secondsRemaining}s`);
-
                     // Timeout
-                    if (remaining === 0 && !this.choiceMade) {
+                    if (this.timeLeft <= 0 && !this.choiceConfirmed) {
                         this.timerEvent.remove();
                         this.handleTimeout();
                     }
                 },
+                callbackScope: this,
                 loop: true
             });
         } else {
             // Fallback timeout without visual timer
             this.time.delayedCall(this.maxChoiceTime, () => {
-                if (!this.choiceMade) {
+                if (!this.choiceConfirmed) {
                     this.handleTimeout();
                 }
-            });
+            }, [], this);
         }
 
         // Listen for server response (handled by main.js socket listener)
@@ -210,23 +302,29 @@ class ScenePDChoice extends Phaser.Scene {
         console.log('Choice timeout - no selection made');
 
         // Emit timeout event
-        socket.emit('choiceMade', {
-            sessionId: sessionId,
-            roomId: roomId,
-            subjectId: subjectId,
-            trial: this.trial,
-            optionId: null,
-            screenPosition: null,
-            reactionTime: this.maxChoiceTime,
+        window.socket.emit('choice made', {
+            sessionId: window.sessionId,
+            roomId: window.roomId,
+            subjectId: window.subjectId,
+            num_choice: null,
+            chosenOptionLocation: null,
+            thisTrial: this.trial,
+            hadClickedBeforeTimeout: false,
+            timedOut: true,
+            individual_payoff: 0,
             timestamp: new Date().toISOString(),
-            wasTimeout: true
+            reactionTime: this.maxChoiceTime,
+            prob_means: []
         });
     }
 
     shutdown() {
-        // Clean up timer
+        // Clean up timers
         if (this.timerEvent) {
             this.timerEvent.remove();
+        }
+        if (this.waitingTimerEvent) {
+            this.waitingTimerEvent.remove();
         }
     }
 }

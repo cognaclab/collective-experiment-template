@@ -14,7 +14,7 @@ game:
   k_armed_bandit: 2               # 2 options: Cooperate (0) or Defect (1)
   max_choice_time: 10000          # 10 seconds to make choice
   max_lobby_wait_time: 120000     # 2 minutes to wait for partner
-  max_scene_wait_time: 5000       # 5 seconds for scene transitions
+  max_scene_wait_time: 10000       # 10 seconds for scene transitions
   show_timer: true                # Display countdown timer
   show_feedback: true             # Show results after each trial
 
@@ -57,6 +57,7 @@ payment:
   points_to_currency: 0.01        # 1p per point (more generous for PD)
   currency: "GBP"
   waiting_bonus_rate: 0           # No waiting bonus for minimal test
+  waiting_bonus_per_minute: 10    # Pence per minute waiting (for lobby)
 
 # Data collection
 data:

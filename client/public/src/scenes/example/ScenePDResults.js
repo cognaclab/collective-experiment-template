@@ -159,13 +159,13 @@ class ScenePDResults extends Phaser.Scene {
 
         // Button click - emit scene complete
         continueButton.on('pointerdown', () => {
-            console.log('Results viewed, emitting sceneComplete');
+            console.log('Results viewed, emitting scene_complete');
 
-            socket.emit('sceneComplete', {
-                sessionId: sessionId,
-                roomId: roomId,
-                subjectId: subjectId,
-                sceneName: 'ScenePDResults',
+            window.socket.emit('scene_complete', {
+                sessionId: window.sessionId,
+                roomId: window.roomId,
+                subjectId: window.subjectId,
+                scene: 'ScenePDResults',
                 trial: this.trial
             });
 

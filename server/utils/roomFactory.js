@@ -82,7 +82,8 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode
         totalPayoff_perIndiv_perGame: new Array(totalGameRound).fill(0),
         groupTotalCost: [0],
         currentEnv: 0,
-        envChangeTracker: 0
+        envChangeTracker: 0,
+        currentScene: null
     };
 }
 

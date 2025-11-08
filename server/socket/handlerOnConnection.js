@@ -11,6 +11,27 @@ const { buildSessionData } = require('../utils/dataBuilders');
 const Session = require('../database/models/Session');
 const logger = require('../utils/logger');
 
+/**
+ * Find an available room that can accept new players for group experiments
+ * @param {Object} config - Game configuration
+ * @param {number} maxGroupSize - Maximum players per group
+ * @returns {Object|null} - { name: roomName, room: roomObject } or null
+ */
+function findAvailableGroupRoom(config, maxGroupSize) {
+    for (const roomName in config.roomStatus) {
+        const room = config.roomStatus[roomName];
+
+        // Room is available if: not started, has space, is group mode, not temporary
+        if (room.starting === 0 &&           // Not started yet
+            room.n < maxGroupSize &&          // Has space for more players
+            room.indivOrGroup === 1 &&        // Is group mode
+            !room.isTemporary) {              // Not a temporary room
+            return { name: roomName, room: room };
+        }
+    }
+    return null;
+}
+
 function onConnectioncConfig({ config, client, io }) {
 
   // Assign client's unique identifier
@@ -72,42 +93,48 @@ function onConnectioncConfig({ config, client, io }) {
                 // Create session record in database
                 createSessionRecord(client, config.roomStatus[client.room], config);
             } else if (mode === 'group') {
-                // For group experiments, create a placeholder room on connection
-                // Actual room assignment happens in coreReadyHandler, but this ensures room exists
-                client.room = client.session; // Temporary room assignment
+                // Create temporary instruction room for independent progression
+                const { makeid } = require('../utils/helpers');
+                const { createRoom } = require('../utils/roomFactory');
+
+                const tempRoomName = makeid(7) + `_temp`;
+
+                config.roomStatus[tempRoomName] = createRoom({
+                    name: tempRoomName,
+                    mode: config.experimentLoader.gameConfig.mode,
+                    expCondition: config.experimentLoader.gameConfig.exp_condition,
+                    config: {
+                        maxGroupSize: maxGroupSize,
+                        numOptions: config.experimentLoader.gameConfig.k_armed_bandit,
+                        maxLobbyWaitTime: config.experimentLoader.gameConfig.max_lobby_wait_time,
+                        maxSceneWaitTime: config.experimentLoader.gameConfig.max_scene_wait_time || 0,
+                        maxChoiceStageTime: config.experimentLoader.gameConfig.max_choice_time,
+                        totalGameRound: config.experimentLoader.gameConfig.total_game_rounds,
+                        minHorizon: config.minHorizon,
+                        static_horizons: config.static_horizons,
+                        numEnv: config.numEnv,
+                        task_order: [],
+                        options: Array.from({length: config.experimentLoader.gameConfig.k_armed_bandit}, (_, i) => i + 1),
+                        horizon: config.experimentLoader.gameConfig.horizon
+                    }
+                });
+
+                client.room = tempRoomName;
                 client.join(client.room);
 
-                // Set subject number (will be updated when joining actual group room)
-                client.subjectNumber = 1;
+                const room = config.roomStatus[tempRoomName];
+                room.isTemporary = true; // Mark as temporary instruction room
+                room.n = 1; // Always 1 for temporary rooms
+                room.membersID = [client.subjectID];
+                room.subjectNumbers = [1];
+                room.starting = 0;
+                client.subjectNumber = 1; // Will be reassigned when joining permanent room
 
-                // Initialize temporary room structure
-                if (!config.roomStatus[client.room]) {
-                    const { createRoom } = require('../utils/roomFactory');
-                    config.roomStatus[client.room] = createRoom({
-                        name: client.room,
-                        mode: config.experimentLoader.gameConfig.mode,
-                        expCondition: config.experimentLoader.gameConfig.exp_condition,
-                        config: {
-                            maxGroupSize: maxGroupSize,
-                            numOptions: config.experimentLoader.gameConfig.k_armed_bandit,
-                            maxLobbyWaitTime: config.experimentLoader.gameConfig.max_lobby_wait_time,
-                            maxSceneWaitTime: config.experimentLoader.gameConfig.max_scene_wait_time || 0,
-                            maxChoiceStageTime: config.experimentLoader.gameConfig.max_choice_time,
-                            totalGameRound: config.experimentLoader.gameConfig.total_game_rounds,
-                            minHorizon: config.minHorizon,
-                            static_horizons: config.static_horizons,
-                            numEnv: config.numEnv,
-                            task_order: [],
-                            options: Array.from({length: config.experimentLoader.gameConfig.k_armed_bandit}, (_, i) => i + 1),
-                            horizon: config.experimentLoader.gameConfig.horizon
-                        }
-                    });
-                    config.roomStatus[client.room].n = 1; // Will be updated in coreReadyHandler
-                    config.roomStatus[client.room].membersID = [client.subjectID];
-                    config.roomStatus[client.room].isTemporary = true; // Mark as temporary
-                }
+                // Store config reference for later room transition
+                client.maxGroupSize = maxGroupSize;
+                client.minGroupSize = config.experimentLoader?.gameConfig?.min_group_size || config.minGroupSize || 2;
 
-                console.log(`- Temporary room ${client.room} created for group experiment (will be assigned in waiting room)`);
+                console.log(`📝 Created temporary instruction room ${tempRoomName} for player ${client.subjectID} (will join shared room at waiting room)`);
 
                 // Create session record in database
                 createSessionRecord(client, config.roomStatus[client.room], config);

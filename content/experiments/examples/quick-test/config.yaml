@@ -35,6 +35,7 @@ payment:
   completion_fee: 0           # Bonus for completing all trials (GBP)
   points_to_currency: 0.0006  # Conversion rate: 6 pence per 100 points
   currency: "GBP"             # Currency code
+  waiting_bonus_per_minute: 10  # Pence per minute waiting (for lobby)
 
 debug:
   subject_exceptions: ["test", "debug", "quicktest"]

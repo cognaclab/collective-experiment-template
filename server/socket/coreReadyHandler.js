@@ -27,7 +27,17 @@ function handleCoreReady({ config, client, data, roomStatus, io, countDownMainSt
 
   console.log(` - Client: ${client.session} (${client.subjectID}) responds with an average latency = ${data.latency} ms.`);
 
-  const shouldJoinGroup = data.latency < data.maxLatencyForGroupCondition;
+  // For config-driven experiments, respect the YAML config mode setting
+  let shouldJoinGroup;
+  if (config.experimentLoader && config.experimentLoader.gameConfig) {
+    const configMode = config.experimentLoader.gameConfig.mode;
+    shouldJoinGroup = configMode === 'group';
+    console.log(` - Config-driven mode: ${configMode}, shouldJoinGroup: ${shouldJoinGroup}`);
+  } else {
+    // Legacy behavior: latency-based mode assignment
+    shouldJoinGroup = data.latency < data.maxLatencyForGroupCondition;
+    console.log(` - Latency-based mode assignment: latency=${data.latency}, threshold=${data.maxLatencyForGroupCondition}, shouldJoinGroup: ${shouldJoinGroup}`);
+  }
 
   if (shouldJoinGroup) {
     client.roomFindingCounter = 1;
@@ -45,7 +55,8 @@ function handleCoreReady({ config, client, data, roomStatus, io, countDownMainSt
       const canJoin =
         availableRoom.starting === 0 &&
         availableRoom.n < maxPlayers &&
-        availableRoom.restTime > 999;
+        availableRoom.restTime > 999 &&
+        !availableRoom.isTemporary;  // Exclude temporary placeholder rooms
 
       if (canJoin) {
         client.room = availableRoomName;

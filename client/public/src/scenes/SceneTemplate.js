@@ -98,7 +98,7 @@ class SceneTemplate extends Phaser.Scene {
         // Add to scene
         const centerX = configWidth / 2;
         const centerY = configHeight / 2 - 50; // Leave room for navigation
-        
+
         this.contentElement = this.add.dom(centerX, centerY, contentDiv);
     }
 
@@ -114,10 +114,10 @@ class SceneTemplate extends Phaser.Scene {
             overflow: 'auto',
             textAlign: 'left'
         };
-        
+
         // Override with metadata styles if present
         const styles = { ...defaults, ...(metadata.styles || {}) };
-        
+
         return Object.entries(styles)
             .map(([key, value]) => `${this.camelToKebab(key)}: ${value}`)
             .join('; ');

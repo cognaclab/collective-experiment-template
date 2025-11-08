@@ -17,10 +17,24 @@ function countDown(room, config, io, countDownWaiting) {
 			const shouldWait = config.experimentContext.shouldWaitForPlayers(thisRoom);
 
 			if (shouldWait && this_n < config.minGroupSize) {
-				// Below minimum players, switch to individual mode
-				config.roomStatus[room]['starting'] = 1;
-				config.roomStatus[room]['indivOrGroup'] = 0; // Set to individual
-				io.to(room).emit('you guys are individual condition');
+				// Check if config specifies strict group mode (no individual fallback)
+				const isStrictGroupMode = config.experimentLoader?.gameConfig?.mode === 'group';
+
+				if (isStrictGroupMode) {
+					// For strict group experiments, don't fallback to individual - end experiment
+					console.log(` - Room ${room} has insufficient players (${this_n}/${config.minGroupSize}) for strict group mode - ending experiment`);
+					config.roomStatus[room]['starting'] = 1;
+					io.to(room).emit('insufficient_players', {
+						message: 'Not enough players joined. Experiment cannot start.',
+						minRequired: config.minGroupSize,
+						actual: this_n
+					});
+				} else {
+					// Legacy behavior: switch to individual mode
+					config.roomStatus[room]['starting'] = 1;
+					config.roomStatus[room]['indivOrGroup'] = 0; // Set to individual
+					io.to(room).emit('you guys are individual condition');
+				}
 			} else if (
 				!config.targetGroupSizes.includes(this_n) &&
 				this_n >= config.minGroupSize
@@ -130,5 +144,106 @@ function reformNewGroups (room, config, io, countDownWaiting, this_n) {
 	
 }
 
+function findAvailableGroupRoom(config, maxGroupSize) {
+    for (const roomName in config.roomStatus) {
+        const room = config.roomStatus[roomName];
 
-module.exports = { countDown, startSession, reformNewGroups };
+        if (room.starting === 0 &&
+            room.n < maxGroupSize &&
+            room.indivOrGroup === 1 &&
+            !room.isTemporary) {
+            return { name: roomName, room: room };
+        }
+    }
+    return null;
+}
+
+function transitionToSharedRoom(client, config, io) {
+    const oldRoom = config.roomStatus[client.room];
+    const maxGroupSize = client.maxGroupSize || config.maxGroupSize || 4;
+    const minGroupSize = client.minGroupSize || config.minGroupSize || 2;
+
+    if (!oldRoom || !oldRoom.isTemporary) {
+        console.warn(`⚠️  Player ${client.subjectID} attempted to transition from non-temporary room ${client.room}`);
+        return null;
+    }
+
+    const availableRoomInfo = findAvailableGroupRoom(config, maxGroupSize);
+    let newRoomName;
+    let newRoom;
+
+    if (availableRoomInfo) {
+        newRoomName = availableRoomInfo.name;
+        newRoom = availableRoomInfo.room;
+
+        client.leave(client.room);
+        client.join(newRoomName);
+
+        newRoom.n++;
+        newRoom.membersID.push(client.subjectID);
+        if (!newRoom.subjectNumbers) newRoom.subjectNumbers = [];
+        newRoom.subjectNumbers.push(newRoom.n);
+
+        client.subjectNumber = newRoom.n;
+
+        console.log(`🔄 Player ${client.subjectID} transitioned from temp room ${client.room} → shared room ${newRoomName} (${newRoom.n}/${maxGroupSize})`);
+
+        if (newRoom.n >= minGroupSize && !newRoom.readyToStart) {
+            newRoom.readyToStart = true;
+            newRoom.restTime = 10000;
+            console.log(`🎯 Room ${newRoomName} is ready to start (${newRoom.n}/${minGroupSize} players) - timer reduced to 10 seconds`);
+
+            io.to(newRoomName).emit('waiting_room_update', {
+                n: newRoom.n,
+                restTime: newRoom.restTime,
+                roomReady: true
+            });
+        }
+    } else {
+        newRoomName = makeid(7) + `_group`;
+        newRoom = createRoom({
+            name: newRoomName,
+            mode: config.experimentLoader.gameConfig.mode,
+            expCondition: config.experimentLoader.gameConfig.exp_condition,
+            config: {
+                maxGroupSize: maxGroupSize,
+                numOptions: config.experimentLoader.gameConfig.k_armed_bandit,
+                maxLobbyWaitTime: config.experimentLoader.gameConfig.max_lobby_wait_time,
+                maxSceneWaitTime: config.experimentLoader.gameConfig.max_scene_wait_time || 0,
+                maxChoiceStageTime: config.experimentLoader.gameConfig.max_choice_time,
+                totalGameRound: config.experimentLoader.gameConfig.total_game_rounds,
+                minHorizon: config.minHorizon,
+                static_horizons: config.static_horizons,
+                numEnv: config.numEnv,
+                task_order: [],
+                options: Array.from({length: config.experimentLoader.gameConfig.k_armed_bandit}, (_, i) => i + 1),
+                horizon: config.experimentLoader.gameConfig.horizon
+            }
+        });
+
+        config.roomStatus[newRoomName] = newRoom;
+
+        client.leave(client.room);
+        client.join(newRoomName);
+
+        newRoom.n = 1;
+        newRoom.membersID = [client.subjectID];
+        newRoom.subjectNumbers = [1];
+        newRoom.starting = 0;
+        newRoom.isTemporary = false;
+        client.subjectNumber = 1;
+
+        console.log(`🔄 Player ${client.subjectID} transitioned from temp room ${client.room} → new shared room ${newRoomName} (1/${maxGroupSize})`);
+    }
+
+    const oldRoomName = client.room;
+    client.room = newRoomName;
+
+    delete config.roomStatus[oldRoomName];
+    console.log(`🗑️  Deleted temporary room ${oldRoomName}`);
+
+    return { roomName: newRoomName, room: newRoom };
+}
+
+
+module.exports = { countDown, startSession, reformNewGroups, transitionToSharedRoom };

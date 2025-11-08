@@ -34,15 +34,19 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 	let this_indiv_payoff = Number(data.individual_payoff);
 
 	// If using reward_system config, payoffs will be calculated server-side
-	if (config.experimentLoader && config.experimentLoader.config.reward_system) {
+	const usingRewardSystem = config.experimentLoader && config.experimentLoader.config.reward_system;
+	if (usingRewardSystem) {
 		this_indiv_payoff = 0; // Will be calculated after all required players choose
 	}
 
 	room.socialInfo[p][doneNum - 1]  = choice;
 	room.choiceOrder[p][doneNum - 1] = number;
 
-	room.groupTotalPayoff[p] = (room.groupTotalPayoff[p] || 0) + this_indiv_payoff;
-	room.groupCumulativePayoff[round] += this_indiv_payoff;
+	// Only update payoffs immediately if NOT using reward_system (will be updated later in calculateRewards)
+	if (!usingRewardSystem) {
+		room.groupTotalPayoff[p] = (room.groupTotalPayoff[p] || 0) + this_indiv_payoff;
+		room.groupCumulativePayoff[round] += this_indiv_payoff;
+	}
 
 	if (choice > -1) {
 		console.log(` - ${session} in ${client.room} (No. ${number}) chose ${choice} and got ${this_indiv_payoff} at t = ${this_trial} (${gameType}).`);
@@ -134,9 +138,11 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 		optionOrder_0: room.optionOrder[0] - 1,
 		optionOrder_1: room.optionOrder[1] - 1,
 		optionOrder_2: room.optionOrder[2] - 1,
-		true_payoff_0: data.prob_means[0],
-		true_payoff_1: data.prob_means[1],
-		true_payoff_2: data.prob_means[2],
+		...(data.prob_means && data.prob_means.length > 0 && {
+			true_payoff_0: data.prob_means[0],
+			true_payoff_1: data.prob_means[1],
+			true_payoff_2: data.prob_means[2],
+		}),
 		reactionTime: data.reactionTime
 	});
 
@@ -169,7 +175,9 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 
 		// For new config-driven experiments, call handleSceneComplete directly
 		if (config.experimentLoader && config.experimentLoader.sequence) {
-			console.log(` - Calling handleSceneComplete for SceneMain (config-driven flow)`);
+			// Use tracked current scene instead of hardcoded 'SceneMain'
+			const currentScene = room.currentScene || 'SceneMain';
+			console.log(` - Calling handleSceneComplete for ${currentScene} (config-driven flow)`);
 
 			// Determine trigger type from room state
 			const hasTimeout = room.timeoutFlags[p] && room.timeoutFlags[p].some(flag => flag === true);
@@ -190,7 +198,7 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 
 			const handleSceneComplete = require('./handleSceneComplete');
 			const sceneCompleteData = {
-				scene: 'SceneMain',
+				scene: currentScene,
 				sequence: config.experimentLoader.sequence.sequence,
 				triggerType: triggerType
 			};
@@ -250,11 +258,14 @@ function calculateRewards(room, p, config) {
 		console.log(`[REWARD CALC] Player ${playerNum} reward: ${payoff}`);
 	});
 
-	// Update group total payoffs
-	room.groupTotalPayoff[p] = (room.groupTotalPayoff[p] || 0) + totalPayoff;
-	room.groupCumulativePayoff[room.gameRound] = (room.groupCumulativePayoff[room.gameRound] || 0) + totalPayoff;
+	// Initialize and set group total payoffs (not adding, since this is the first/only time we set them)
+	if (!room.groupTotalPayoff[p]) room.groupTotalPayoff[p] = 0;
+	if (!room.groupCumulativePayoff[room.gameRound]) room.groupCumulativePayoff[room.gameRound] = 0;
 
-	console.log(`[REWARD CALC] Updated group total payoff: ${room.groupTotalPayoff[p]}`);
+	room.groupTotalPayoff[p] = totalPayoff;
+	room.groupCumulativePayoff[room.gameRound] += totalPayoff;
+
+	console.log(`[REWARD CALC] Set group total payoff for trial ${p}: ${room.groupTotalPayoff[p]}`);
 }
 
 /**

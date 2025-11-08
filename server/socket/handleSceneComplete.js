@@ -85,8 +85,8 @@ function getNextScene(currentSceneKey, sequence, triggerType = 'default') {
  * @param {Object} config - Game configuration
  * @param {Object} io - Socket.io server instance
  */
-function handleSceneComplete(client, data, config, io) {
-    const room = config.roomStatus[client.room];
+async function handleSceneComplete(client, data, config, io) {
+    let room = config.roomStatus[client.room];
     const sceneKey = data.scene;
     const triggerType = data.triggerType || 'default';
 
@@ -108,75 +108,7 @@ function handleSceneComplete(client, data, config, io) {
         room.sceneTimers = {};
     }
 
-    // Increment ready count for this scene
-    room.sceneReadyCount[sceneKey] = (room.sceneReadyCount[sceneKey] || 0) + 1;
-
-    logger.debug('Scene completion tracked', {
-        room: client.room,
-        scene: sceneKey,
-        ready: room.sceneReadyCount[sceneKey],
-        required: room.n,
-        mode: room.indivOrGroup === 1 ? 'group' : 'individual'
-    });
-
-    // Check if all players in room are ready
-    const allReady = room.sceneReadyCount[sceneKey] >= room.n;
-
-    if (!allReady) {
-        // Get max_scene_wait_time from config (0 = wait indefinitely)
-        const maxSceneWaitTime = config.experimentLoader?.gameConfig?.max_scene_wait_time || 0;
-
-        // Start timer on first player ready (only if timeout is configured and n > 1)
-        if (room.sceneReadyCount[sceneKey] === 1 && maxSceneWaitTime > 0 && room.n > 1) {
-            logger.info('Starting scene wait timer', {
-                room: client.room,
-                scene: sceneKey,
-                timeout: maxSceneWaitTime,
-                ready: 1,
-                required: room.n
-            });
-
-            room.sceneTimers[sceneKey] = setTimeout(() => {
-                logger.warn('Scene wait timeout - proceeding with ready players', {
-                    room: client.room,
-                    scene: sceneKey,
-                    ready: room.sceneReadyCount[sceneKey],
-                    required: room.n,
-                    timeout: maxSceneWaitTime
-                });
-
-                // Force proceed with whoever is ready
-                room.sceneReadyCount[sceneKey] = room.n;
-
-                // Recursively call this handler to trigger progression
-                handleSceneComplete(client, data, config, io);
-            }, maxSceneWaitTime);
-        }
-
-        logger.debug('Waiting for other players', {
-            room: client.room,
-            scene: sceneKey,
-            ready: room.sceneReadyCount[sceneKey],
-            required: room.n,
-            hasTimer: !!room.sceneTimers[sceneKey]
-        });
-        return; // Wait for other players or timeout
-    }
-
-    // Clear timer if it exists (all players ready before timeout)
-    if (room.sceneTimers[sceneKey]) {
-        clearTimeout(room.sceneTimers[sceneKey]);
-        delete room.sceneTimers[sceneKey];
-        logger.debug('Cleared scene wait timer - all players ready', {
-            room: client.room,
-            scene: sceneKey
-        });
-    }
-
-    // Reset ready counter for this scene
-    room.sceneReadyCount[sceneKey] = 0;
-
-    // Get sequence from experimentLoader (loaded at server startup)
+    // Get sequence from experimentLoader (needed early for waiting room check)
     let sequence;
 
     if (config.experimentLoader && config.experimentLoader.sequence) {
@@ -197,6 +129,135 @@ function handleSceneComplete(client, data, config, io) {
         return;
     }
 
+    // Increment ready count for this scene
+    room.sceneReadyCount[sceneKey] = (room.sceneReadyCount[sceneKey] || 0) + 1;
+
+    logger.debug('Scene completion tracked', {
+        room: client.room,
+        scene: sceneKey,
+        ready: room.sceneReadyCount[sceneKey],
+        required: room.n,
+        mode: room.indivOrGroup === 1 ? 'group' : 'individual'
+    });
+
+    // Check if this is a temporary instruction room - if so, skip synchronization
+    const isTemporaryRoom = room.isTemporary === true;
+
+    // Check next scene to determine if we need room transition
+    let nextScene = getNextScene(sceneKey, sequence, triggerType);
+    const isTransitioningToWaitingRoom = nextScene && nextScene.type === 'waiting';
+
+    // Handle room transition from temporary to shared room
+    if (isTemporaryRoom && isTransitioningToWaitingRoom) {
+        const { transitionToSharedRoom } = require('./sessionManager');
+
+        logger.info('Transitioning player from temporary room to shared waiting room', {
+            oldRoom: client.room,
+            player: client.subjectID,
+            scene: sceneKey,
+            nextScene: nextScene.scene
+        });
+
+        const transition = transitionToSharedRoom(client, config, io);
+
+        if (transition) {
+            // Update room reference to new shared room
+            room = config.roomStatus[transition.roomName];
+
+            // Initialize scene tracking for new room
+            if (!room.sceneReadyCount) {
+                room.sceneReadyCount = {};
+            }
+            if (!room.sceneTimers) {
+                room.sceneTimers = {};
+            }
+
+            logger.info('Player successfully transitioned to shared room', {
+                newRoom: transition.roomName,
+                roomSize: room.n,
+                player: client.subjectID
+            });
+        } else {
+            logger.error('Failed to transition player to shared room', {
+                player: client.subjectID,
+                oldRoom: client.room
+            });
+            return;
+        }
+    }
+
+    // For temporary rooms (instruction phase), always allow individual progression
+    if (isTemporaryRoom) {
+        logger.info('Temporary room - allowing individual progression', {
+            room: client.room,
+            scene: sceneKey,
+            nextScene: nextScene?.scene,
+            player: client.subjectID
+        });
+
+        // No synchronization needed - proceed immediately
+        // Continue to scene transition logic below
+    } else {
+        // For permanent rooms, check if all players are ready
+        const allReady = room.sceneReadyCount[sceneKey] >= room.n;
+
+        if (!allReady) {
+            // For non-waiting scenes, apply the normal scene wait timeout
+            const maxSceneWaitTime = config.experimentLoader?.gameConfig?.max_scene_wait_time || 0;
+
+            // Start timer on first player ready (only if timeout is configured and n > 1)
+            if (room.sceneReadyCount[sceneKey] === 1 && maxSceneWaitTime > 0 && room.n > 1) {
+                logger.info('Starting scene wait timer', {
+                    room: client.room,
+                    scene: sceneKey,
+                    timeout: maxSceneWaitTime,
+                    ready: 1,
+                    required: room.n
+                });
+
+                room.sceneTimers[sceneKey] = setTimeout(() => {
+                    logger.warn('Scene wait timeout - proceeding with ready players', {
+                        room: client.room,
+                        scene: sceneKey,
+                        ready: room.sceneReadyCount[sceneKey],
+                        required: room.n,
+                        timeout: maxSceneWaitTime
+                    });
+
+                    // Force proceed with whoever is ready
+                    room.sceneReadyCount[sceneKey] = room.n;
+
+                    // Recursively call this handler to trigger progression
+                    handleSceneComplete(client, data, config, io);
+                }, maxSceneWaitTime);
+            }
+
+            logger.debug('Waiting for other players', {
+                room: client.room,
+                scene: sceneKey,
+                ready: room.sceneReadyCount[sceneKey],
+                required: room.n,
+                hasTimer: !!room.sceneTimers[sceneKey]
+            });
+            return; // Wait for other players or timeout
+        }
+    }
+
+    // Clear timer if it exists (all players ready before timeout)
+    if (room.sceneTimers && room.sceneTimers[sceneKey]) {
+        clearTimeout(room.sceneTimers[sceneKey]);
+        delete room.sceneTimers[sceneKey];
+        logger.debug('Cleared scene wait timer - all players ready', {
+            room: client.room,
+            scene: sceneKey
+        });
+    }
+
+    // Reset ready counter for this scene
+    if (room.sceneReadyCount) {
+        room.sceneReadyCount[sceneKey] = 0;
+    }
+
     // Handle trial progression - increment AFTER feedback, not after main scene
     if (sceneKey === 'SceneResultFeedback') {
         // Increment trial counter after showing feedback for completed trial
@@ -214,8 +275,7 @@ function handleSceneComplete(client, data, config, io) {
         room.doneNo[nextPointer] = 0;
     }
 
-    // Determine next scene based on trial progression
-    let nextScene;
+    // Re-determine next scene based on trial progression (may override earlier detection)
     const currentSceneConfig = sequence.find(s => s.scene === sceneKey);
 
     if (sceneKey === 'SceneResultFeedback' && currentSceneConfig) {
@@ -231,9 +291,11 @@ function handleSceneComplete(client, data, config, io) {
             const questionnaireScene = sequence.find(s => s.type === 'questionnaire');
             nextScene = questionnaireScene || getNextScene(sceneKey, sequence, triggerType);
         }
-    } else {
+    } else if (!isTemporaryRoom) {
+        // For permanent rooms, recalculate next scene (may differ from earlier check)
         nextScene = getNextScene(sceneKey, sequence, triggerType);
     }
+    // For temporary rooms, nextScene was already set at line 147
 
     if (!nextScene) {
         logger.info('Experiment completed for room', {
@@ -355,49 +417,118 @@ function handleSceneComplete(client, data, config, io) {
             groupCumulativePayoff: room.groupCumulativePayoff?.[currentGameRound] || 0,
             mySocialInfo: room.socialInfo?.[currentPointer] || {}
         };
-    } else if (nextScene.scene === 'ScenePDResults' || nextScene.type === 'pd_results') {
-        // Matrix game results scene - show both players' choices and payoffs
-        const rewards = room.rewards?.[currentPointer] || {};
-        const playerChoices = room.playerChoices?.[currentPointer] || {};
-        const socialInfo = room.socialInfo?.[currentPointer] || [];
-
-        // Get current player's data
-        const myChoice = playerChoices[client.subjectNumber];
-        const myPayoff = rewards[client.subjectNumber];
-
-        // Get partner's data (the other player in a 2-player game)
-        const playerNumbers = Object.keys(playerChoices).map(n => parseInt(n));
-        const partnerNumber = playerNumbers.find(n => n !== client.subjectNumber);
-        const partnerChoice = partnerNumber !== undefined ? playerChoices[partnerNumber] : null;
-        const partnerPayoff = partnerNumber !== undefined ? rewards[partnerNumber] : null;
-
-        // Calculate cumulative points for this player
-        let totalPoints = 0;
-        for (let i = 0; i <= currentPointer; i++) {
-            if (room.rewards?.[i]?.[client.subjectNumber] !== undefined) {
-                totalPoints += room.rewards[i][client.subjectNumber];
-            }
-        }
-
+    } else if (nextScene.scene === 'ScenePDChoice' || nextScene.type === 'pd_choice') {
+        // Prisoner's Dilemma choice scene
         sceneData = {
             trial: room.trial || 1,
-            myChoice: myChoice !== undefined ? myChoice : null,
-            partnerChoice: partnerChoice !== null ? partnerChoice : null,
-            myPayoff: myPayoff !== undefined ? myPayoff : 0,
-            partnerPayoff: partnerPayoff !== null ? partnerPayoff : 0,
-            totalPoints: totalPoints,
-            wasMiss: room.missFlags?.[currentPointer]?.some(f => f) || false,
-            wasTimeout: room.timeoutFlags?.[currentPointer]?.some(f => f) || false
+            totalTrials: config.experimentLoader.gameConfig.horizon || 3,
+            maxChoiceTime: config.experimentLoader.gameConfig.max_choice_time || 10000,
+            showTimer: true
         };
-
-        logger.info('Preparing matrix game results scene', {
-            trial: room.trial,
-            myChoice,
-            partnerChoice,
-            myPayoff,
-            partnerPayoff,
-            totalPoints
+        logger.debug('Preparing ScenePDChoice sceneData', {
+            sceneData: sceneData,
+            room: client.room,
+            trial: room.trial
         });
+    } else if (nextScene.scene === 'ScenePDResults' || nextScene.type === 'pd_results') {
+        // Matrix game results scene - emit PERSONALIZED data to each player
+
+        // Ensure rewards and player choices exist before proceeding
+        if (!room.rewards || !room.rewards[currentPointer]) {
+            logger.error('Rewards not found for results scene', {
+                room: client.room,
+                trial: room.trial,
+                pointer: currentPointer,
+                hasRewards: !!room.rewards
+            });
+            return;
+        }
+
+        const rewards = room.rewards[currentPointer];
+        const playerChoices = room.playerChoices?.[currentPointer] || {};
+
+        // Get all sockets in room for personalized emission
+        const sockets = await io.in(client.room).fetchSockets();
+
+        logger.info('Emitting personalized results to each player', {
+            room: client.room,
+            trial: room.trial,
+            playerCount: sockets.length
+        });
+
+        // Emit personalized data to EACH player individually
+        for (const playerSocket of sockets) {
+            // Find this player's subject number
+            const playerSubjectNumber = room.membersID.indexOf(playerSocket.subjectID) + 1;
+
+            if (playerSubjectNumber === 0) {
+                logger.warn('Player not found in membersID', {
+                    subjectID: playerSocket.subjectID,
+                    membersID: room.membersID
+                });
+                continue;
+            }
+
+            // Get THIS player's data
+            const myChoice = playerChoices[playerSubjectNumber];
+            const myPayoff = rewards[playerSubjectNumber];
+
+            // Get partner's data (the other player)
+            const playerNumbers = Object.keys(playerChoices).map(n => parseInt(n));
+            const partnerNumber = playerNumbers.find(n => n !== playerSubjectNumber);
+            const partnerChoice = partnerNumber !== undefined ? playerChoices[partnerNumber] : null;
+            const partnerPayoff = partnerNumber !== undefined ? rewards[partnerNumber] : null;
+
+            // Calculate cumulative points for THIS player
+            let totalPoints = 0;
+            if (room.rewards) {
+                for (let i = 0; i <= currentPointer; i++) {
+                    if (room.rewards[i] && room.rewards[i][playerSubjectNumber] !== undefined) {
+                        totalPoints += room.rewards[i][playerSubjectNumber];
+                    }
+                }
+            }
+
+            // Build personalized sceneData for THIS player
+            const personalizedSceneData = {
+                trial: room.trial || 1,
+                myChoice: myChoice !== undefined ? myChoice : null,
+                partnerChoice: partnerChoice !== null ? partnerChoice : null,
+                myPayoff: myPayoff !== undefined ? myPayoff : 0,
+                partnerPayoff: partnerPayoff !== null ? partnerPayoff : 0,
+                totalPoints: totalPoints,
+                wasMiss: room.missFlags?.[currentPointer]?.some(f => f) || false,
+                wasTimeout: room.timeoutFlags?.[currentPointer]?.some(f => f) || false
+            };
+
+            // Emit to THIS player only
+            playerSocket.emit('start_scene', {
+                scene: nextScene.scene,
+                sceneConfig: nextScene,
+                sceneData: personalizedSceneData,
+                roomId: client.room,
+                sessionId: playerSocket.sessionId,
+                subjectId: playerSocket.subjectID
+            });
+
+            logger.debug('Emitted personalized results to player', {
+                subjectID: playerSocket.subjectID,
+                subjectNumber: playerSubjectNumber,
+                myChoice,
+                myPayoff,
+                partnerChoice,
+                partnerPayoff,
+                totalPoints
+            });
+        }
+
+        // Track current scene in room state
+        if (config.roomStatus[client.room]) {
+            config.roomStatus[client.room].currentScene = nextScene.scene;
+        }
+
+        // Early return - skip default broadcast for pd_results
+        return;
     } else if (nextScene.type === 'questionnaire') {
         // Calculate totals across all rounds for summary display
         const totalPointsAllRounds = room.groupCumulativePayoff?.reduce((sum, val) => sum + (val || 0), 0) || 0;
@@ -480,7 +611,10 @@ function handleSceneComplete(client, data, config, io) {
         const didMiss = (triggerType === 'miss');
         const flag = -1;
 
-        const probArray = config.experimentLoader?.getEnvironmentProbs('static') || [0.9, 0.1];
+        let probArray = [0.9, 0.1];
+        if (config.experimentLoader && config.experimentLoader.gameConfig.reward_system?.type === 'probabilistic') {
+            probArray = config.experimentLoader.getEnvironmentProbs('static');
+        }
         const prob_means_current = probArray.map(prob => prob);
 
         sceneData = {
@@ -498,6 +632,26 @@ function handleSceneComplete(client, data, config, io) {
             triggerType,
             trial: currentTrial
         });
+    } else if (nextScene.type === 'waiting') {
+        const maxWaitingTime = config.experimentLoader?.gameConfig?.max_lobby_wait_time || 120000;
+        const maxGroupSize = config.experimentLoader?.gameConfig?.max_group_size || 4;
+
+        sceneData = {
+            restTime: room.restTime || maxWaitingTime,
+            maxWaitingTime: maxWaitingTime,
+            maxGroupSize: maxGroupSize,
+            currentGroupSize: room.n,
+            horizon: config.experimentLoader?.gameConfig?.horizon || config.horizon,
+            waitingBonusRate: config.experimentLoader?.gameConfig?.payment?.waiting_bonus_per_minute || 10,
+            roomReady: room.readyToStart || false
+        };
+
+        logger.info('Preparing waiting room scene', {
+            restTime: sceneData.restTime,
+            currentPlayers: room.n,
+            maxPlayers: maxGroupSize,
+            roomReady: sceneData.roomReady
+        });
     }
 
     // Broadcast next scene to all players in room
@@ -505,14 +659,33 @@ function handleSceneComplete(client, data, config, io) {
         room: client.room,
         previousScene: sceneKey,
         nextScene: nextScene.scene,
-        type: nextScene.type
+        type: nextScene.type,
+        sceneData: sceneData
+    });
+
+    logger.debug('Emitting start_scene with sceneData', {
+        scene: nextScene.scene,
+        sceneData: sceneData,
+        room: client.room
     });
 
     io.to(client.room).emit('start_scene', {
         scene: nextScene.scene,
         sceneConfig: nextScene,
-        sceneData: sceneData
+        sceneData: sceneData,
+        roomId: client.room,
+        sessionId: client.session,
+        subjectId: client.subjectID
     });
+
+    // Track current scene in room state for flow control
+    if (config.roomStatus[client.room]) {
+        config.roomStatus[client.room].currentScene = nextScene.scene;
+        logger.debug('Updated room.currentScene', {
+            room: client.room,
+            currentScene: nextScene.scene
+        });
+    }
 }
 
 module.exports = handleSceneComplete;

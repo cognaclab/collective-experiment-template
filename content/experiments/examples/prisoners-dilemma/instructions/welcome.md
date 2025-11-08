@@ -11,12 +11,13 @@ You will be **paired with another participant** to play a simple decision-making
 
 Your points depend on **both your choice and your partner's choice**:
 
-| Your Choice | Partner's Choice | Your Points | Partner's Points |
-|------------|------------------|-------------|------------------|
-| Cooperate  | Cooperate        | **3**       | **3**            |
-| Cooperate  | Defect           | **0**       | **5**            |
-| Defect     | Cooperate        | **5**       | **0**            |
-| Defect     | Defect           | **1**       | **1**            |
+**Both Cooperate:** You get **3 points**, Partner gets **3 points**
+
+**You Cooperate, Partner Defects:** You get **0 points**, Partner gets **5 points**
+
+**You Defect, Partner Cooperates:** You get **5 points**, Partner gets **0 points**
+
+**Both Defect:** You get **1 point**, Partner gets **1 point**
 
 ## Important Details
 

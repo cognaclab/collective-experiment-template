@@ -56,7 +56,7 @@ class SceneAskStillThere extends Phaser.Scene {
 	    	buttonContainer_confirm.visible = false;
 	    	messageText.setText('Processing...');
 
-			socket.emit('scene_complete', {
+			window.socket.emit('scene_complete', {
 				scene: 'SceneAskStillThere'
 			});
 	    }, this);
@@ -93,7 +93,7 @@ class SceneAskStillThere extends Phaser.Scene {
 				timerMask.x -= stepWidth;
 
 				if(this.timeLeft < 0){
-					socket.io.opts.query = 'sessionName=already_finished';
+					window.socket.io.opts.query = 'sessionName=already_finished';
 					confirmationTimer.destroy();
 					buttonContainer_confirm.visible = false;
 					messageText.setText('Time was up!\nYou are redirected to the questionnaire...');
@@ -107,7 +107,7 @@ class SceneAskStillThere extends Phaser.Scene {
 					$("#completed").val("no_response");
 					$("#subjectID").val(subjectID);
 					$("#form").submit();
-					socket.disconnect();
+					window.socket.disconnect();
 				}
 			},
 			callbackScope: this,

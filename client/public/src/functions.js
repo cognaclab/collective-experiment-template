@@ -358,7 +358,7 @@ export function repeatelem (elem, n) {
 };
 
 export function waitingBarCompleted () {
-	//console.log('waitingBarCompleted is fired');
+	console.log('Waiting period complete - server will start experiment soon');
 }
 
 export function debug_pointerdown (x, y) {
