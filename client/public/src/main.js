@@ -57,13 +57,16 @@ window.onload = function() {
     $("#gameRound").val(gameRound);
 
     //======== monitoring reload activity ==========
-    if (window.performance && subjectID != 'INHOUSETEST') {
+    const isDevelopmentMode = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (window.performance && subjectID != 'INHOUSETEST' && !isDevelopmentMode) {
         if (performance.navigation.type === 1) {
             // Redirecting to the questionnaire
             socket.io.opts.query = 'sessionName=already_finished';
             socket.disconnect();
             window.location.href = htmlServer + portnumQuestionnaire +'/questionnaireForDisconnectedSubjects?subjectID='+subjectID+'&info_share_cost='+info_share_cost+'&bonus_for_waiting='+waitingBonus+'&totalEarningInPence='+Math.round((totalPayoff_perIndiv*cent_per_point))+'&confirmationID='+confirmationID+'&exp_condition='+exp_condition+'&indivOrGroup='+indivOrGroup+'&completed='+0+'&latency='+submittedLatency;
         }
+    } else if (window.performance && performance.navigation.type === 1) {
+        console.log('🔧 [DEV MODE] Page reload detected but enforcement disabled for localhost');
     }
     //======== end: monitoring reload activity =====
 

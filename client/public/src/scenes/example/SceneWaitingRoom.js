@@ -151,7 +151,7 @@ class SceneWaitingRoom extends Phaser.Scene {
 	update(){
 		waitingBar.clear();
 		waitingBar.fillStyle(0x00a5ff, 1);
-	    waitingBar.fillRect(250, 280, 300 * waitingCountdown.getProgress(), 30);
+	    waitingBar.fillRect(250, 280, 300 * (1 - waitingCountdown.getProgress()), 30);
 		countdownText.setText('The study starts in ' + ( Math.floor(0.9+(this.restTime/1000)*(1-waitingCountdown.getProgress())) ).toString().substr(0, 3) + ' sec.');
 
 		// Update bonus based on configured rate (pence per minute)

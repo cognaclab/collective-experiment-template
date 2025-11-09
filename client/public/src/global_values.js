@@ -21,6 +21,24 @@ const portnumQuestionnaire = 8000
 	]
 ;
 
+// Detect page reload using Performance Navigation API
+// If the page was reloaded (not a fresh load), block the experiment
+window.wasPageReloaded = false;
+if (window.performance && window.performance.navigation) {
+	// navigation.type == 1 means reload
+	if (window.performance.navigation.type === 1) {
+		window.wasPageReloaded = true;
+		console.warn('⚠️ Page reload detected - experiment session invalidated');
+	}
+} else if (window.performance && window.performance.getEntriesByType) {
+	// Modern browsers use PerformanceNavigationTiming
+	const navEntries = window.performance.getEntriesByType('navigation');
+	if (navEntries.length > 0 && navEntries[0].type === 'reload') {
+		window.wasPageReloaded = true;
+		console.warn('⚠️ Page reload detected - experiment session invalidated');
+	}
+}
+
 // Create socket connection and expose to window for ES6 module access
 window.socket = io.connect(htmlServer+portnum, { query: 'subjectID='+subjectID }); // portnum is defined in game.ejs
 const socket = window.socket; // Local reference for backward compatibility

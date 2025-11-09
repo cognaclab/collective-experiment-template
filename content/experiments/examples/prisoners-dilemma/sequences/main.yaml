@@ -25,11 +25,15 @@ sequence:
     type: "pd_results"
     next: "ScenePDChoice"
 
-  # End of experiment (after horizon trials)
+  # End of round (after horizon trials)
   - scene: "SceneRoundSummary"
     type: "round_summary"
+    next: "SceneFinalSummary"
+
+  # End of experiment (after all rounds)
+  - scene: "SceneFinalSummary"
+    type: "final_summary"
     next: "SceneGoToQuestionnaire"
 
   - scene: "SceneGoToQuestionnaire"
     type: "questionnaire"
-    redirect: "/questionnaire"

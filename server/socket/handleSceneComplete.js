@@ -293,7 +293,22 @@ async function handleSceneComplete(client, data, config, io) {
         room.doneNo[nextPointer] = 0;
     }
 
-    if (currentSceneConfig && RESULT_SCENE_TYPES.includes(currentSceneConfig.type)) {
+    // Check if we're completing a summary scene - if so, just use next from sequence
+    const isCompletingSummaryScene = currentSceneConfig &&
+        (currentSceneConfig.type === 'round_summary' || currentSceneConfig.type === 'final_summary');
+
+    if (isCompletingSummaryScene) {
+        // Summary scene complete - proceed to next scene in sequence (don't re-apply summary logic)
+        nextScene = getNextScene(sceneKey, sequence, triggerType);
+
+        logger.info('Summary scene completed, proceeding to next scene', {
+            room: client.room,
+            completedScene: sceneKey,
+            completedSceneType: currentSceneConfig.type,
+            nextScene: nextScene?.scene,
+            nextSceneType: nextScene?.type
+        });
+    } else if (currentSceneConfig && RESULT_SCENE_TYPES.includes(currentSceneConfig.type)) {
         // After result/feedback, check if we should loop back to game scene or proceed to final summary/questionnaire
         const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
 
@@ -310,11 +325,21 @@ async function handleSceneComplete(client, data, config, io) {
                 nextScene = getNextScene(sceneKey, sequence, triggerType);
             }
         } else {
-            // All trials completed, find round summary or final summary scene
+            // All trials completed, always show round summary first
             const roundSummaryScene = sequence.find(s => s.type === 'round_summary');
             const finalSummaryScene = sequence.find(s => s.type === 'final_summary');
             const questionnaireScene = sequence.find(s => s.type === 'questionnaire');
-            nextScene = roundSummaryScene || finalSummaryScene || questionnaireScene || getNextScene(sceneKey, sequence, triggerType);
+
+            if (roundSummaryScene) {
+                // Always show round summary first after trials complete (shows trial-by-trial details)
+                nextScene = roundSummaryScene;
+            } else if (finalSummaryScene) {
+                // Fallback to final summary if no round summary exists
+                nextScene = finalSummaryScene;
+            } else {
+                // Fallback to questionnaire or next in sequence
+                nextScene = questionnaireScene || getNextScene(sceneKey, sequence, triggerType);
+            }
 
             logger.info('All trials completed, transitioning to summary scene', {
                 room: client.room,
@@ -344,14 +369,28 @@ async function handleSceneComplete(client, data, config, io) {
 
     // Check for redirect (completion scenes)
     if (nextScene.redirect) {
+        // Build full URL for redirect (prepend APP_URL if relative path)
+        let redirectUrl = nextScene.redirect;
+        if (redirectUrl.startsWith('/')) {
+            const appUrl = process.env.APP_URL || 'http://localhost:8000';
+            redirectUrl = appUrl + redirectUrl;
+            logger.debug('Converted relative redirect to absolute', {
+                original: nextScene.redirect,
+                appUrl: appUrl,
+                final: redirectUrl
+            });
+        }
+
         logger.info('Scene redirecting to page', {
             room: client.room,
             scene: nextScene.scene,
-            redirect: nextScene.redirect
+            redirect: redirectUrl,
+            playersInRoom: room.n,
+            readyCount: room.sceneReadyCount?.[sceneKey] || 0
         });
 
         io.to(client.room).emit('redirect', {
-            url: nextScene.redirect,
+            url: redirectUrl,
             scene: nextScene.scene
         });
         return;
@@ -676,6 +715,114 @@ async function handleSceneComplete(client, data, config, io) {
         }
 
         // Early return - skip default broadcast for round_summary
+        return;
+    } else if (nextScene.type === 'final_summary') {
+        // Final summary scene - emit PERSONALIZED per-round totals to each player
+        const totalRounds = config.experimentLoader?.gameConfig?.total_game_rounds || 1;
+        const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
+
+        // Get all sockets in room for personalized emission
+        const sockets = await io.in(client.room).fetchSockets();
+
+        logger.info('Emitting personalized final summary to each player', {
+            room: client.room,
+            totalRounds: totalRounds,
+            horizon: horizon,
+            playerCount: sockets.length
+        });
+
+        const paymentCalculator = config.experimentLoader?.paymentCalculator;
+
+        // Emit personalized data to EACH player individually
+        for (const playerSocket of sockets) {
+            // Find this player's subject number
+            const playerSubjectNumber = room.membersID.indexOf(playerSocket.subjectID) + 1;
+
+            if (playerSubjectNumber === 0) {
+                logger.warn('Player not found in membersID for final summary', {
+                    subjectID: playerSocket.subjectID,
+                    membersID: room.membersID
+                });
+                continue;
+            }
+
+            // Build per-round breakdown for THIS player
+            const roundBreakdown = [];
+            let totalPoints = 0;
+
+            for (let roundIndex = 0; roundIndex < totalRounds; roundIndex++) {
+                let roundPoints = 0;
+
+                // Sum all trials in this round for this player
+                const startTrial = roundIndex * horizon;
+                const endTrial = startTrial + horizon;
+
+                for (let trialIndex = startTrial; trialIndex < endTrial; trialIndex++) {
+                    if (room.rewards && room.rewards[trialIndex]) {
+                        roundPoints += room.rewards[trialIndex][playerSubjectNumber] || 0;
+                    }
+                }
+
+                roundBreakdown.push({
+                    round: roundIndex + 1,
+                    points: roundPoints
+                });
+                totalPoints += roundPoints;
+            }
+
+            // Calculate final payment for THIS player
+            let paymentData = null;
+            if (paymentCalculator) {
+                try {
+                    paymentData = paymentCalculator.calculateSessionPayment(
+                        totalPoints,
+                        0, // waiting bonus
+                        true // completed
+                    );
+
+                    logger.info('Calculated final payment for experiment summary', {
+                        subjectID: playerSocket.subjectID,
+                        totalPoints: totalPoints,
+                        payment: paymentData.formatted
+                    });
+                } catch (error) {
+                    logger.error('Failed to calculate payment for experiment summary', { error: error.message });
+                }
+            }
+
+            // Build personalized sceneData for THIS player (shows ONLY their payment, not others)
+            const personalizedSceneData = {
+                roundBreakdown: roundBreakdown,
+                totalPoints: totalPoints,
+                finalPayment: paymentData?.formatted || '£0.00',
+                totalRounds: totalRounds
+            };
+
+            // Emit to THIS player only
+            playerSocket.emit('start_scene', {
+                scene: nextScene.scene,
+                sceneConfig: nextScene,
+                sceneData: personalizedSceneData,
+                roomId: client.room,
+                sessionId: playerSocket.sessionId,
+                subjectId: playerSocket.subjectID
+            });
+
+            logger.debug('Emitted personalized final summary to player', {
+                subjectID: playerSocket.subjectID,
+                subjectNumber: playerSubjectNumber,
+                roundCount: roundBreakdown.length,
+                totalPoints,
+                payment: paymentData?.formatted
+            });
+        }
+
+        // Track current scene in room state
+        if (config.roomStatus[client.room]) {
+            config.roomStatus[client.room].currentScene = nextScene.scene;
+        }
+
+        // Early return - skip default broadcast for final_summary
         return;
     } else if (nextScene.type === 'questionnaire') {
         // Calculate totals across all rounds for summary display
