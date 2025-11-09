@@ -17,6 +17,18 @@
 const logger = require('../utils/logger');
 
 /**
+ * Scene types that require player synchronization in multiplayer mode
+ * Players must wait for all group members before proceeding to these scenes
+ * Other scene types allow players to proceed independently at their own pace
+ */
+const SYNCHRONIZED_SCENE_TYPES = [
+    'game',        // Main bandit task scenes
+    'pd_choice',   // Prisoner's Dilemma choice scenes
+    'pd_results',  // Immediate trial results (keeps gameplay synchronized)
+    'feedback'     // Trial feedback scenes in bandit tasks
+];
+
+/**
  * Get next scene from sequence with conditional routing support
  * @param {string} currentSceneKey - Current scene identifier
  * @param {Array} sequence - Experiment sequence from YAML
@@ -196,19 +208,30 @@ async function handleSceneComplete(client, data, config, io) {
         }
     }
 
+    // Get current scene config to check if synchronization is required
+    const currentSceneConfig = sequence.find(s => s.scene === sceneKey);
+
+    // Determine if this scene type requires player synchronization
+    const requiresSync = currentSceneConfig && SYNCHRONIZED_SCENE_TYPES.includes(currentSceneConfig.type);
+
     // For temporary rooms (instruction phase), always allow individual progression
     // Also skip synchronization if bypassSync flag is set (server-driven transition)
-    if (isTemporaryRoom || bypassSync) {
-        logger.info(bypassSync ? 'Server-driven transition - skipping sync' : 'Temporary room - allowing individual progression', {
-            room: client.room,
-            scene: sceneKey,
-            nextScene: nextScene?.scene,
-            player: client.subjectID,
-            bypassSync: bypassSync
-        });
-
-        // No synchronization needed - proceed immediately
-        // Continue to scene transition logic below
+    // Also skip synchronization for non-synchronized scene types (summaries, instructions, etc.)
+    if (isTemporaryRoom || bypassSync || !requiresSync) {
+        logger.info(
+            bypassSync ? 'Server-driven transition - skipping sync' :
+            isTemporaryRoom ? 'Temporary room - allowing individual progression' :
+            'Non-synchronized scene - allowing individual progression',
+            {
+                room: client.room,
+                scene: sceneKey,
+                sceneType: currentSceneConfig?.type,
+                requiresSync: requiresSync,
+                nextScene: nextScene?.scene,
+                player: client.subjectID,
+                bypassSync: bypassSync
+            }
+        );
     } else {
         // For permanent rooms, check if all players are ready
         const allReady = room.sceneReadyCount[sceneKey] >= room.n;
@@ -272,9 +295,6 @@ async function handleSceneComplete(client, data, config, io) {
 
     // Define result scene types that complete a trial and increment counter
     const RESULT_SCENE_TYPES = ['feedback', 'pd_results'];
-
-    // Re-determine next scene based on trial progression (may override earlier detection)
-    const currentSceneConfig = sequence.find(s => s.scene === sceneKey);
 
     // Handle trial progression - increment AFTER result/feedback scenes
     if (currentSceneConfig && RESULT_SCENE_TYPES.includes(currentSceneConfig.type)) {
@@ -608,34 +628,133 @@ async function handleSceneComplete(client, data, config, io) {
         const currentRound = room.gameRound || 0;
         const isLastRound = (currentRound >= totalRounds - 1);
 
-        // Get all sockets in room for personalized emission
-        const sockets = await io.in(client.room).fetchSockets();
+        // Determine if we should emit to all players or just the triggering player
+        const shouldEmitToAll = requiresSync || room.n === 1;
 
-        logger.info('Emitting personalized round summary to each player', {
-            room: client.room,
-            horizon: horizon,
-            currentRound: currentRound,
-            isLastRound: isLastRound,
-            playerCount: sockets.length
-        });
+        if (shouldEmitToAll) {
+            // Synchronized mode OR individual - emit to ALL players
+            const sockets = await io.in(client.room).fetchSockets();
 
-        // Calculate payment
-        const paymentCalculator = config.experimentLoader?.paymentCalculator;
+            logger.info('Emitting personalized round summary to each player (synchronized)', {
+                room: client.room,
+                horizon: horizon,
+                currentRound: currentRound,
+                isLastRound: isLastRound,
+                playerCount: sockets.length,
+                synchronized: requiresSync
+            });
 
-        // Emit personalized data to EACH player individually
-        for (const playerSocket of sockets) {
-            // Find this player's subject number
-            const playerSubjectNumber = room.membersID.indexOf(playerSocket.subjectID) + 1;
+            // Calculate payment
+            const paymentCalculator = config.experimentLoader?.paymentCalculator;
+
+            // Emit personalized data to EACH player individually
+            for (const playerSocket of sockets) {
+                // Find this player's subject number
+                const playerSubjectNumber = room.membersID.indexOf(playerSocket.subjectID) + 1;
+
+                if (playerSubjectNumber === 0) {
+                    logger.warn('Player not found in membersID for round summary', {
+                        subjectID: playerSocket.subjectID,
+                        membersID: room.membersID
+                    });
+                    continue;
+                }
+
+                // Build trial history for THIS player
+                const trialHistory = [];
+                let totalPoints = 0;
+
+                for (let trialIndex = 0; trialIndex < horizon; trialIndex++) {
+                    if (room.rewards && room.rewards[trialIndex]) {
+                        const myChoice = room.playerChoices?.[trialIndex]?.[playerSubjectNumber];
+                        const myPayoff = room.rewards[trialIndex][playerSubjectNumber] || 0;
+
+                        // Get partner's data
+                        const playerNumbers = Object.keys(room.playerChoices?.[trialIndex] || {}).map(n => parseInt(n));
+                        const partnerNumber = playerNumbers.find(n => n !== playerSubjectNumber);
+                        const partnerChoice = partnerNumber !== undefined ? room.playerChoices[trialIndex][partnerNumber] : null;
+
+                        trialHistory.push({
+                            trial: trialIndex + 1,
+                            myChoice: myChoice !== undefined ? myChoice : null,
+                            partnerChoice: partnerChoice !== null ? partnerChoice : null,
+                            myPayoff: myPayoff
+                        });
+
+                        totalPoints += myPayoff;
+                    }
+                }
+
+                // Calculate payment for THIS player
+                let paymentData = null;
+                if (paymentCalculator) {
+                    try {
+                        paymentData = paymentCalculator.calculateSessionPayment(
+                            totalPoints,
+                            0, // waiting bonus
+                            true // completed
+                        );
+
+                        logger.info('Calculated payment for round summary', {
+                            subjectID: playerSocket.subjectID,
+                            totalPoints: totalPoints,
+                            payment: paymentData.formatted
+                        });
+                    } catch (error) {
+                        logger.error('Failed to calculate payment for round summary', { error: error.message });
+                    }
+                }
+
+                // Build personalized sceneData for THIS player
+                const personalizedSceneData = {
+                    trialHistory: trialHistory,
+                    totalPoints: totalPoints,
+                    finalPayment: paymentData?.formatted || '£0.00',
+                    totalTrials: horizon,
+                    round: currentRound,
+                    isLastRound: isLastRound
+                };
+
+                // Emit to THIS player only
+                playerSocket.emit('start_scene', {
+                    scene: nextScene.scene,
+                    sceneConfig: nextScene,
+                    sceneData: personalizedSceneData,
+                    roomId: client.room,
+                    sessionId: playerSocket.sessionId,
+                    subjectId: playerSocket.subjectID
+                });
+
+                logger.debug('Emitted personalized round summary to player', {
+                    subjectID: playerSocket.subjectID,
+                    subjectNumber: playerSubjectNumber,
+                    trialCount: trialHistory.length,
+                    totalPoints,
+                    payment: paymentData?.formatted
+                });
+            }
+        } else {
+            // Non-synchronized multiplayer - emit only to triggering player
+            const playerSubjectNumber = room.membersID.indexOf(client.subjectID) + 1;
+
+            logger.info('Emitting round summary to triggering player only (non-synchronized)', {
+                room: client.room,
+                subjectID: client.subjectID,
+                playerNumber: playerSubjectNumber,
+                horizon: horizon,
+                currentRound: currentRound,
+                isLastRound: isLastRound
+            });
 
             if (playerSubjectNumber === 0) {
-                logger.warn('Player not found in membersID for final summary', {
-                    subjectID: playerSocket.subjectID,
+                logger.error('Triggering player not found in membersID for round summary', {
+                    subjectID: client.subjectID,
                     membersID: room.membersID
                 });
-                continue;
+                return;
             }
 
-            // Build trial history for THIS player
+            // Build trial history for triggering player
             const trialHistory = [];
             let totalPoints = 0;
 
@@ -660,7 +779,8 @@ async function handleSceneComplete(client, data, config, io) {
                 }
             }
 
-            // Calculate payment for THIS player
+            // Calculate payment for triggering player
+            const paymentCalculator = config.experimentLoader?.paymentCalculator;
             let paymentData = null;
             if (paymentCalculator) {
                 try {
@@ -670,17 +790,17 @@ async function handleSceneComplete(client, data, config, io) {
                         true // completed
                     );
 
-                    logger.info('Calculated payment for final summary', {
-                        subjectID: playerSocket.subjectID,
+                    logger.info('Calculated payment for round summary', {
+                        subjectID: client.subjectID,
                         totalPoints: totalPoints,
                         payment: paymentData.formatted
                     });
                 } catch (error) {
-                    logger.error('Failed to calculate payment for final summary', { error: error.message });
+                    logger.error('Failed to calculate payment for round summary', { error: error.message });
                 }
             }
 
-            // Build personalized sceneData for THIS player
+            // Build personalized sceneData for triggering player
             const personalizedSceneData = {
                 trialHistory: trialHistory,
                 totalPoints: totalPoints,
@@ -690,18 +810,18 @@ async function handleSceneComplete(client, data, config, io) {
                 isLastRound: isLastRound
             };
 
-            // Emit to THIS player only
-            playerSocket.emit('start_scene', {
+            // Emit to triggering player only
+            client.emit('start_scene', {
                 scene: nextScene.scene,
                 sceneConfig: nextScene,
                 sceneData: personalizedSceneData,
                 roomId: client.room,
-                sessionId: playerSocket.sessionId,
-                subjectId: playerSocket.subjectID
+                sessionId: client.sessionId,
+                subjectId: client.subjectID
             });
 
-            logger.debug('Emitted personalized final summary to player', {
-                subjectID: playerSocket.subjectID,
+            logger.debug('Emitted personalized round summary to triggering player', {
+                subjectID: client.subjectID,
                 subjectNumber: playerSubjectNumber,
                 trialCount: trialHistory.length,
                 totalPoints,
@@ -721,32 +841,127 @@ async function handleSceneComplete(client, data, config, io) {
         const totalRounds = config.experimentLoader?.gameConfig?.total_game_rounds || 1;
         const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
 
-        // Get all sockets in room for personalized emission
-        const sockets = await io.in(client.room).fetchSockets();
+        // Determine if we should emit to all players or just the triggering player
+        const shouldEmitToAll = requiresSync || room.n === 1;
 
-        logger.info('Emitting personalized final summary to each player', {
-            room: client.room,
-            totalRounds: totalRounds,
-            horizon: horizon,
-            playerCount: sockets.length
-        });
+        if (shouldEmitToAll) {
+            // Synchronized mode OR individual - emit to ALL players
+            const sockets = await io.in(client.room).fetchSockets();
 
-        const paymentCalculator = config.experimentLoader?.paymentCalculator;
+            logger.info('Emitting personalized final summary to each player (synchronized)', {
+                room: client.room,
+                totalRounds: totalRounds,
+                horizon: horizon,
+                playerCount: sockets.length,
+                synchronized: requiresSync
+            });
 
-        // Emit personalized data to EACH player individually
-        for (const playerSocket of sockets) {
-            // Find this player's subject number
-            const playerSubjectNumber = room.membersID.indexOf(playerSocket.subjectID) + 1;
+            const paymentCalculator = config.experimentLoader?.paymentCalculator;
+
+            // Emit personalized data to EACH player individually
+            for (const playerSocket of sockets) {
+                // Find this player's subject number
+                const playerSubjectNumber = room.membersID.indexOf(playerSocket.subjectID) + 1;
+
+                if (playerSubjectNumber === 0) {
+                    logger.warn('Player not found in membersID for final summary', {
+                        subjectID: playerSocket.subjectID,
+                        membersID: room.membersID
+                    });
+                    continue;
+                }
+
+                // Build per-round breakdown for THIS player
+                const roundBreakdown = [];
+                let totalPoints = 0;
+
+                for (let roundIndex = 0; roundIndex < totalRounds; roundIndex++) {
+                    let roundPoints = 0;
+
+                    // Sum all trials in this round for this player
+                    const startTrial = roundIndex * horizon;
+                    const endTrial = startTrial + horizon;
+
+                    for (let trialIndex = startTrial; trialIndex < endTrial; trialIndex++) {
+                        if (room.rewards && room.rewards[trialIndex]) {
+                            roundPoints += room.rewards[trialIndex][playerSubjectNumber] || 0;
+                        }
+                    }
+
+                    roundBreakdown.push({
+                        round: roundIndex + 1,
+                        points: roundPoints
+                    });
+                    totalPoints += roundPoints;
+                }
+
+                // Calculate final payment for THIS player
+                let paymentData = null;
+                if (paymentCalculator) {
+                    try {
+                        paymentData = paymentCalculator.calculateSessionPayment(
+                            totalPoints,
+                            0, // waiting bonus
+                            true // completed
+                        );
+
+                        logger.info('Calculated final payment for experiment summary', {
+                            subjectID: playerSocket.subjectID,
+                            totalPoints: totalPoints,
+                            payment: paymentData.formatted
+                        });
+                    } catch (error) {
+                        logger.error('Failed to calculate payment for experiment summary', { error: error.message });
+                    }
+                }
+
+                // Build personalized sceneData for THIS player (shows ONLY their payment, not others)
+                const personalizedSceneData = {
+                    roundBreakdown: roundBreakdown,
+                    totalPoints: totalPoints,
+                    finalPayment: paymentData?.formatted || '£0.00',
+                    totalRounds: totalRounds
+                };
+
+                // Emit to THIS player only
+                playerSocket.emit('start_scene', {
+                    scene: nextScene.scene,
+                    sceneConfig: nextScene,
+                    sceneData: personalizedSceneData,
+                    roomId: client.room,
+                    sessionId: playerSocket.sessionId,
+                    subjectId: playerSocket.subjectID
+                });
+
+                logger.debug('Emitted personalized final summary to player', {
+                    subjectID: playerSocket.subjectID,
+                    subjectNumber: playerSubjectNumber,
+                    roundCount: roundBreakdown.length,
+                    totalPoints,
+                    payment: paymentData?.formatted
+                });
+            }
+        } else {
+            // Non-synchronized multiplayer - emit only to triggering player
+            const playerSubjectNumber = room.membersID.indexOf(client.subjectID) + 1;
+
+            logger.info('Emitting final summary to triggering player only (non-synchronized)', {
+                room: client.room,
+                subjectID: client.subjectID,
+                playerNumber: playerSubjectNumber,
+                totalRounds: totalRounds,
+                horizon: horizon
+            });
 
             if (playerSubjectNumber === 0) {
-                logger.warn('Player not found in membersID for final summary', {
-                    subjectID: playerSocket.subjectID,
+                logger.error('Triggering player not found in membersID for final summary', {
+                    subjectID: client.subjectID,
                     membersID: room.membersID
                 });
-                continue;
+                return;
             }
 
-            // Build per-round breakdown for THIS player
+            // Build per-round breakdown for triggering player
             const roundBreakdown = [];
             let totalPoints = 0;
 
@@ -770,7 +985,8 @@ async function handleSceneComplete(client, data, config, io) {
                 totalPoints += roundPoints;
             }
 
-            // Calculate final payment for THIS player
+            // Calculate final payment for triggering player
+            const paymentCalculator = config.experimentLoader?.paymentCalculator;
             let paymentData = null;
             if (paymentCalculator) {
                 try {
@@ -781,7 +997,7 @@ async function handleSceneComplete(client, data, config, io) {
                     );
 
                     logger.info('Calculated final payment for experiment summary', {
-                        subjectID: playerSocket.subjectID,
+                        subjectID: client.subjectID,
                         totalPoints: totalPoints,
                         payment: paymentData.formatted
                     });
@@ -790,7 +1006,7 @@ async function handleSceneComplete(client, data, config, io) {
                 }
             }
 
-            // Build personalized sceneData for THIS player (shows ONLY their payment, not others)
+            // Build personalized sceneData for triggering player
             const personalizedSceneData = {
                 roundBreakdown: roundBreakdown,
                 totalPoints: totalPoints,
@@ -798,18 +1014,18 @@ async function handleSceneComplete(client, data, config, io) {
                 totalRounds: totalRounds
             };
 
-            // Emit to THIS player only
-            playerSocket.emit('start_scene', {
+            // Emit to triggering player only
+            client.emit('start_scene', {
                 scene: nextScene.scene,
                 sceneConfig: nextScene,
                 sceneData: personalizedSceneData,
                 roomId: client.room,
-                sessionId: playerSocket.sessionId,
-                subjectId: playerSocket.subjectID
+                sessionId: client.sessionId,
+                subjectId: client.subjectID
             });
 
-            logger.debug('Emitted personalized final summary to player', {
-                subjectID: playerSocket.subjectID,
+            logger.debug('Emitted personalized final summary to triggering player', {
+                subjectID: client.subjectID,
                 subjectNumber: playerSubjectNumber,
                 roundCount: roundBreakdown.length,
                 totalPoints,
