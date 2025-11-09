@@ -169,34 +169,13 @@ class ScenePDChoice extends Phaser.Scene {
                 this.timerEvent = null;
             }
 
-            // Show waiting message
+            // Show waiting message (no countdown - server will notify when all ready)
             waitingText.visible = true;
             instructions.setText(`You chose: ${choiceName}`);
 
-            // Start partner waiting timer (max_scene_wait_time = 10 seconds)
-            const maxWaitTime = 10000; // From config: max_scene_wait_time
-            this.waitTimeLeft = Math.ceil(maxWaitTime / 1000);
-
             if (this.showTimer) {
-                timerText.setText(`Waiting for partner: ${this.waitTimeLeft}s`);
-
-                this.waitingTimerEvent = this.time.addEvent({
-                    delay: 1000,
-                    callback: () => {
-                        if (this.waitTimeLeft > 0) {
-                            this.waitTimeLeft--;
-                        }
-                        timerText.setText(`Waiting for partner: ${this.waitTimeLeft}s`);
-
-                        // Update progress bar with orange color for waiting
-                        const progress = this.waitTimeLeft / Math.ceil(maxWaitTime / 1000);
-                        timerBar.clear();
-                        timerBar.fillStyle(0xff9800, 1); // Orange for waiting
-                        timerBar.fillRect(255, 455, 290 * progress, 20);
-                    },
-                    callbackScope: this,
-                    loop: true
-                });
+                timerText.setText('Waiting for partner...');
+                timerBar.clear();
             }
 
             // Emit choice to server
@@ -294,6 +273,58 @@ class ScenePDChoice extends Phaser.Scene {
             }, [], this);
         }
 
+        // Listen for all players confirming their choices
+        window.socket.on('all_choices_confirmed', (data) => {
+            console.log('All players confirmed choices, showing 3s countdown');
+
+            // Check if scene is still active and objects exist
+            if (!this.scene.isActive() || !waitingText || !waitingText.active) {
+                console.log('Scene no longer active or objects destroyed, skipping countdown');
+                return;
+            }
+
+            // Update message
+            waitingText.setText('All choices confirmed!');
+            instructions.setText('Proceeding to results...');
+
+            // Show 3-second countdown
+            let countdownSeconds = 3;
+            if (this.showTimer && timerText && timerText.active) {
+                timerText.setText(`Ending in ${countdownSeconds}s`);
+                timerBar.clear();
+                timerBar.fillStyle(0x4CAF50, 1); // Green for success
+                timerBar.fillRect(255, 455, 290, 20);
+
+                this.endingTimerEvent = this.time.addEvent({
+                    delay: 1000,
+                    callback: () => {
+                        // Check if scene and objects still exist before updating
+                        if (!this.scene.isActive() || !timerText || !timerText.active) {
+                            if (this.endingTimerEvent) {
+                                this.endingTimerEvent.remove();
+                                this.endingTimerEvent = null;
+                            }
+                            return;
+                        }
+
+                        countdownSeconds--;
+                        if (countdownSeconds > 0) {
+                            timerText.setText(`Ending in ${countdownSeconds}s`);
+                            const progress = countdownSeconds / 3;
+                            timerBar.clear();
+                            timerBar.fillStyle(0x4CAF50, 1);
+                            timerBar.fillRect(255, 455, 290 * progress, 20);
+                        } else {
+                            timerText.setText('Transitioning...');
+                            timerBar.clear();
+                        }
+                    },
+                    callbackScope: this,
+                    repeat: 2
+                });
+            }
+        });
+
         // Listen for server response (handled by main.js socket listener)
         // Scene transition will be triggered by 'start_scene' event
     }
@@ -323,8 +354,13 @@ class ScenePDChoice extends Phaser.Scene {
         if (this.timerEvent) {
             this.timerEvent.remove();
         }
-        if (this.waitingTimerEvent) {
-            this.waitingTimerEvent.remove();
+        if (this.endingTimerEvent) {
+            this.endingTimerEvent.remove();
+        }
+
+        // Remove socket listener to prevent memory leaks
+        if (window.socket) {
+            window.socket.off('all_choices_confirmed');
         }
     }
 }

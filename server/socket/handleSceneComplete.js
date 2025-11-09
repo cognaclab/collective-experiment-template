@@ -100,6 +100,9 @@ async function handleSceneComplete(client, data, config, io) {
         return;
     }
 
+    // Check if synchronization should be bypassed (server-driven transition)
+    const bypassSync = data.bypassSync === true;
+
     // Initialize scene ready counter and timers if not exists
     if (!room.sceneReadyCount) {
         room.sceneReadyCount = {};
@@ -129,16 +132,23 @@ async function handleSceneComplete(client, data, config, io) {
         return;
     }
 
-    // Increment ready count for this scene
-    room.sceneReadyCount[sceneKey] = (room.sceneReadyCount[sceneKey] || 0) + 1;
+    // Increment ready count for this scene (unless bypassing sync)
+    if (!bypassSync) {
+        room.sceneReadyCount[sceneKey] = (room.sceneReadyCount[sceneKey] || 0) + 1;
 
-    logger.debug('Scene completion tracked', {
-        room: client.room,
-        scene: sceneKey,
-        ready: room.sceneReadyCount[sceneKey],
-        required: room.n,
-        mode: room.indivOrGroup === 1 ? 'group' : 'individual'
-    });
+        logger.debug('Scene completion tracked', {
+            room: client.room,
+            scene: sceneKey,
+            ready: room.sceneReadyCount[sceneKey],
+            required: room.n,
+            mode: room.indivOrGroup === 1 ? 'group' : 'individual'
+        });
+    } else {
+        logger.info('Bypassing scene synchronization (server-driven transition)', {
+            room: client.room,
+            scene: sceneKey
+        });
+    }
 
     // Check if this is a temporary instruction room - if so, skip synchronization
     const isTemporaryRoom = room.isTemporary === true;
@@ -187,12 +197,14 @@ async function handleSceneComplete(client, data, config, io) {
     }
 
     // For temporary rooms (instruction phase), always allow individual progression
-    if (isTemporaryRoom) {
-        logger.info('Temporary room - allowing individual progression', {
+    // Also skip synchronization if bypassSync flag is set (server-driven transition)
+    if (isTemporaryRoom || bypassSync) {
+        logger.info(bypassSync ? 'Server-driven transition - skipping sync' : 'Temporary room - allowing individual progression', {
             room: client.room,
             scene: sceneKey,
             nextScene: nextScene?.scene,
-            player: client.subjectID
+            player: client.subjectID,
+            bypassSync: bypassSync
         });
 
         // No synchronization needed - proceed immediately
@@ -258,12 +270,18 @@ async function handleSceneComplete(client, data, config, io) {
         room.sceneReadyCount[sceneKey] = 0;
     }
 
-    // Handle trial progression - increment AFTER feedback, not after main scene
-    if (sceneKey === 'SceneResultFeedback') {
+    // Define result scene types that complete a trial and increment counter
+    const RESULT_SCENE_TYPES = ['feedback', 'pd_results'];
+
+    // Re-determine next scene based on trial progression (may override earlier detection)
+    const currentSceneConfig = sequence.find(s => s.scene === sceneKey);
+
+    // Handle trial progression - increment AFTER result/feedback scenes
+    if (currentSceneConfig && RESULT_SCENE_TYPES.includes(currentSceneConfig.type)) {
         // Increment trial counter after showing feedback for completed trial
         const oldTrial = room.trial;
         room.trial = (room.trial || 0) + 1;
-        console.log(`[TRIAL INCREMENT] After SceneResultFeedback: ${oldTrial} → ${room.trial}`);
+        console.log(`[TRIAL INCREMENT] After ${sceneKey} (type: ${currentSceneConfig.type}): ${oldTrial} → ${room.trial}`);
 
         // Reset groupTotalPayoff for next trial and increment pointer (matching legacy behavior)
         const currentPointer = (room.pointer || 1);
@@ -275,17 +293,22 @@ async function handleSceneComplete(client, data, config, io) {
         room.doneNo[nextPointer] = 0;
     }
 
-    // Re-determine next scene based on trial progression (may override earlier detection)
-    const currentSceneConfig = sequence.find(s => s.scene === sceneKey);
-
-    if (sceneKey === 'SceneResultFeedback' && currentSceneConfig) {
-        // After feedback, check if we should loop back to SceneMain or proceed
-        const gameScene = sequence.find(s => s.scene === 'SceneMain');
+    if (currentSceneConfig && RESULT_SCENE_TYPES.includes(currentSceneConfig.type)) {
+        // After result/feedback, check if we should loop back to game scene or proceed to questionnaire
         const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
 
         if (room.trial <= horizon) {
-            // Continue to next trial
-            nextScene = gameScene;
+            // Continue to next trial - use the 'next' field from current scene config
+            const nextSceneId = currentSceneConfig.next;
+            nextScene = sequence.find(s => s.scene === nextSceneId);
+
+            if (!nextScene) {
+                logger.warn('Next game scene not found in sequence', {
+                    currentScene: sceneKey,
+                    nextSceneId: nextSceneId
+                });
+                nextScene = getNextScene(sceneKey, sequence, triggerType);
+            }
         } else {
             // All trials completed, find the scene that should come after the game loop
             const questionnaireScene = sequence.find(s => s.type === 'questionnaire');
@@ -417,7 +440,7 @@ async function handleSceneComplete(client, data, config, io) {
             groupCumulativePayoff: room.groupCumulativePayoff?.[currentGameRound] || 0,
             mySocialInfo: room.socialInfo?.[currentPointer] || {}
         };
-    } else if (nextScene.scene === 'ScenePDChoice' || nextScene.type === 'pd_choice') {
+    } else if (nextScene.type === 'pd_choice') {
         // Prisoner's Dilemma choice scene
         sceneData = {
             trial: room.trial || 1,
@@ -430,7 +453,7 @@ async function handleSceneComplete(client, data, config, io) {
             room: client.room,
             trial: room.trial
         });
-    } else if (nextScene.scene === 'ScenePDResults' || nextScene.type === 'pd_results') {
+    } else if (nextScene.type === 'pd_results') {
         // Matrix game results scene - emit PERSONALIZED data to each player
 
         // Ensure rewards and player choices exist before proceeding

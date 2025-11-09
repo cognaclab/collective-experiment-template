@@ -173,11 +173,11 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 			room.saveDataThisRound = [];
 		}
 
-		// For new config-driven experiments, call handleSceneComplete directly
+		// For new config-driven experiments, emit confirmation event and delay transition
 		if (config.experimentLoader && config.experimentLoader.sequence) {
 			// Use tracked current scene instead of hardcoded 'SceneMain'
 			const currentScene = room.currentScene || 'SceneMain';
-			console.log(` - Calling handleSceneComplete for ${currentScene} (config-driven flow)`);
+			console.log(` - All players confirmed choices for ${currentScene}`);
 
 			// Determine trigger type from room state
 			const hasTimeout = room.timeoutFlags[p] && room.timeoutFlags[p].some(flag => flag === true);
@@ -196,13 +196,25 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 
 			console.log(` - Determined triggerType: ${triggerType}`);
 
-			const handleSceneComplete = require('./handleSceneComplete');
-			const sceneCompleteData = {
-				scene: currentScene,
-				sequence: config.experimentLoader.sequence.sequence,
-				triggerType: triggerType
-			};
-			handleSceneComplete(client, sceneCompleteData, config, io);
+			// Notify all players that choices are confirmed
+			io.to(client.room).emit('all_choices_confirmed', {
+				message: 'All players have confirmed their choices'
+			});
+			console.log(` - Emitted all_choices_confirmed to room ${client.room}`);
+
+			// Wait 3 seconds, then transition to results
+			setTimeout(() => {
+				console.log(` - 3s delay complete, transitioning to results for ${currentScene}`);
+
+				const handleSceneComplete = require('./handleSceneComplete');
+				const sceneCompleteData = {
+					scene: currentScene,
+					sequence: config.experimentLoader.sequence.sequence,
+					triggerType: triggerType,
+					bypassSync: true  // Skip scene synchronization - server already coordinated
+				};
+				handleSceneComplete(client, sceneCompleteData, config, io);
+			}, 3000);
 		} else {
 			// Legacy flow: call proceedToResult
 			console.log(` - Calling proceedToResult for ${client.room} (legacy flow)`);

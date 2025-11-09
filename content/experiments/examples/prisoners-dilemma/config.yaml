@@ -12,7 +12,7 @@ game:
   horizon: 3                      # 3 trials (minimal for testing)
   total_game_rounds: 1            # One round only
   k_armed_bandit: 2               # 2 options: Cooperate (0) or Defect (1)
-  max_choice_time: 10000          # 10 seconds to make choice
+  max_choice_time: 20000          # 10 seconds to make choice
   max_lobby_wait_time: 120000     # 2 minutes to wait for partner
   max_scene_wait_time: 10000       # 10 seconds for scene transitions
   show_timer: true                # Display countdown timer
