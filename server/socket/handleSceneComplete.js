@@ -562,16 +562,21 @@ async function handleSceneComplete(client, data, config, io) {
 
         // Early return - skip default broadcast for pd_results
         return;
-    } else if (nextScene.type === 'final_summary') {
-        // Final summary scene - emit PERSONALIZED trial history to each player
+    } else if (nextScene.type === 'round_summary') {
+        // Round summary scene - emit PERSONALIZED trial history for current round to each player
         const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
+        const totalRounds = config.experimentLoader?.gameConfig?.total_game_rounds || 1;
+        const currentRound = room.gameRound || 0;
+        const isLastRound = (currentRound >= totalRounds - 1);
 
         // Get all sockets in room for personalized emission
         const sockets = await io.in(client.room).fetchSockets();
 
-        logger.info('Emitting personalized final summary to each player', {
+        logger.info('Emitting personalized round summary to each player', {
             room: client.room,
             horizon: horizon,
+            currentRound: currentRound,
+            isLastRound: isLastRound,
             playerCount: sockets.length
         });
 
@@ -641,7 +646,9 @@ async function handleSceneComplete(client, data, config, io) {
                 trialHistory: trialHistory,
                 totalPoints: totalPoints,
                 finalPayment: paymentData?.formatted || '£0.00',
-                totalTrials: horizon
+                totalTrials: horizon,
+                round: currentRound,
+                isLastRound: isLastRound
             };
 
             // Emit to THIS player only
@@ -668,7 +675,7 @@ async function handleSceneComplete(client, data, config, io) {
             config.roomStatus[client.room].currentScene = nextScene.scene;
         }
 
-        // Early return - skip default broadcast for final_summary
+        // Early return - skip default broadcast for round_summary
         return;
     } else if (nextScene.type === 'questionnaire') {
         // Calculate totals across all rounds for summary display

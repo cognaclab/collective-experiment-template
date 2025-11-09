@@ -26,8 +26,8 @@ sequence:
     next: "ScenePDChoice"
 
   # End of experiment (after horizon trials)
-  - scene: "SceneFinalSummary"
-    type: "final_summary"
+  - scene: "SceneRoundSummary"
+    type: "round_summary"
     next: "SceneGoToQuestionnaire"
 
   - scene: "SceneGoToQuestionnaire"

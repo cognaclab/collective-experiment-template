@@ -1,35 +1,38 @@
-// SceneFinalSummary - Final summary screen showing all trials and final payment
-// Displays trial history, total points, and payment information
+// SceneRoundSummary - Round summary screen showing trials from current round
+// Displays trial history for this round, points earned, and current earnings
 
-class SceneFinalSummary extends Phaser.Scene {
+class SceneRoundSummary extends Phaser.Scene {
 
     constructor() {
-        super({ key: 'SceneFinalSummary', active: false });
+        super({ key: 'SceneRoundSummary', active: false });
     }
 
     preload() {
     }
 
     init(data) {
-        console.log('SceneFinalSummary.init() received data:', data);
+        console.log('SceneRoundSummary.init() received data:', data);
 
         this.trialHistory = data.trialHistory || [];
         this.totalPoints = data.totalPoints || 0;
-        this.finalPayment = data.finalPayment || '£0.00';
+        this.currentPayment = data.finalPayment || '£0.00';
         this.totalTrials = data.totalTrials || 3;
+        this.round = data.round || 1;
+        this.isLastRound = data.isLastRound !== undefined ? data.isLastRound : true;
     }
 
     create() {
-        console.log('SceneFinalSummary.create()');
+        console.log('SceneRoundSummary.create()');
+        console.log('Round:', this.round, 'isLastRound:', this.isLastRound);
         console.log('Trial history:', this.trialHistory);
         console.log('Total points:', this.totalPoints);
-        console.log('Final payment:', this.finalPayment);
 
         // Background
         this.cameras.main.setBackgroundColor('#FFFFFF');
 
         // Title
-        const title = this.add.text(400, 40, 'Experiment Complete!', {
+        const titleText = this.isLastRound ? 'Round Complete!' : `Round ${this.round + 1} Complete!`;
+        const title = this.add.text(400, 40, titleText, {
             fontSize: '36px',
             fill: '#000',
             fontStyle: 'bold'
@@ -48,7 +51,7 @@ class SceneFinalSummary extends Phaser.Scene {
         const tableX = 400 - (colWidths.reduce((a, b) => a + b, 0) / 2);
 
         // Table headers
-        const headers = ['Round', 'Your Choice', 'Partner Choice', 'Your Points'];
+        const headers = ['Trial', 'Your Choice', 'Partner Choice', 'Your Points'];
         const headerStyle = { fontSize: '16px', fill: '#333', fontStyle: 'bold' };
 
         let currentX = tableX;
@@ -90,7 +93,7 @@ class SceneFinalSummary extends Phaser.Scene {
                 index % 2 === 0 ? 0xF5F5F5 : 0xFFFFFF
             );
 
-            // Round number
+            // Trial number
             this.add.text(
                 currentX + colWidths[0] / 2,
                 rowY + rowHeight / 2,
@@ -151,15 +154,18 @@ class SceneFinalSummary extends Phaser.Scene {
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        // Final payment
-        this.add.text(400, summaryY + 45, `Final Payment: ${this.finalPayment}`, {
+        // Current payment
+        this.add.text(400, summaryY + 45, `Current Earnings: ${this.currentPayment}`, {
             fontSize: '26px',
             fill: '#1976D2',
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
         // Thank you message
-        this.add.text(400, summaryY + 90, 'Thank you for participating!', {
+        const thankYouMsg = this.isLastRound
+            ? 'Thank you for participating!'
+            : 'Get ready for the next round!';
+        this.add.text(400, summaryY + 90, thankYouMsg, {
             fontSize: '20px',
             fill: '#666',
             fontStyle: 'italic'
@@ -167,10 +173,11 @@ class SceneFinalSummary extends Phaser.Scene {
 
         // Continue button
         const buttonY = 530;
-        const continueButton = this.add.rectangle(400, buttonY, 250, 60, 0x4CAF50)
+        const continueButton = this.add.rectangle(400, buttonY, 200, 60, 0x4CAF50)
             .setInteractive({ cursor: 'pointer' });
 
-        const continueText = this.add.text(400, buttonY, 'Continue to Survey', {
+        const buttonText = this.isLastRound ? 'Continue' : 'Next Round';
+        const continueText = this.add.text(400, buttonY, buttonText, {
             fontSize: '22px',
             fill: '#FFF',
             fontStyle: 'bold'
@@ -187,13 +194,15 @@ class SceneFinalSummary extends Phaser.Scene {
 
         // Button click - emit scene complete
         continueButton.on('pointerdown', () => {
-            console.log('Final summary viewed, emitting scene_complete');
+            console.log('Round summary viewed, emitting scene_complete');
 
             window.socket.emit('scene_complete', {
                 sessionId: window.sessionId,
                 roomId: window.roomId,
                 subjectId: window.subjectId,
-                scene: 'SceneFinalSummary'
+                scene: 'SceneRoundSummary',
+                round: this.round,
+                isLastRound: this.isLastRound
             });
 
             // Disable button to prevent double-clicks
@@ -203,4 +212,4 @@ class SceneFinalSummary extends Phaser.Scene {
     }
 }
 
-export default SceneFinalSummary;
+export default SceneRoundSummary;
