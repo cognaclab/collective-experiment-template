@@ -124,9 +124,15 @@ class ScenePDChoice extends Phaser.Scene {
         const timeCreated = new Date();
         let selectionTime = null;
 
-        // Step 1: Handle choice selection (first click)
+        // Step 1: Handle choice selection (allows changing selection before confirmation)
         const selectChoice = (choiceId, choiceName, button, otherButton) => {
-            if (this.selectedChoice !== null) return;
+            // Allow changing selection - reset both buttons to normal state first
+            if (this.selectedChoice !== null) {
+                cooperateButton.setFillStyle(0x4CAF50);
+                defectButton.setFillStyle(0xF44336);
+                cooperateButton.setAlpha(1);
+                defectButton.setAlpha(1);
+            }
 
             this.selectedChoice = choiceId;
             selectionTime = new Date();
