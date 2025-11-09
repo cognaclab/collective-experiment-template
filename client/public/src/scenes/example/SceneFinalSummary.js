@@ -135,7 +135,7 @@ class SceneFinalSummary extends Phaser.Scene {
 
         // Continue button
         const buttonY = 530;
-        const continueButton = this.add.rectangle(400, buttonY, 250, 60, 0x4CAF50)
+        const continueButton = this.add.rectangle(400, buttonY, 320, 60, 0x4CAF50)
             .setInteractive({ cursor: 'pointer' });
 
         const continueText = this.add.text(400, buttonY, 'Continue to Questionnaire', {
@@ -153,20 +153,25 @@ class SceneFinalSummary extends Phaser.Scene {
             continueButton.setFillStyle(0x4CAF50);
         });
 
-        // Button click - emit scene complete
+        // Button click - redirect to questionnaire
         continueButton.on('pointerdown', () => {
-            console.log('Final summary viewed, emitting scene_complete');
+            console.log('Final summary complete, redirecting to questionnaire');
 
-            window.socket.emit('scene_complete', {
-                sessionId: window.sessionId,
-                roomId: window.roomId,
-                subjectId: window.subjectId,
-                scene: 'SceneFinalSummary'
-            });
+            // Mark experiment as completed
+            window.isThisGameCompleted = true;
+            window.completed = 1;
+            if (typeof $ !== 'undefined') {
+                $("#completed").val(1);
+                $("#form").submit();
+            } else {
+                // Fallback if jQuery not available
+                const form = document.getElementById('form');
+                if (form) form.submit();
+            }
 
             // Disable button to prevent double-clicks
             continueButton.disableInteractive();
-            continueText.setText('Waiting...');
+            continueText.setText('Loading...');
         });
     }
 }

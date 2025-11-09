@@ -33,7 +33,3 @@ sequence:
   # End of experiment (after all rounds)
   - scene: "SceneFinalSummary"
     type: "final_summary"
-    next: "SceneGoToQuestionnaire"
-
-  - scene: "SceneGoToQuestionnaire"
-    type: "questionnaire"
