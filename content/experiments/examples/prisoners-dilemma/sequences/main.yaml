@@ -26,6 +26,10 @@ sequence:
     next: "ScenePDChoice"
 
   # End of experiment (after horizon trials)
+  - scene: "SceneFinalSummary"
+    type: "final_summary"
+    next: "SceneGoToQuestionnaire"
+
   - scene: "SceneGoToQuestionnaire"
     type: "questionnaire"
     redirect: "/questionnaire"
