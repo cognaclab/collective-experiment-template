@@ -101,11 +101,16 @@ This is a production-ready platform for running online behavioral experiments, s
 │
 ├── content/experiments/       # Experiment definitions
 │   └── examples/
-│       └── quick-test/
-│           ├── config.yaml        # Main experiment config
-│           ├── sequences/main.yaml # Scene flow definition
-│           ├── instructions/      # Markdown instruction files
-│           └── pages/            # Questionnaire HTML pages
+│       ├── quick-test/            # Individual bandit task (3 trials)
+│       │   ├── config.yaml        # Main experiment config
+│       │   ├── sequences/main.yaml # Scene flow definition
+│       │   ├── instructions/      # Markdown instruction files
+│       │   └── pages/            # Questionnaire HTML pages
+│       └── prisoners-dilemma/     # 2-player strategic game
+│           ├── config.yaml        # Payoff matrix configuration
+│           ├── sequences/main.yaml # PD-specific scene flow
+│           ├── instructions/      # Game instructions
+│           └── pages/            # Post-game questionnaire
 │
 ├── scripts/                   # Automation scripts
 │   ├── generate-scenes.js     # Generates Phaser scenes from YAML
@@ -263,7 +268,11 @@ sequences:
 ### Generation Process
 
 ```bash
+# Generate individual bandit task
 npm run generate examples/quick-test
+
+# Generate strategic game (Prisoner's Dilemma)
+npm run generate examples/prisoners-dilemma
 ```
 
 1. Reads `config.yaml` and validates against schema

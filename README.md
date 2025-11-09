@@ -65,7 +65,11 @@ npm run docker:shell                 # Access MongoDB shell
 ## 🧪 What's Included
 
 - **Default Experiment**: Multi-armed bandit task with group coordination
-- **Simple Examples**: Quick test, individual task, group task
+- **Example Experiments**:
+  - Quick test (3 trials, individual task)
+  - Prisoner's Dilemma (strategic game, 2 players)
+  - Individual bandit task (50 trials)
+  - Simple group task (3 players)
 - **Template System**: Markdown → Interactive experiment
 - **Real-time Backend**: Node.js + Socket.IO + MongoDB
 - **Complete Deployment**: Production-ready with PM2 and Docker

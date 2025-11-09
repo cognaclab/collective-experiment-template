@@ -17,7 +17,21 @@ npm run experiment
 # Visit: http://localhost:8000/?subjectID=test
 ```
 
-### 2. `2-armed-individual/`
+### 2. `prisoners-dilemma/`
+**Perfect for:** Learning strategic interaction experiments
+- ✅ 2-player game (group task)
+- ✅ Payoff matrix game (Prisoner's Dilemma)
+- ✅ 12 trials per round, 1 round
+- ✅ Round and final summary screens
+- ✅ Two-step choice confirmation
+
+```bash
+npm run generate examples/prisoners-dilemma
+npm run experiment
+# Open 2 tabs with different subjectIDs to test multiplayer
+```
+
+### 3. `2-armed-individual/`
 **Perfect for:** Learning individual decision tasks
 - ✅ Individual task
 - ✅ 50 trials for learning patterns
@@ -29,7 +43,7 @@ npm run generate examples/2-armed-individual
 npm run experiment
 ```
 
-### 3. `simple-group-task/`
+### 4. `simple-group-task/`
 **Perfect for:** Learning group experiments
 - ✅ Small groups (2-3 people)
 - ✅ Short task (10 trials)
@@ -85,14 +99,17 @@ Each example shows you:
 
 ## Key Differences Between Examples
 
-| Feature | quick-test | 2-armed-individual | simple-group-task |
-|---------|------------|-------------------|------------------|
-| **Players** | 1 (individual) | 1 (individual) | 2-3 (group) |
-| **Trials** | 3 | 50 | 10 |
-| **Options** | 2 | 2 | 3 |
-| **Duration** | 1 min | 10-15 min | 5-10 min |
-| **Purpose** | Testing setup | Learning patterns | Group cooperation |
-| **Complexity** | Minimal | Medium | Medium |
+| Feature | quick-test | prisoners-dilemma | 2-armed-individual | simple-group-task |
+|---------|------------|-------------------|-------------------|------------------|
+| **Players** | 1 (individual) | 2 (group) | 1 (individual) | 2-3 (group) |
+| **Game Type** | Bandit task | Strategic game | Bandit task | Bandit task |
+| **Trials** | 3 | 12 | 50 | 10 |
+| **Options** | 2 | 2 (Cooperate/Defect) | 2 | 3 |
+| **Rounds** | 1 | 1 | 1 | 1 |
+| **Duration** | 1 min | 5-8 min | 10-15 min | 5-10 min |
+| **Purpose** | Testing setup | Strategic interaction | Learning patterns | Group cooperation |
+| **Complexity** | Minimal | Medium | Medium | Medium |
+| **Reward Type** | Probabilistic | Payoff matrix | Probabilistic | Probabilistic |
 
 ## Testing with Multiple Participants
 
