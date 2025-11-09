@@ -17,7 +17,7 @@ function handleOkIndividualCondition(client, config, io, countDownWaiting) {
 
 		// Create a new individual room
 		client.indivRoomName = `${makeid(7)}${config.myMonth}${config.myDate}_sessionIndiv_${config.sessionNo + Object.keys(config.roomStatus).length - 1}`;
-		config.roomStatus[client.indivRoomName] = createRoom({ name: client.indivRoomName });
+		config.roomStatus[client.indivRoomName] = createRoom({ name: client.indivRoomName, config });
 
 		// Move client to new individual room
 		client.leave(oldRoom);

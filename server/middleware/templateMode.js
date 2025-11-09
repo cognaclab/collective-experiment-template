@@ -12,22 +12,29 @@ class ExperimentModeHandler {
         this.baseViewsDir = path.join(__dirname, '../../client/views');
         this.exampleViewsDir = path.join(this.baseViewsDir, 'example');
         this.generatedViewsDir = path.join(this.baseViewsDir, 'generated');
+        this.deployedViewsDir = path.join(__dirname, '../../deployed/client/views');
 
-        // Load compiled pages data if in generated mode
+        // Load compiled pages data if in generated or deployed mode
         this.compiledPages = {};
-        if (this.experimentType === 'generated') {
+        if (this.experimentType === 'generated' || this.experimentType === 'deployed') {
             this.loadCompiledPages();
         }
     }
 
     loadCompiledPages() {
         try {
-            const compiledPagesPath = path.join(__dirname, '../../client/public/src/generated/compiled_pages.json');
+            let compiledPagesPath;
+            if (this.experimentType === 'deployed') {
+                compiledPagesPath = path.join(__dirname, '../../deployed/client/src/compiled_pages.json');
+            } else {
+                compiledPagesPath = path.join(__dirname, '../../client/public/src/generated/compiled_pages.json');
+            }
+
             if (fs.existsSync(compiledPagesPath)) {
                 const data = fs.readFileSync(compiledPagesPath, 'utf8');
                 const parsed = JSON.parse(data);
                 this.compiledPages = parsed.pages || {};
-                console.log(`📚 Loaded ${Object.keys(this.compiledPages).length} compiled pages`);
+                console.log(`📚 Loaded ${Object.keys(this.compiledPages).length} compiled pages from ${this.experimentType}`);
             }
         } catch (error) {
             console.warn('Failed to load compiled pages:', error.message);
@@ -49,8 +56,26 @@ class ExperimentModeHandler {
 
                 let targetViewsDir;
                 let viewPath;
-                
-                if (this.experimentType === 'generated') {
+
+                if (this.experimentType === 'deployed') {
+                    // Check for deployed template first
+                    viewPath = path.join(this.deployedViewsDir, `${view}.ejs`);
+                    if (fs.existsSync(viewPath)) {
+                        targetViewsDir = this.deployedViewsDir;
+                        console.log(`📄 Using deployed template: ${view}.ejs`);
+
+                        // Add compiled page data to locals
+                        if (this.compiledPages[view]) {
+                            locals = locals || {};
+                            locals.pageData = this.compiledPages[view];
+                            locals.metadata = this.compiledPages[view].metadata;
+                        }
+                    } else {
+                        // Fallback to example template
+                        targetViewsDir = this.exampleViewsDir;
+                        console.log(`📄 Fallback to example template: ${view}.ejs`);
+                    }
+                } else if (this.experimentType === 'generated') {
                     // Check for generated template first
                     viewPath = path.join(this.generatedViewsDir, `${view}.ejs`);
                     if (fs.existsSync(viewPath)) {

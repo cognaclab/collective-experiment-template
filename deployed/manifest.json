@@ -1,0 +1,19 @@
+{
+  "deployed_at": "2025-10-15T07:05:59.975Z",
+  "experiment": {
+    "name": "Quick Test",
+    "description": "Minimal experiment for testing setup",
+    "author": "Lab Template"
+  },
+  "config": {
+    "mode": "individual",
+    "horizon": 3,
+    "k_armed_bandit": 2,
+    "group_size": "1-1"
+  },
+  "generated_from": "2025-10-15T07:05:53.390Z",
+  "scenes": [
+    "welcome"
+  ],
+  "sequences": 4
+}

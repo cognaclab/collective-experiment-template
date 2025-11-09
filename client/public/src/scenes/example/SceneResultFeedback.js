@@ -38,16 +38,12 @@ class SceneResultFeedback extends Phaser.Scene {
 		// Texts appear above the slots
 		if (this.taskType === 'static') {
 			trialText = this.add.text(16, trialText_Y
-				, `Current trial: ${currentTrial} / ${this.horizon} (Round ${this.gameRound + 1})`
-				// , 'Current trial: ' + this.trial + ' / ' + this.horizon
-				// , ''
+				, `Current trial: ${this.trial} / ${this.horizon} (Round ${this.gameRound + 1})`
 				, { fontSize: '30px', fill: nomalTextColor });
-		} 
+		}
 		else {
 			trialText = this.add.text(16, trialText_Y
-				, `Current trial: ${currentTrial} / ${this.horizon}`
-				// , 'Current trial: ' + this.trial + ' / ' + this.horizon
-				// , ''
+				, `Current trial: ${this.trial} / ${this.horizon}`
 				, { fontSize: '30px', fill: nomalTextColor });
 		} 
 		
@@ -140,13 +136,17 @@ class SceneResultFeedback extends Phaser.Scene {
                 this.timeLeft --;
 
                 if(this.timeLeft < 0){
-                    // currentChoiceFlag = -1
-                    // for (let i=1; i<numOptions+1; i++) {
-                    // 	objects_resultStage['box'+i].visible = false;
-                    // }
-					socket.emit('result feedback ended',
-						{thisTrial: currentTrial}
-					);
+					if (window.socket && window.experimentFlow) {
+						window.socket.emit('scene_complete', {
+							scene: 'SceneResultFeedback',
+							sequence: window.experimentFlow.sequence
+						});
+					} else {
+						socket.emit('result feedback ended',
+							{thisTrial: currentTrial}
+						);
+					}
+
 					isWaiting = false;
 					gameTimer.destroy();
                 }

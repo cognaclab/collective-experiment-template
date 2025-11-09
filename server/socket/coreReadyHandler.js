@@ -27,7 +27,17 @@ function handleCoreReady({ config, client, data, roomStatus, io, countDownMainSt
 
   console.log(` - Client: ${client.session} (${client.subjectID}) responds with an average latency = ${data.latency} ms.`);
 
-  const shouldJoinGroup = data.latency < data.maxLatencyForGroupCondition;
+  // For config-driven experiments, respect the YAML config mode setting
+  let shouldJoinGroup;
+  if (config.experimentLoader && config.experimentLoader.gameConfig) {
+    const configMode = config.experimentLoader.gameConfig.mode;
+    shouldJoinGroup = configMode === 'group';
+    console.log(` - Config-driven mode: ${configMode}, shouldJoinGroup: ${shouldJoinGroup}`);
+  } else {
+    // Legacy behavior: latency-based mode assignment
+    shouldJoinGroup = data.latency < data.maxLatencyForGroupCondition;
+    console.log(` - Latency-based mode assignment: latency=${data.latency}, threshold=${data.maxLatencyForGroupCondition}, shouldJoinGroup: ${shouldJoinGroup}`);
+  }
 
   if (shouldJoinGroup) {
     client.roomFindingCounter = 1;
@@ -37,10 +47,16 @@ function handleCoreReady({ config, client, data, roomStatus, io, countDownMainSt
 
       if (!availableRoom) break;
 
+      // Use strategy pattern if experimentContext is available
+      const maxPlayers = config.experimentContext
+        ? config.experimentContext.getMaximumPlayers()
+        : config.maxGroupSize;
+
       const canJoin =
         availableRoom.starting === 0 &&
-        availableRoom.n < config.maxGroupSize &&
-        availableRoom.restTime > 999;
+        availableRoom.n < maxPlayers &&
+        availableRoom.restTime > 999 &&
+        !availableRoom.isTemporary;  // Exclude temporary placeholder rooms
 
       if (canJoin) {
         client.room = availableRoomName;
@@ -51,7 +67,7 @@ function handleCoreReady({ config, client, data, roomStatus, io, countDownMainSt
 
     if (!client.room) {
       const newRoomName = makeid(7) + `_session_${config.sessionNo + Object.keys(roomStatus).length - 1}`;
-      roomStatus[newRoomName] = createRoom({ name: newRoomName });
+      roomStatus[newRoomName] = createRoom({ name: newRoomName, config });
       // Set shorter wait time for debug users (10 seconds instead of 120)
       if (debugExceptions.includes(client.subjectID)) {
         roomStatus[newRoomName].restTime = 10 * 1000;
@@ -65,7 +81,7 @@ function handleCoreReady({ config, client, data, roomStatus, io, countDownMainSt
     const now = new Date();
     const timestamp = `${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
     const newRoomName = `${timestamp}_largeLatency_${config.sessionNo + Object.keys(roomStatus).length - 1}`;
-    roomStatus[newRoomName] = createRoom({ name: newRoomName });
+    roomStatus[newRoomName] = createRoom({ name: newRoomName, config });
     roomStatus[newRoomName].horizon = config.horizon; // Ensure horizon is set for individual rooms
     roomStatus[newRoomName].restTime = 1000; // Individual condition has 1-second wait time (debug shortcut)
     client.room = newRoomName;

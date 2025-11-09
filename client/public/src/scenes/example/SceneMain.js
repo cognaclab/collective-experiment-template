@@ -25,11 +25,13 @@ class SceneMain extends Phaser.Scene {
 		this.n = data.n
 		this.groupCumulativePayoff = data.groupCumulativePayoff
 		this.taskType = data.taskType
+		this.optionOrder = data.optionOrder || [1, 2, 3] // Machine ID order for counterbalancing
 	}
 
 	create(){
 
-		// console.log('scene main: gameRound = ' + this.gameRound + ' trial = ' + this.trial)
+		console.log('SceneMain.create() - gameRound:', this.gameRound, 'trial:', this.trial, 'horizon:', this.horizon);
+		console.log('SceneMain.create() - numOptions:', numOptions, 'space:', space_between_boxes, 'position:', option1_positionX);
 		// console.log('scene main: social info = ' + this.mySocialInfo)
 		// console.log('scene main: groupCumulativePayoff = ' + this.groupCumulativePayoff)
 
@@ -50,10 +52,14 @@ class SceneMain extends Phaser.Scene {
 	    ;
 
 		// Creating options
+		// Machines always appear in sequential order (1, 2, 3...)
+		// Only the probability mapping is shuffled internally via optionOrder
 	    for (let i=1; i<numOptions+1; i++) {
-			// console.log('creating machine'+(i + numOptions*this.gameRound)+'_normal');
-	    	options['box'+i] = this.add.sprite(option1_positionX+space_between_boxes*(i-1), slotY_main, 'machine'+(i + numOptions*this.gameRound)+'_normal');
-	    	options['box_active'+i] = this.add.sprite(option1_positionX+space_between_boxes*(i-1), slotY_main, 'machine'+(i + numOptions*this.gameRound)+'_active');
+			const machineKey = 'machine'+(i + numOptions*this.gameRound)+'_normal';
+			const machineActiveKey = 'machine'+(i + numOptions*this.gameRound)+'_active';
+			console.log('Creating machine sprites - normal:', machineKey, 'active:', machineActiveKey);
+	    	options['box'+i] = this.add.sprite(option1_positionX+space_between_boxes*(i-1), slotY_main, machineKey);
+	    	options['box_active'+i] = this.add.sprite(option1_positionX+space_between_boxes*(i-1), slotY_main, machineActiveKey);
 	    	options['box'+i].setDisplaySize(optionWidth, optionHeight).setInteractive({ cursor: 'pointer' });
 	    	options['box_active'+i].setDisplaySize(optionWidth, optionHeight).setInteractive({ cursor: 'pointer' });
 	    	options['box_active'+i].visible = false;
@@ -117,18 +123,27 @@ class SceneMain extends Phaser.Scene {
                 	isChoiceMade = true;
                 }
                 if(this.timeLeft < 0){
-                    currentChoiceFlag = -1
+                    // Preserve whether user had clicked before timeout
+                    let hadClickedBeforeTimeout = currentChoiceFlag > 0;
+                    currentChoiceFlag = -1;
                     for (let i=1; i<numOptions+1; i++) {
                     	options['box'+i].visible = false;
                     	options['box_active'+i].visible = false;
                     }
-	    //             options.box1.visible = false;
-					// options.box1_active.visible = false;
-	    //             options.box2.visible = false;
-					// options.box2_active.visible = false;
+
 					let time_madeChoice = new Date();
-					madeChoice(currentChoiceFlag, 'miss', optionOrder, time_madeChoice - time_created);
-					this.scene.start('SceneAskStillThere', {didMiss: true, flag: currentChoiceFlag, horizon: this.horizon, prob_means: [prob_means[0][currentTrial-1], prob_means[1][currentTrial-1], prob_means[2][currentTrial-1]]});
+					madeChoice(currentChoiceFlag, 'miss', optionOrder, time_madeChoice - time_created, this.trial, hadClickedBeforeTimeout);
+
+					if (!this.waitingText) {
+						if (indivOrGroup == 1) {
+							this.waitingText = this.add.text(configWidth/2, configHeight/2 - 100, 'Please wait for others...',
+								{ fontSize: '30px', fill: '#000', align: "center" }).setOrigin(0.5);
+						} else {
+							this.waitingText = this.add.text(configWidth/2, configHeight/2 - 100, 'Processing...',
+								{ fontSize: '30px', fill: '#000', align: "center" }).setOrigin(0.5);
+						}
+					}
+
 					isWaiting = true;
 					gameTimer.destroy();
                 }
@@ -157,7 +172,7 @@ class SceneMain extends Phaser.Scene {
         	options['box_active'+i].on('pointerdown', function (pointer) {
 		    	if(!isChoiceMade) {
 					let time_madeChoice = new Date();
-		    		madeChoice(currentChoiceFlag, exp_condition, optionOrder, time_madeChoice - time_created);
+		    		madeChoice(currentChoiceFlag, exp_condition, optionOrder, time_madeChoice - time_created, this.trial);
 
 					gameTimer.destroy();
 
@@ -183,6 +198,9 @@ class SceneMain extends Phaser.Scene {
 								{ fontSize: '30px', fill: '#000', align: "center" }).setOrigin(0.5);
 						}
 					}
+
+					// Server will emit scene_complete after processing the choice
+					// This prevents race condition with payoff calculation
 		    	}
 		    }, this);
 		    // pointerover
@@ -198,30 +216,28 @@ class SceneMain extends Phaser.Scene {
 	    // ------------ Texts appear above the slots
 	    if (this.taskType === 'static') {
 			trialText = this.add.text(16, trialText_Y
-				, `Current trial: ${currentTrial} / ${this.horizon} (Period ${this.gameRound + 1})`
-				// , 'Current trial: ' + this.trial + ' / ' + this.horizon
-				// , ''
+				, `Current trial: ${this.trial} / ${this.horizon} (Round ${this.gameRound + 1})`
 				, { fontSize: '30px', fill: nomalTextColor });
-		} 
+		}
 		else {
 			trialText = this.add.text(16, trialText_Y
-				, `Current trial: ${currentTrial} / ${this.horizon}`
-				// , 'Current trial: ' + this.trial + ' / ' + this.horizon
-				// , ''
+				, `Current trial: ${this.trial} / ${this.horizon}`
 				, { fontSize: '30px', fill: nomalTextColor });
 		} 
 		
 		if (this.groupCumulativePayoff != 1) point_or_points = ' points'
 
+		const scoreLabel = indivOrGroup === 1 ? 'Total team score so far: ' : 'Total score so far: ';
 	    groupTotalScoreText = this.add.text(16, groupTotalScoreText_Y
-	    	, 'Total team score so far: ' + this.groupCumulativePayoff + point_or_points
+	    	, scoreLabel + this.groupCumulativePayoff + point_or_points
 	    	, { fontSize: '30px', fill: nomalTextColor });
 
-	    this.groupSizeText = this.add.text(16, scoreText_Y
-	    	// , 'Total score: ' + score
-	    	, 'Number of players: ' + currentGroupSize.toString()
-	    	// , 'Your net score: ' + (totalPayoff_perIndiv - info_share_cost_total)
-	    	, { fontSize: '30px', fill: nomalTextColor });
+	    // Only show "Number of players" for group experiments
+	    if (indivOrGroup === 1) {
+	        this.groupSizeText = this.add.text(16, scoreText_Y
+	            , 'Number of players: ' + currentGroupSize.toString()
+	            , { fontSize: '30px', fill: nomalTextColor });
+	    }
 	    timeText = this.add.text(16, energyBar_Y
 	    	, 'Remaining time: '
 	    	, { fontSize: '30px', fill: nomalTextColor });
@@ -296,7 +312,10 @@ class SceneMain extends Phaser.Scene {
 	}
 
 	update(){
-		this.groupSizeText.setText('Number of players: ' + currentGroupSize?.toString());
+		// Only update groupSizeText if it exists (group experiments only)
+		if (this.groupSizeText) {
+			this.groupSizeText.setText('Number of players: ' + currentGroupSize?.toString());
+		}
 	}
 
 };

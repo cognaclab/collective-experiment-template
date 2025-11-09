@@ -1,0 +1,79 @@
+{
+  "generated": "2025-10-15T07:05:53.390Z",
+  "config": {
+    "experiment": {
+      "name": "Quick Test",
+      "description": "Minimal experiment for testing setup",
+      "author": "Lab Template"
+    },
+    "game": {
+      "horizon": 3,
+      "total_game_rounds": 1,
+      "k_armed_bandit": 2,
+      "max_choice_time": 15000,
+      "max_waiting_time": 2000
+    },
+    "groups": {
+      "max_group_size": 1,
+      "min_group_size": 1
+    },
+    "conditions": {
+      "indivOrGroup": "individual",
+      "taskType": "static",
+      "exp_condition": "quick_test"
+    },
+    "environments": {
+      "static": {
+        "prob_0": [
+          0.9,
+          0.1
+        ]
+      }
+    },
+    "payment": {
+      "flat_fee": 0.5,
+      "completion_fee": 0
+    },
+    "debug": {
+      "subject_exceptions": [
+        "test",
+        "debug",
+        "quicktest"
+      ]
+    }
+  },
+  "sequences": {
+    "sequence": [
+      {
+        "scene": "welcome",
+        "type": "instruction",
+        "content": "welcome.md",
+        "next": "game_main"
+      },
+      {
+        "scene": "game_main",
+        "type": "game",
+        "environment": "static",
+        "trials": 3,
+        "next": "questionnaire"
+      },
+      {
+        "scene": "questionnaire",
+        "type": "questionnaire",
+        "next": "end"
+      },
+      {
+        "scene": "end",
+        "type": "completion"
+      }
+    ]
+  },
+  "scenes": {
+    "welcome": {
+      "content": "# Quick Setup Test\n\nThis is a **minimal experiment** to test that everything is working correctly.\n\n## What You'll Do\n\n- Make **3 simple choices** between 2 options\n- Takes about **1 minute** total\n- Individual task (no waiting for other people)\n\n## Instructions\n\n- Click the option you think will give you more points\n- One option is much better than the other (hint: try to find it!)\n- You'll see your points after each choice\n\nPerfect for testing your setup!",
+      "metadata": {},
+      "filename": "welcome.md",
+      "generated": "2025-10-15T07:05:53.379Z"
+    }
+  }
+}

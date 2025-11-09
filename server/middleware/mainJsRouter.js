@@ -12,6 +12,7 @@ class MainJsRouter {
         this.srcDir = path.join(__dirname, '../../client/public/src');
         this.exampleMainJs = path.join(this.srcDir, 'main-example.js');
         this.generatedMainJs = path.join(this.srcDir, 'main-generated.js');
+        this.deployedMainJs = path.join(__dirname, '../../deployed/client/src/main-generated.js');
     }
 
     // Middleware to serve appropriate main.js
@@ -20,16 +21,21 @@ class MainJsRouter {
             // Only intercept requests for main.js
             if (req.url === '/src/main.js') {
                 let targetFile;
-                
-                if (this.experimentType === 'example') {
-                    targetFile = this.exampleMainJs;
-                    console.log('🎯 Serving example main.js');
-                } else {
+
+                if (this.experimentType === 'deployed') {
+                    // For deployed mode, serve from deployed directory
+                    targetFile = fs.existsSync(this.deployedMainJs) ? this.deployedMainJs : this.exampleMainJs;
+                    console.log('🎯 Serving deployed main.js');
+                } else if (this.experimentType === 'generated') {
                     // For generated mode, serve main-generated.js (or fallback to example)
                     targetFile = fs.existsSync(this.generatedMainJs) ? this.generatedMainJs : this.exampleMainJs;
                     console.log('🎯 Serving generated main.js');
+                } else {
+                    // For example mode
+                    targetFile = this.exampleMainJs;
+                    console.log('🎯 Serving example main.js');
                 }
-                
+
                 if (fs.existsSync(targetFile)) {
                     res.setHeader('Content-Type', 'application/javascript');
                     const content = fs.readFileSync(targetFile, 'utf8');
@@ -37,7 +43,7 @@ class MainJsRouter {
                     return;
                 }
             }
-            
+
             next();
         };
     }

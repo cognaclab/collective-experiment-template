@@ -9,7 +9,7 @@
 // === Socket.io ====
 const portnumQuestionnaire = 8000
 	// Auto-detect server based on current hostname
-	, htmlServer = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+	, htmlServer = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
 		? 'http://localhost:' // Development server
 		: 'http://tk2-127-63496.vs.sakura.ne.jp:' // Production server
 	, exceptions = [
@@ -19,9 +19,31 @@ const portnumQuestionnaire = 8000
 		'alice', 'bob', 'carol',         // Named test users in docs
 		'player1', 'player2', 'player3'  // Player IDs for group testing
 	]
-	, socket = io.connect(htmlServer+portnum, { query: 'subjectID='+subjectID }) // portnum is defined in game;ejs
-	, flatBonus = 1.6 // pounds starling (GBP) 
 ;
+
+// Detect page reload using Performance Navigation API
+// If the page was reloaded (not a fresh load), block the experiment
+window.wasPageReloaded = false;
+if (window.performance && window.performance.navigation) {
+	// navigation.type == 1 means reload
+	if (window.performance.navigation.type === 1) {
+		window.wasPageReloaded = true;
+		console.warn('⚠️ Page reload detected - experiment session invalidated');
+	}
+} else if (window.performance && window.performance.getEntriesByType) {
+	// Modern browsers use PerformanceNavigationTiming
+	const navEntries = window.performance.getEntriesByType('navigation');
+	if (navEntries.length > 0 && navEntries[0].type === 'reload') {
+		window.wasPageReloaded = true;
+		console.warn('⚠️ Page reload detected - experiment session invalidated');
+	}
+}
+
+// Create socket connection and expose to window for ES6 module access
+window.socket = io.connect(htmlServer+portnum, { query: 'subjectID='+subjectID }); // portnum is defined in game.ejs
+const socket = window.socket; // Local reference for backward compatibility
+
+const flatBonus = 1.6; // pounds sterling (GBP)
 
 // experimental parameters 
 // -- these values are fixed when 

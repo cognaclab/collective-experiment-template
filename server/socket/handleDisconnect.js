@@ -37,6 +37,25 @@ function handleDisconnect({client, config, io, countDownWaiting, total_N_nowRef,
     createWorker('./server/services/savingBehaviouralData_array.js', room.saveDataThisRound);
     room.saveDataThisRound = [];
     room.n--;
+
+    // Reset room state if below minGroupSize (for waiting room backfill)
+    const minGroupSize = config.experimentLoader?.gameConfig?.min_group_size || config.minGroupSize || 2;
+
+    if (room.n < minGroupSize && room.readyToStart) {
+      const maxWaitingTime = config.experimentLoader?.gameConfig?.max_lobby_wait_time || 120000;
+
+      room.readyToStart = false;
+      room.restTime = maxWaitingTime;
+
+      console.log(`🔄 Room ${client.room} reset to waiting state (${room.n}/${minGroupSize} players)`);
+
+      // Notify remaining players
+      io.to(client.room).emit('waiting_room_update', {
+        n: room.n,
+        restTime: room.restTime,
+        roomReady: false
+      });
+    }
   } else {
     createWorker('./server/services/savingBehaviouralData_array.js', room.saveDataThisRound);
     room.saveDataThisRound = [];

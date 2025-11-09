@@ -1,0 +1,66 @@
+# Prisoner's Dilemma - Minimal Multiplayer Test
+# 2-player, 3-trial experiment to test multiplayer synchronization
+
+experiment:
+  name: "Prisoner's Dilemma Test"
+  description: "A minimal 2-player prisoner's dilemma experiment for testing multiplayer functionality"
+  author: "Test"
+  version: "1.0"
+  created: "2025-01-05"
+
+game:
+  horizon: 3                      # 3 trials (minimal for testing)
+  total_game_rounds: 1            # One round only
+  k_armed_bandit: 2               # 2 options: Cooperate (0) or Defect (1)
+  max_choice_time: 20000          # 10 seconds to make choice
+  max_lobby_wait_time: 120000     # 2 minutes to wait for partner
+  max_scene_wait_time: 10000       # 10 seconds for scene transitions
+  show_timer: true                # Display countdown timer
+  show_feedback: true             # Show results after each trial
+
+groups:
+  max_group_size: 2               # Exactly 2 players
+  min_group_size: 2               # Need 2 to start
+  allow_bots: false               # No bots for testing
+
+conditions:
+  indivOrGroup: "group"           # Multiplayer mode
+  taskType: "static"              # Fixed payoff matrix (classic PD)
+  exp_condition: "prisoners_dilemma"
+
+# Reward System - Generic payoff calculation
+# Uses payoff_matrix for strategic game interactions
+reward_system:
+  type: "payoff_matrix"
+  matrix_type: "prisoners_dilemma"
+  # Format: "[player1_choice, player2_choice]": [player1_payoff, player2_payoff]
+  # Choice 0 = Cooperate, Choice 1 = Defect
+  payoffs:
+    "[0,0]": [3, 3]   # Both cooperate
+    "[0,1]": [0, 5]   # Player 1 cooperates, Player 2 defects
+    "[1,0]": [5, 0]   # Player 1 defects, Player 2 cooperates
+    "[1,1]": [1, 1]   # Both defect
+
+# Labels for choices
+choices:
+  labels:
+    - "Cooperate"
+    - "Defect"
+  colors:
+    - "#4CAF50"                   # Green for cooperate
+    - "#F44336"                   # Red for defect
+
+# Payment configuration
+payment:
+  flat_fee: 0.50                  # Base payment (GBP)
+  completion_fee: 0.25            # Completion bonus
+  points_to_currency: 0.01        # 1p per point (more generous for PD)
+  currency: "GBP"
+  waiting_bonus_rate: 0           # No waiting bonus for minimal test
+  waiting_bonus_per_minute: 10    # Pence per minute waiting (for lobby)
+
+# Data collection
+data:
+  save_trials: true
+  save_sessions: true
+  export_format: "csv"

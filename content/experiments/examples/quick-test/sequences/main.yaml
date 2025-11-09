@@ -2,17 +2,27 @@ sequence:
   - scene: "welcome"
     type: "instruction"
     content: "welcome.md"
-    next: "game_main"
+    next: "SceneMain"
 
-  - scene: "game_main"
+  - scene: "SceneMain"
     type: "game"
     environment: "static"
-    trials: 3
-    next: "questionnaire"
+    next: "SceneResultFeedback"
+    next_on_timeout: "SceneAskStillThere"
+    next_on_miss: "SceneAskStillThere"
 
-  - scene: "questionnaire"
+  - scene: "SceneResultFeedback"
+    type: "feedback"
+    next: "SceneMain"
+
+  - scene: "SceneAskStillThere"
+    type: "warning"
+    next: "SceneResultFeedback"
+
+  - scene: "SceneGoToQuestionnaire"
     type: "questionnaire"
     next: "end"
 
   - scene: "end"
     type: "completion"
+    redirect: "/endPage"

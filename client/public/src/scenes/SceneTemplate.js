@@ -98,7 +98,7 @@ class SceneTemplate extends Phaser.Scene {
         // Add to scene
         const centerX = configWidth / 2;
         const centerY = configHeight / 2 - 50; // Leave room for navigation
-        
+
         this.contentElement = this.add.dom(centerX, centerY, contentDiv);
     }
 
@@ -114,10 +114,10 @@ class SceneTemplate extends Phaser.Scene {
             overflow: 'auto',
             textAlign: 'left'
         };
-        
+
         // Override with metadata styles if present
         const styles = { ...defaults, ...(metadata.styles || {}) };
-        
+
         return Object.entries(styles)
             .map(([key, value]) => `${this.camelToKebab(key)}: ${value}`)
             .join('; ');
@@ -184,10 +184,22 @@ class SceneTemplate extends Phaser.Scene {
     handleNext() {
         if (this.onComplete) {
             this.onComplete.call(this);
-        } else if (this.nextScene) {
-            this.scene.start(this.nextScene, this.gameData);
+        } else if (window.socket && window.experimentFlow) {
+            // Use contentKey (YAML scene identifier) instead of scene.key (Phaser scene name)
+            // e.g., "welcome" instead of "SceneWelcome"
+            const sceneIdentifier = this.contentKey || this.scene.key;
+
+            // Clean shutdown of this scene before transitioning
+            this.scene.stop();
+
+            // Server-controlled flow: Notify server that scene is complete
+            // Server will coordinate with all players and tell us which scene to start next
+            window.socket.emit('scene_complete', {
+                scene: sceneIdentifier,
+                sequence: window.experimentFlow.sequence
+            });
         } else {
-            console.warn('No next scene defined for', this.scene.key);
+            console.warn('Socket or ExperimentFlow not available');
         }
     }
 

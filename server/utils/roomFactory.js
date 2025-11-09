@@ -1,45 +1,57 @@
 'use strict';
 // utils/roomFactory.js
 
-const { 
+const {
     createArray
     , createArrayOfEmptyArrays
     , createNestedFilledArray
     , createFilledArray
     , getRandomIntInclusive
     , shuffle
-    , shuffleAndTakeFirst
-    , weightedRand2 
-} = require('./helpers'); 
-const {
-    maxGroupSize,
-    numOptions,
-    maxWaitingTime,
-    maxChoiceStageTime,
-    totalGameRound,
-    minHorizon,
-    static_horizons,
-    numEnv,
-    taskList,
-    task_order,
-    options,
-    prob_conditions,
-    exp_condition_list
-} = require('../../config/constants'); 
+    , modeToNumeric
+} = require('./helpers');
+const constants = require('../../config/constants');
 
-const totalHorizon = minHorizon * numEnv;
+/**
+ * Create a room with configuration
+ * @param {Object} options - Room creation options
+ * @param {boolean} options.isDecoy - Whether this is a decoy room
+ * @param {string} options.name - Room name
+ * @param {Object} options.config - Game configuration (optional, uses constants as fallback)
+ * @param {string} options.mode - Experiment mode ('individual' or 'group', optional)
+ * @param {string} options.expCondition - Experimental condition label (optional)
+ */
+function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode = null, expCondition = null } = {}) {
+    // Use provided config or fall back to constants
+    const maxGroupSize = config?.maxGroupSize || constants.maxGroupSize;
+    const numOptions = config?.numOptions || constants.numOptions;
+    const maxWaitingTime = config?.maxWaitingTime || constants.maxWaitingTime;
+    const maxChoiceStageTime = config?.maxChoiceStageTime || constants.maxChoiceStageTime;
+    const totalGameRound = config?.totalGameRound || constants.totalGameRound;
+    const minHorizon = config?.minHorizon || constants.minHorizon;
+    const static_horizons = config?.static_horizons || constants.static_horizons;
+    const numEnv = config?.numEnv || constants.numEnv;
+    const task_order = config?.task_order || constants.task_order;
+    const options = config?.options || constants.options;
 
-function createRoom({ isDecoy = false, name = 'unnamedRoom' } = {}) {
+    const totalHorizon = minHorizon * numEnv;
     const taskOrder = shuffle(task_order);
     const taskType = taskOrder[0];//shuffleAndTakeFirst(taskList);
 
+    // Convert mode string to numeric if provided, otherwise use -1
+    const indivOrGroupValue = mode ? modeToNumeric(mode) : -1;
+
+    // Use provided expCondition from YAML config
+    const expConditionValue = isDecoy ? 'decoyRoom' : (expCondition || 'default');
+
     return {
-        exp_condition: isDecoy ? 'decoyRoom' : exp_condition_list[weightedRand2({ 0: prob_conditions, 1: (1 - prob_conditions) })],
+        roomId: name, // Store room identifier for database
+        exp_condition: expConditionValue,
         riskDistributionId: getRandomIntInclusive(13, 13),
         optionOrder: shuffle(options),
         taskType: taskType,
         taskOrder: taskOrder,
-        indivOrGroup: -1,
+        indivOrGroup: indivOrGroupValue,
         horizon: taskType === 'static' ? static_horizons[0] : totalHorizon,
         n: 0,
         membersID: [],
@@ -70,7 +82,8 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom' } = {}) {
         totalPayoff_perIndiv_perGame: new Array(totalGameRound).fill(0),
         groupTotalCost: [0],
         currentEnv: 0,
-        envChangeTracker: 0
+        envChangeTracker: 0,
+        currentScene: null
     };
 }
 

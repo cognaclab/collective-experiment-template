@@ -25,6 +25,14 @@ const logger = require('../utils/logger');
 const experimentModeHandler = require('../middleware/templateMode');
 const mainJsRouter = require('../middleware/mainJsRouter');
 
+// Config-driven experiment system
+const ExperimentLoader = require('../services/ExperimentLoader');
+const ExperimentContext = require('../services/ExperimentContext');
+
+// Database models
+const { buildExperimentData } = require('../utils/dataBuilders');
+const Experiment = require('../database/models/Experiment');
+
 // Socket event handlers
 const { onConnectioncConfig } = require('../socket/handlerOnConnection');
 const { handleCoreReady } = require('../socket/coreReadyHandler');
@@ -36,6 +44,7 @@ const { handleDataFromIndiv } = require('../socket/handleDataFromIndiv');
 const { handleResultFeedbackEnded } = require('../socket/handleResultFeedbackEnded');
 const { handleNewGameRoundReady } = require('../socket/handleNewGameRoundReady');
 const { handleDisconnect } = require('../socket/handleDisconnect');
+const handleSceneComplete = require('../socket/handleSceneComplete');
 
 // Session management utilities
 const { countDown, startSession, reformNewGroups } = require('../socket/sessionManager');
@@ -71,28 +80,59 @@ const express = require('express')
 // multi-threading like thing in Node.js
 const {isMainThread, Worker} = require('worker_threads');
 
+// ==========================================
+// Initialize Config-Driven Experiment System
+// ==========================================
+let experimentLoader;
+let experimentContext;
+let loadedConfig;
 
+try {
+	// Load experiment configuration from deployed directory
+	experimentLoader = new ExperimentLoader();
+	experimentLoader.loadConfig();
+	experimentLoader.loadSequence(); // Load sequence for server-controlled flow
+	experimentContext = new ExperimentContext(experimentLoader);
+	loadedConfig = experimentLoader.gameConfig;
 
-// Experimental variables
-const horizon = 20 // number of trials
+	logger.info('Config-driven experiment system initialized', {
+		name: experimentLoader.getMetadata().name,
+		strategy: experimentContext.getStrategyName(),
+		horizon: loadedConfig.horizon,
+		k_armed_bandit: loadedConfig.k_armed_bandit,
+		sequenceScenes: experimentLoader.sequence?.sequence?.length || 0
+	});
+
+	// Create or update experiment metadata in database
+	initializeExperimentMetadata(experimentLoader);
+} catch (error) {
+	logger.error('Failed to load experiment config - using fallback defaults', {
+		error: error.message
+	});
+	// Fallback to hardcoded defaults if config loading fails
+	loadedConfig = null;
+}
+
+// Experimental variables (use loaded config or fallback to defaults)
+const horizon = loadedConfig ? loadedConfig.horizon : 20 // number of trials
 , sessionNo = 0 // 0 = debug;
-, maxGroupSize = 5 // maximum size per group
-, minGroupSize = parseInt(process.env.MIN_GROUP_SIZE) || 2 // minimal group size below which the session becomes individual tasks
-, maxWaitingTime = config.maxWaitingTime // imported from config/constants.js
-, K = 3 // number of bandit options (k-armed bandit)
-, maxChoiceStageTime = 10 * 1000 //20*1000 // time limit for decision making
+, maxGroupSize = loadedConfig ? loadedConfig.max_group_size : 5 // maximum size per group
+, minGroupSize = loadedConfig ? loadedConfig.min_group_size : (parseInt(process.env.MIN_GROUP_SIZE) || 2)
+, maxWaitingTime = loadedConfig ? loadedConfig.max_waiting_time : config.maxWaitingTime
+, K = loadedConfig ? loadedConfig.k_armed_bandit : 3 // number of bandit options
+, maxChoiceStageTime = loadedConfig ? loadedConfig.max_choice_time : (10 * 1000)
 , maxTimeTestScene = 4 * 60 * 1000 // 4*60*1000
 , task_order = ['static', 'dynamic'] // ramdomized environmental order (2 rounds)
 , changePoints = [17, 29, 45] // trials from which a new env setting starts
-, totalGameRound = 2 // number of rounds
+, totalGameRound = loadedConfig ? loadedConfig.total_game_rounds : 2
 // , exp_condition_list = ['groupPayoff'] //['binary', 'gaussian'] // noise profiles
-, prob_conditions = 1.0// probability of assigning each exp condition 
-, prob_0 = [0.7, 0.4, 0.3] // environment 0 (static)
-, prob_1 = [0.8, 0.3, 0.3] // environment 1
-, prob_2 = [0.3, 0.3, 0.8] // environment 2
-, prob_3 = [0.8, 0.3, 0.3] // environment 3
-, prob_4 = [0.3, 0.8, 0.3] // environment 4
-, position_best_arm = [ // indeces of the best arm's position 
+, prob_conditions = 1.0// probability of assigning each exp condition
+, prob_0 = loadedConfig?.environments?.static?.prob_0 || [0.7, 0.4, 0.3] // environment 0 (static)
+, prob_1 = loadedConfig?.environments?.static?.prob_1 || [0.8, 0.3, 0.3] // environment 1
+, prob_2 = loadedConfig?.environments?.static?.prob_2 || [0.3, 0.3, 0.8] // environment 2
+, prob_3 = loadedConfig?.environments?.static?.prob_3 || [0.8, 0.3, 0.3] // environment 3
+, prob_4 = loadedConfig?.environments?.static?.prob_4 || [0.3, 0.8, 0.3] // environment 4
+, position_best_arm = [ // indeces of the best arm's position
 	indexOfMax(prob_0) // 'indexOfMax' function defined at the bottom
 	, indexOfMax(prob_1)
 	, indexOfMax(prob_2)
@@ -166,8 +206,25 @@ app.use((err, req, res, next) => {
     res.status(500).send('A technical issue happened in the server...😫')
 });
 
+// Create a lightweight config for room creation (before gameConfig is fully built)
+const roomCreationConfig = {
+	maxGroupSize,
+	numOptions: K,
+	maxWaitingTime,
+	maxChoiceStageTime,
+	totalGameRound,
+	minHorizon: config.minHorizon,
+	static_horizons: config.static_horizons,
+	numEnv: config.numEnv,
+	task_order,
+	options,
+	prob_conditions,
+	exp_condition_list: config.exp_condition_list,
+	horizon
+};
+
 // this 'decoyRoom' is where reconnected subjects are sent
-roomStatus['decoyRoom'] = createRoom({ isDecoy: true, name: 'decoyRoom' });
+roomStatus['decoyRoom'] = createRoom({ isDecoy: true, name: 'decoyRoom', config: roomCreationConfig });
 /*
 // OLD MANUAL CREATION - NOW USING createRoom()
 roomStatus['decoyRoom'] = {
@@ -213,7 +270,7 @@ roomStatus['decoyRoom'] = {
 // The following is the first room
 // Therefore, Object.keys(roomStatus).length = 2 right now
 // A new room will be open once this room becomes full
-roomStatus[firstRoomName] = createRoom({ name: firstRoomName });
+roomStatus[firstRoomName] = createRoom({ name: firstRoomName, config: roomCreationConfig });
 
 
 /**
@@ -261,7 +318,13 @@ const gameConfig = {
 	myDate,
 	myHour,
 	myMin,
-	PORT: config.PORT
+	PORT: config.PORT,
+	// Add experiment context and loader for strategy pattern
+	experimentContext,
+	experimentLoader,
+	loadedConfig,
+	// Add experiment name for database tracking
+	experimentName: experimentLoader ? experimentLoader.getMetadata().name : 'unknown'
 };
 
 /**
@@ -348,6 +411,13 @@ io.on('connection', function (client) {
 		handleNewGameRoundReady(client, data, gameConfig, io, firstTrialStartingTimeRef);
 	});
 
+	// ===== Event Handler: 'scene_complete' =====
+	// Server-controlled flow: Client notifies server when scene is complete
+	// Server coordinates across all players and instructs which scene to start next
+	client.on('scene_complete', function(data) {
+		handleSceneComplete(client, data, gameConfig, io);
+	});
+
 	// ===== Event Handler: 'disconnect' =====
 	client.on('disconnect', function() {
 		const context = {
@@ -363,3 +433,71 @@ io.on('connection', function (client) {
 		total_N_now = total_N_nowRef.value;
 	});
 });
+
+/**
+ * Initialize experiment metadata in database
+ * Creates or updates experiment record on server startup
+ * @param {ExperimentLoader} loader - ExperimentLoader instance
+ */
+async function initializeExperimentMetadata(loader) {
+	try {
+		const metadata = loader.getMetadata();
+		const experimentName = metadata.name;
+
+		// Build experiment data
+		const experimentData = buildExperimentData({
+			experimentName: experimentName,
+			version: metadata.version,
+			title: metadata.title,
+			description: metadata.description,
+			author: metadata.author,
+			experimentLoader: loader,
+			game: loader.gameConfig,
+			horizon: loader.gameConfig?.horizon
+		});
+
+		// Check if experiment already exists
+		const existing = await Experiment.findOne({ experimentName: experimentName });
+
+		if (existing) {
+			// Update existing experiment with new config
+			await Experiment.findOneAndUpdate(
+				{ experimentName: experimentName },
+				{
+					$set: {
+						config: experimentData.config,
+						experimentVersion: experimentData.experimentVersion,
+						'changelog': [
+							...(existing.changelog || []),
+							{
+								date: new Date(),
+								version: experimentData.experimentVersion,
+								changes: 'Experiment reloaded on server startup',
+								author: experimentData.author
+							}
+						]
+					}
+				}
+			);
+
+			logger.info('Experiment metadata updated', {
+				experimentName: experimentName,
+				version: experimentData.experimentVersion
+			});
+		} else {
+			// Create new experiment record
+			const experiment = new Experiment(experimentData);
+			await experiment.save();
+
+			logger.info('Experiment metadata created', {
+				experimentName: experimentName,
+				version: experimentData.experimentVersion
+			});
+		}
+	} catch (error) {
+		logger.error('Failed to initialize experiment metadata', {
+			error: error.message,
+			stack: error.stack
+		});
+	}
+}
