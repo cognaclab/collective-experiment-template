@@ -57,3 +57,7 @@ temp/
 client/public/src/generated/
 client/views/generated/
 client/public/src/main-generated.js
+
+# Document files related to specific experiments
+
+docs/
