@@ -10,6 +10,7 @@ const path = require('path');
 const yaml = require('js-yaml');
 const matter = require('gray-matter');
 const { marked } = require('marked');
+const { TemplateRenderer } = require('./templateRenderer');
 
 // Registry of variables that should remain as runtime EJS variables
 const RUNTIME_VARIABLES = [
@@ -165,6 +166,9 @@ class SceneGenerator {
             // Generate custom main-generated.js with only required scenes
             this.generateMainJs();
 
+            // Generate consent form and questionnaire from templates
+            await this.generateConsentAndQuestionnaire();
+
             console.log('✅ Scene and page generation completed successfully!');
             
         } catch (error) {
@@ -195,10 +199,11 @@ class SceneGenerator {
         if (!fs.existsSync(sequencePath)) {
             throw new Error(`Sequence file not found: ${sequencePath}`);
         }
-        
+
         const sequenceContent = fs.readFileSync(sequencePath, 'utf8');
-        this.sequences = yaml.load(sequenceContent);
-        console.log(`📝 Loaded ${this.sequences.sequence.length} scenes from sequence`);
+        const loaded = yaml.load(sequenceContent);
+        this.sequences = loaded.sequences || loaded.sequence || [];
+        console.log(`📝 Loaded ${this.sequences.length} scenes from sequence`);
     }
 
     async processContent() {
@@ -279,7 +284,7 @@ class SceneGenerator {
 
     async generateSceneClasses() {
         // Find instruction-type scenes from sequence
-        const instructionScenes = this.sequences.sequence.filter(scene => 
+        const instructionScenes = this.sequences.filter(scene =>
             scene.type === 'instruction' && scene.content
         );
         
@@ -542,11 +547,11 @@ class SceneGenerator {
 
     async generateSceneClass(sceneConfig) {
         const contentKey = path.basename(sceneConfig.content, '.md');
-        // Capitalize first letter of contentKey: welcome -> Welcome
-        const contentName = contentKey.charAt(0).toUpperCase() + contentKey.slice(1);
+        // Convert to PascalCase: network-intro -> NetworkIntro, welcome -> Welcome
+        const contentName = this.toPascalCase(contentKey);
         const className = `Scene${contentName}`;
-        // Capitalize first letter of scene: welcome -> Welcome
-        const sceneName = sceneConfig.scene.charAt(0).toUpperCase() + sceneConfig.scene.slice(1);
+        // Convert scene name to PascalCase
+        const sceneName = this.toPascalCase(sceneConfig.scene);
         const sceneKey = `Scene${sceneName}`;
 
         const sceneCode = `/**
@@ -561,6 +566,7 @@ class ${className} extends SceneTemplate {
         super({
             key: '${sceneKey}',
             contentKey: '${contentKey}',
+            sceneName: '${sceneConfig.scene}',
             nextScene: '${sceneConfig.next || ''}',
             sceneData: ${JSON.stringify(sceneConfig, null, 8)}
         });
@@ -592,10 +598,19 @@ export default ${className};
 class ExperimentFlow {
     constructor(game) {
         this.game = game;
-        this.sequence = ${JSON.stringify(this.sequences.sequence, null, 8)};
+        this.sequence = ${JSON.stringify(this.sequences, null, 8)};
         this.currentSceneIndex = 0;
         this.sceneHistory = [];
         this.preloadComplete = false;
+    }
+
+    toPascalCase(str) {
+        // Capitalize first letter and any letter after underscore or hyphen
+        // Remove hyphens/underscores: pd-instructions -> PdInstructions
+        return str
+            .split(/[-_]/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join('');
     }
 
     start() {
@@ -636,8 +651,8 @@ class ExperimentFlow {
         }
         // Priority 2: Auto-generated instruction scenes
         else if (sceneConfig.type === 'instruction') {
-            // Capitalize first letter: welcome -> SceneWelcome
-            const sceneName = sceneConfig.scene.charAt(0).toUpperCase() + sceneConfig.scene.slice(1);
+            // Convert to PascalCase: pd-instructions -> ScenePdInstructions
+            const sceneName = this.toPascalCase(sceneConfig.scene);
             sceneKey = \`Scene\${sceneName}\`;
         }
         // Fallback: use scene name as-is
@@ -673,7 +688,7 @@ class ExperimentFlow {
             // Match by scene name or generated scene key
             if (scene.scene === currentSceneKey) return true;
             if (scene.type === 'instruction') {
-                const sceneName = scene.scene.charAt(0).toUpperCase() + scene.scene.slice(1);
+                const sceneName = this.toPascalCase(scene.scene);
                 return \`Scene\${sceneName}\` === currentSceneKey;
             }
             return false;
@@ -786,8 +801,13 @@ export default ExperimentFlow;
     }
 
     toPascalCase(str) {
-        // Capitalize first letter and any letter after underscore
-        return str.charAt(0).toUpperCase() + str.slice(1).replace(/_(.)/g, (_, char) => char.toUpperCase());
+        // Capitalize first letter and any letter after underscore or hyphen
+        // Remove hyphens/underscores and capitalize following letter
+        // network-intro -> NetworkIntro, my_scene -> MyScene
+        return str
+            .split(/[-_]/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join('');
     }
 
     /**
@@ -815,7 +835,7 @@ export default ExperimentFlow;
      * @returns {Array} List of required example scene names
      */
     getRequiredExampleScenes() {
-        if (!this.sequences || !this.sequences.sequence) {
+        if (!this.sequences || !Array.isArray(this.sequences)) {
             return ['ScenePreload']; // Always include preload scene
         }
 
@@ -824,7 +844,7 @@ export default ExperimentFlow;
         // Always include ScenePreload first
         requiredScenes.add('ScenePreload');
 
-        this.sequences.sequence.forEach(sceneConfig => {
+        this.sequences.forEach(sceneConfig => {
             // Skip instruction type as they're auto-generated
             if (sceneConfig.type === 'instruction') {
                 return;
@@ -886,8 +906,11 @@ async function loadTemplateSystem() {
 
         const generatedSceneImports = [];
         if (data.scenes) {
+            // Helper function to convert to PascalCase
+            const toPascalCase = (str) => str.split(/[-_]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+
             for (const sceneKey of Object.keys(data.scenes)) {
-                const scenePath = \`./generated/scenes/Scene\${sceneKey.charAt(0).toUpperCase() + sceneKey.slice(1)}.js\`;
+                const scenePath = \`./generated/scenes/Scene\${toPascalCase(sceneKey)}.js\`;
                 try {
                     const module = await import(scenePath);
                     generatedSceneImports.push(module.default);
@@ -1036,6 +1059,67 @@ ${exampleScenesList}
         const outputPath = path.join(this.rootDir, 'client', 'public', 'src', 'main-generated.js');
         fs.writeFileSync(outputPath, mainJsContent);
         console.log('📝 Generated main-generated.js with', requiredScenes.length, 'required example scenes');
+    }
+
+    /**
+     * Generate consent form and questionnaire from templates
+     */
+    async generateConsentAndQuestionnaire() {
+        try {
+            console.log('');
+            console.log('📋 Generating consent form and questionnaire...');
+
+            const renderer = new TemplateRenderer(this.config, this.contentDir);
+            const results = await renderer.renderAll();
+
+            if (results.consent) {
+                console.log('  ✓ Generated consent form');
+                await this.copyConsentToViews(results.consent);
+            }
+            if (results.questionnaire) {
+                console.log('  ✓ Generated questionnaire');
+                await this.copyQuestionnaireToViews(results.questionnaire);
+            }
+            if (results.debrief) {
+                console.log('  ✓ Generated debrief page');
+            }
+
+            if (!results.consent && !results.questionnaire && !results.debrief) {
+                console.log('  ⚠ No consent/questionnaire config found - skipping');
+            }
+
+        } catch (error) {
+            console.warn('⚠️  Could not generate consent/questionnaire:', error.message);
+            console.warn('   This is optional - continuing with scene generation');
+        }
+    }
+
+    /**
+     * Copy generated consent.html to client/views/generated/index.ejs
+     */
+    async copyConsentToViews(consentPath) {
+        try {
+            const content = fs.readFileSync(consentPath, 'utf8');
+            const destPath = path.join(this.viewsDir, 'index.ejs');
+            fs.writeFileSync(destPath, content, 'utf8');
+            console.log('  ✓ Copied consent form to views/generated/index.ejs');
+        } catch (error) {
+            console.warn('  ⚠ Could not copy consent to views:', error.message);
+        }
+    }
+
+    /**
+     * Copy generated questionnaire.html to client/views/generated/questionnaire.ejs
+     */
+    async copyQuestionnaireToViews(questionnairePath) {
+        try {
+            const content = fs.readFileSync(questionnairePath, 'utf8');
+            const destPath = path.join(this.viewsDir, 'questionnaire.ejs');
+            fs.writeFileSync(destPath, content, 'utf8');
+            console.log('  ✓ Copied questionnaire to views/generated/questionnaire.ejs');
+        } catch (error) {
+            console.warn('  ⚠ Could not copy questionnaire to views:', error.message);
+        }
     }
 
     /**

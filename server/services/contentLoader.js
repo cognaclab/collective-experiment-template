@@ -36,13 +36,15 @@ class ContentLoader {
         try {
             const sequencePath = path.join(this.contentPath, 'sequences/main.yaml');
             const sequenceContent = fs.readFileSync(sequencePath, 'utf8');
-            this.sequence = yaml.load(sequenceContent);
-            
+            const loaded = yaml.load(sequenceContent);
+            // Handle both formats: {sequences: [...]} or {sequence: [...]} or direct array
+            this.sequence = loaded.sequences || loaded.sequence || loaded;
+
             logger.info('Experiment sequence loaded', {
                 experiment: this.experimentName,
-                scenes: this.sequence.sequence.length
+                scenes: Array.isArray(this.sequence) ? this.sequence.length : 0
             });
-            
+
             return this.sequence;
         } catch (error) {
             logger.error('Failed to load experiment sequence', {

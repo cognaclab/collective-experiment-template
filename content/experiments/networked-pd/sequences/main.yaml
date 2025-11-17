@@ -1,0 +1,80 @@
+sequence:
+  # Introduction and Instructions
+  - scene: "welcome"
+    type: "instruction"
+    content: "welcome.md"
+    next: "pd-instructions"
+
+  - scene: "pd-instructions"
+    type: "instruction"
+    content: "pd-rules.md"
+    next: "network-instructions"
+
+  - scene: "network-instructions"
+    type: "instruction"
+    content: "network-intro.md"
+    next: "ostracism-instructions"
+
+  - scene: "ostracism-instructions"
+    type: "instruction"
+    content: "ostracism-rules.md"
+    next: "SceneWaitingRoom"
+
+  # Waiting for full group
+  - scene: "SceneWaitingRoom"
+    type: "waiting"
+    next: "ScenePDPairing"
+
+  # Main game loop: 30 rounds of networked PD
+  # Round 1 (complete flow with ostracism and network update)
+  - scene: "ScenePDPairing"
+    type: "pairing"
+    params:
+      roundNumber: 1
+      totalRounds: 30
+    next: "ScenePDChoice"
+
+  - scene: "ScenePDChoice"
+    type: "choice"
+    params:
+      roundNumber: 1
+      trial: 1
+      totalTrials: 30
+      maxChoiceTime: 20000
+      showTimer: true
+      showPartner: true
+    next: "ScenePDResults"
+
+  - scene: "ScenePDResults"
+    type: "results"
+    params:
+      roundNumber: 1
+      showBothChoices: true
+    next: "SceneOstracismVote"
+
+  - scene: "SceneOstracismVote"
+    type: "ostracism"
+    params:
+      roundNumber: 1
+      totalRounds: 30
+    next: "SceneNetworkUpdate"
+
+  - scene: "SceneNetworkUpdate"
+    type: "network_update"
+    params:
+      roundNumber: 1
+      totalRounds: 30
+    next: "SceneGoToQuestionnaire"
+
+  # For Phase 2 testing: After round 1, go to questionnaire
+  # Phase 3 will expand this to 30 rounds
+
+  # Questionnaire
+  - scene: "SceneGoToQuestionnaire"
+    type: "questionnaire"
+    next: "end"
+
+  # End
+  - scene: "end"
+    type: "completion"
+    redirect: "/endPage"

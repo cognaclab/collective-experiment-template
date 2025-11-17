@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consent Form - <%= study.title %></title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .consent-container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .info-box {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+        .info-box strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        ul {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .consent-checkbox {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #fff9e6;
+            border: 2px solid #f39c12;
+            border-radius: 5px;
+        }
+        .consent-checkbox label {
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            font-size: 1.1em;
+        }
+        .consent-checkbox input[type="checkbox"] {
+            margin-right: 15px;
+            margin-top: 5px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        .button-container {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .consent-button {
+            background-color: #27ae60;
+            color: white;
+            padding: 15px 50px;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .consent-button:hover:not(:disabled) {
+            background-color: #229954;
+        }
+        .consent-button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        .decline-button {
+            background-color: #e74c3c;
+            margin-left: 20px;
+        }
+        .decline-button:hover {
+            background-color: #c0392b;
+        }
+        .contact-info {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.95em;
+        }
+    </style>
+</head>
+<body>
+    <div class="consent-container">
+        <h1>Research Participation Consent Form</h1>
+
+        <div class="info-box">
+            <strong>Study Title:</strong> <%= study.title %>
+            <strong>Principal Investigator:</strong> <%= study.researchers.principal_investigator.name %>, <%= study.researchers.principal_investigator.affiliation %>
+            <strong>Institution:</strong> <%= study.institution.name %>
+            <% if (study.ethics && study.ethics.approval_number) { %>
+            <strong>Ethics Approval:</strong> <%= study.ethics.irb_name %> (#<%= study.ethics.approval_number %>)
+            <% } %>
+        </div>
+
+        <h2>Study Purpose</h2>
+        <p><%= study.short_description %></p>
+
+        <% if (consent.overview && consent.overview.enabled) { %>
+        <h2>Study Overview</h2>
+        <p><%= consent.overview.description %></p>
+
+        <% if (consent.overview.parts && consent.overview.parts.length > 0) { %>
+        <% consent.overview.parts.forEach((part, index) => { %>
+        <p><strong>Part <%= index + 1 %>:</strong> <%= part.description %></p>
+        <% }); %>
+        <% } %>
+
+        <% if (consent.overview.waiting_info) { %>
+        <div class="info-box">
+            <p><strong>Waiting Time:</strong> <%= consent.overview.waiting_info.description %></p>
+            <% if (consent.overview.waiting_info.compensation) { %>
+            <p><%= consent.overview.waiting_info.compensation %></p>
+            <% } %>
+        </div>
+        <% } %>
+
+        <% if (consent.overview.total_time) { %>
+        <p><strong>Total Time:</strong> <%= consent.overview.total_time %></p>
+        <% } %>
+        <% } %>
+
+        <h2>What Will Happen?</h2>
+        <p>If you agree to participate, you will:</p>
+        <ul>
+            <li>Complete an online experiment lasting approximately <%= consent.participation.estimated_duration %></li>
+            <li>Make decisions in interactive tasks with other participants</li>
+            <li>Answer questionnaires about your experience and strategies</li>
+        </ul>
+
+        <h2>Compensation</h2>
+        <div class="info-box">
+            <p><strong>You will receive <%= consent.participation.compensation.amount %> <%= consent.participation.compensation.currency %></strong></p>
+            <% if (consent.participation.compensation.calculation) { %>
+            <p><%= consent.participation.compensation.calculation %></p>
+            <% } %>
+        </div>
+
+        <% if (consent.eligibility && consent.eligibility.length > 0) { %>
+        <h2>Eligibility</h2>
+        <p>To participate, you must:</p>
+        <ul>
+            <% consent.eligibility.forEach(criterion => { %>
+            <li><%= criterion %></li>
+            <% }); %>
+        </ul>
+        <% } %>
+
+        <% if (consent.risks && consent.risks.length > 0) { %>
+        <h2>Risks</h2>
+        <ul>
+            <% consent.risks.forEach(risk => { %>
+            <li><%= risk %></li>
+            <% }); %>
+        </ul>
+        <% } %>
+
+        <% if (consent.benefits && consent.benefits.length > 0) { %>
+        <h2>Benefits</h2>
+        <ul>
+            <% consent.benefits.forEach(benefit => { %>
+            <li><%= benefit %></li>
+            <% }); %>
+        </ul>
+        <% } %>
+
+        <h2>Data Privacy & Confidentiality</h2>
+        <% if (consent.data) { %>
+        <ul>
+            <% if (consent.data.anonymization) { %>
+            <li><strong>Anonymization:</strong> <%= consent.data.anonymization %></li>
+            <% } %>
+            <% if (consent.data.storage) { %>
+            <li><strong>Storage:</strong> <%= consent.data.storage %></li>
+            <% } %>
+            <% if (consent.data.retention_period) { %>
+            <li><strong>Retention:</strong> Data will be retained for <%= consent.data.retention_period %></li>
+            <% } %>
+            <% if (consent.data.sharing) { %>
+            <li><strong>Data Sharing:</strong> <%= consent.data.sharing %></li>
+            <% } %>
+            <% if (consent.data.withdrawal) { %>
+            <li><strong>Withdrawal:</strong> <%= consent.data.withdrawal %></li>
+            <% } %>
+        </ul>
+        <% } %>
+
+        <% if (consent.rights && consent.rights.length > 0) { %>
+        <h2>Your Rights</h2>
+        <ul>
+            <% consent.rights.forEach(right => { %>
+            <li><%= right %></li>
+            <% }); %>
+        </ul>
+        <% } %>
+
+        <div class="consent-checkbox">
+            <label>
+                <input type="checkbox" id="consentCheckbox" onchange="toggleConsentButton()">
+                <span>
+                    <strong>I have read and understood the information above.</strong>
+                    I voluntarily agree to participate in this research study. I understand that I can withdraw
+                    at any time without penalty.
+                </span>
+            </label>
+        </div>
+
+        <div class="button-container">
+            <button id="consentButton" class="consent-button" disabled onclick="giveConsent()">
+                I Consent - Start Study
+            </button>
+            <button class="consent-button decline-button" onclick="declineConsent()">
+                I Do Not Consent
+            </button>
+        </div>
+
+        <div class="contact-info">
+            <strong>Questions or Concerns?</strong>
+            <p>If you have questions about this research, please contact:</p>
+            <p>
+                <%= study.researchers.principal_investigator.name %><br>
+                Email: <%= study.researchers.principal_investigator.email %>
+            </p>
+            <% if (study.ethics && study.ethics.contact_email) { %>
+            <p>For questions about your rights as a research participant, contact:<br>
+            <%= study.ethics.irb_name %>: <%= study.ethics.contact_email %></p>
+            <% } %>
+        </div>
+    </div>
+
+    <script>
+        function toggleConsentButton() {
+            const checkbox = document.getElementById('consentCheckbox');
+            const button = document.getElementById('consentButton');
+            button.disabled = !checkbox.checked;
+        }
+
+        function giveConsent() {
+            // Record consent timestamp
+            const consentData = {
+                timestamp: new Date().toISOString(),
+                studyTitle: "<%= study.title %>",
+                version: "<%= consent.version || '1.0' %>",
+                agreed: true
+            };
+
+            // Store consent in session/local storage
+            sessionStorage.setItem('consent', JSON.stringify(consentData));
+
+            // Redirect to experiment
+            window.location.href = '/experiment';
+        }
+
+        function declineConsent() {
+            alert('Thank you for your time. You will now be redirected.');
+            // Redirect to Prolific or close window
+            window.location.href = '/declined';
+        }
+    </script>
+</body>
+</html>

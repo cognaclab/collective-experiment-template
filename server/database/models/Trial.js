@@ -130,6 +130,77 @@ const trialSchema = new mongoose.Schema({
   },
 
   // ==========================================
+  // NETWORK DATA (for networked experiments like NEDPD)
+  // ==========================================
+  networkData: {
+    // Current partner information
+    partnerId: { type: Number },                                 // Partner's subject number
+    partnerSubjectId: { type: String },                          // Partner's session/subject ID
+
+    // Pairing history
+    pairingHistory: [{                                           // Recent partners
+      partnerId: { type: Number },
+      roundNumber: { type: Number }
+    }],
+
+    timesPlayedWithPartner: { type: Number },                    // How many times paired with this partner
+
+    // Partner's choice (for strategic games like PD)
+    partnerChoice: {
+      optionId: { type: Number },                                // Partner's choice (0=cooperate, 1=defect)
+      payoff: { type: Number }                                   // Partner's payoff this round
+    },
+
+    // Cooperation tracking
+    cooperationHistory: {
+      playerCooperated: { type: Boolean },                       // Did this player cooperate?
+      partnerCooperated: { type: Boolean },                      // Did partner cooperate?
+      mutualCooperation: { type: Boolean },                      // Both cooperated
+      mutualDefection: { type: Boolean },                        // Both defected
+      wasExploited: { type: Boolean },                           // Player cooperated, partner defected
+      exploitedPartner: { type: Boolean }                        // Player defected, partner cooperated
+    },
+
+    // Ostracism/exclusion data
+    ostracismData: {
+      wasOstracismRound: { type: Boolean, default: false },      // Was this an ostracism voting round?
+      playerVote: {                                              // This player's vote
+        type: String,
+        enum: ['continue', 'break', null],
+        default: null
+      },
+      partnerVote: {                                             // Partner's vote (revealed later)
+        type: String,
+        enum: ['continue', 'break', null],
+        default: null
+      },
+      linkBroken: { type: Boolean },                             // Was the link severed?
+      breakInitiator: {                                          // Who initiated the break
+        type: String,
+        enum: ['player', 'partner', 'both', 'neither', null],
+        default: null
+      }
+    },
+
+    // Network state snapshot
+    networkSnapshot: {
+      totalEdges: { type: Number },                              // Total edges in network
+      playerDegree: { type: Number },                            // This player's number of connections
+      partnerDegree: { type: Number },                           // Partner's number of connections
+      isolatedCount: { type: Number },                           // Number of isolated players
+      networkDensity: { type: Number },                          // Network density (0-1)
+      isNetworkConnected: { type: Boolean }                      // Is network fully connected?
+    },
+
+    // Player status
+    playerStatus: {
+      isIsolated: { type: Boolean, default: false },             // Has no valid partners
+      canStillPlay: { type: Boolean, default: true },            // Can participate in future rounds
+      validPartnerCount: { type: Number }                        // How many partners available
+    }
+  },
+
+  // ==========================================
   // CUSTOM EXPERIMENT DATA
   // ==========================================
   customData: {
