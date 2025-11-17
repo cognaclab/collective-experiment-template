@@ -46,6 +46,11 @@ const { handleNewGameRoundReady } = require('../socket/handleNewGameRoundReady')
 const { handleDisconnect } = require('../socket/handleDisconnect');
 const handleSceneComplete = require('../socket/handleSceneComplete');
 
+// Networked PD handlers
+const handlePairingStart = require('../socket/handlePairingStart');
+const handleNetworkedPDChoice = require('../socket/handleNetworkedPDChoice');
+const handleOstracismVote = require('../socket/handleOstracismVote');
+
 // Session management utilities
 const { countDown, startSession, reformNewGroups } = require('../socket/sessionManager');
 const { emitParameters } = require('../socket/paramEmitters');
@@ -416,6 +421,24 @@ io.on('connection', function (client) {
 	// Server coordinates across all players and instructs which scene to start next
 	client.on('scene_complete', function(data) {
 		handleSceneComplete(client, data, gameConfig, io);
+	});
+
+	// ===== Event Handler: 'pairing_start' (Networked PD) =====
+	client.on('pairing_start', function(data) {
+		handlePairingStart(data, client, io, roomStatus);
+	});
+
+	// ===== Event Handler: 'networked_pd_choice' (Networked PD) =====
+	client.on('networked_pd_choice', function(data) {
+		if (!firstTrialStartingTimeRef[client.room]) {
+			firstTrialStartingTimeRef[client.room] = new Date();
+		}
+		handleNetworkedPDChoice(data, client, io, roomStatus);
+	});
+
+	// ===== Event Handler: 'ostracism_vote' (Networked PD) =====
+	client.on('ostracism_vote', function(data) {
+		handleOstracismVote(data, client, io, roomStatus);
 	});
 
 	// ===== Event Handler: 'disconnect' =====

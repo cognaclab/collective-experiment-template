@@ -7,6 +7,7 @@ class SceneTemplate extends Phaser.Scene {
     constructor(config) {
         super({ key: config.key, active: false });
         this.contentKey = config.contentKey;
+        this.sceneName = config.sceneName; // YAML scene name (e.g., "pd-instructions")
         this.sceneData = config.sceneData;
         this.nextScene = config.nextScene;
         this.onComplete = config.onComplete;
@@ -185,9 +186,9 @@ class SceneTemplate extends Phaser.Scene {
         if (this.onComplete) {
             this.onComplete.call(this);
         } else if (window.socket && window.experimentFlow) {
-            // Use contentKey (YAML scene identifier) instead of scene.key (Phaser scene name)
-            // e.g., "welcome" instead of "SceneWelcome"
-            const sceneIdentifier = this.contentKey || this.scene.key;
+            // Use sceneName (YAML scene identifier) instead of scene.key (Phaser scene name)
+            // e.g., "pd-instructions" instead of "ScenePdInstructions"
+            const sceneIdentifier = this.sceneName || this.contentKey || this.scene.key;
 
             // Clean shutdown of this scene before transitioning
             this.scene.stop();

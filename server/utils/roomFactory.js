@@ -11,6 +11,8 @@ const {
     , modeToNumeric
 } = require('./helpers');
 const constants = require('../../config/constants');
+const NetworkGraph = require('./NetworkGraph');
+const PairingManager = require('./PairingManager');
 
 /**
  * Create a room with configuration
@@ -44,6 +46,16 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode
     // Use provided expCondition from YAML config
     const expConditionValue = isDecoy ? 'decoyRoom' : (expCondition || 'default');
 
+    // Initialize network and pairing for networked experiments
+    let network = null;
+    let pairingManager = null;
+
+    if (config && config.network && config.network.ostracism_enabled) {
+        const topology = config.network.initial_topology || 'complete';
+        network = new NetworkGraph(maxGroupSize, topology);
+        pairingManager = new PairingManager(network, config.pairing || {});
+    }
+
     return {
         roomId: name, // Store room identifier for database
         exp_condition: expConditionValue,
@@ -76,14 +88,23 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode
         choiceOrder: createNestedFilledArray(totalHorizon, maxGroupSize, -1),
         saveDataThisRound: [],
         restTime: maxWaitingTime,
-        groupTotalPayoff: createFilledArray(numEnv, 0), //createArray(totalHorizon, 0),
-        groupCumulativePayoff: createFilledArray(numEnv, 0), //[0, 0],
+        groupTotalPayoff: createFilledArray(numEnv, 0),
+        groupCumulativePayoff: createFilledArray(numEnv, 0),
         totalPayoff_perIndiv: [0],
         totalPayoff_perIndiv_perGame: new Array(totalGameRound).fill(0),
         groupTotalCost: [0],
         currentEnv: 0,
         envChangeTracker: 0,
-        currentScene: null
+        currentScene: null,
+
+        // Networked experiment state
+        network: network,
+        pairingManager: pairingManager,
+        currentPairings: [],           // Current round's pairings: [[p1, p2], ...]
+        isolatedPlayers: [],           // Players with no valid partners
+        ostracismVotes: {},            // { roundNum: { playerId: { partnerId, vote, timestamp } } }
+        cooperationHistory: {},        // { playerId: { partnerId: [choices] } }
+        roundNumber: 0                 // Current round (for networked PD)
     };
 }
 

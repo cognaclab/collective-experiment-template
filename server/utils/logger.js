@@ -24,7 +24,7 @@ const logFormat = winston.format.combine(
 const logger = winston.createLogger({
   level: logLevel,
   format: logFormat,
-  defaultMeta: { service: 'collective-bandit' },
+  defaultMeta: { service: 'collective-experiment' },
   transports: [
     // Write all logs with level 'error' and below to 'error.log'
     new winston.transports.File({ 

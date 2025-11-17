@@ -11,7 +11,7 @@ const readline = require('readline');
 
 // Get database name from environment or use default
 const DB_NAME = process.env.MONGODB_URI?.split('/').pop() || 'collective_reward_exp';
-const CONTAINER_NAME = 'collective-bandit-mongodb';
+const CONTAINER_NAME = 'collective-experiment-mongodb';
 
 // Get command line arguments
 const args = process.argv.slice(2);

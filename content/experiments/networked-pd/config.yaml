@@ -1,0 +1,187 @@
+experiment:
+  name: "Networked Prisoner's Dilemma"
+  description: "30-round iterated prisoner's dilemma with dynamic partner pairing and ostracism mechanism"
+  author: "Cognac Lab"
+
+# =============================================================================
+# CONSENT FORM (Pre-experiment, port 8000)
+# =============================================================================
+study:
+  title: "Networked Cooperation Study"
+  short_description: "A study on cooperation and decision-making in social networks"
+
+  researchers:
+    principal_investigator:
+      name: "Dr. Researcher Name"
+      affiliation: "RIKEN Center for Brain Science"
+      email: "researcher@riken.jp"
+
+  institution:
+    name: "RIKEN Center for Brain Science"
+    department: "Cognitive Science Lab"
+
+  ethics:
+    irb_name: "RIKEN Research Ethics Committee"
+    approval_number: "2025-XXX"
+    contact_email: "ethics@riken.jp"
+
+consent:
+  enabled: true
+  version: "1.0"
+  last_updated: "2025-01-17"
+
+  overview:
+    enabled: true
+    description: "This study is divided into two parts."
+    parts:
+      - description: "A group decision-making game where you will make choices with other participants. Based on these decisions, your team will be able to earn bonus points that will be added to your participation fee."
+      - description: "A short survey to help us understand how you made decisions in the first part. All results will be collected fully confidentially."
+    waiting_info:
+      description: "This study will be played in groups with other participants (8 people). In order to find enough participants, you might need to wait for up to 5 minutes to begin. Do not worry about losing time during this process - please be patient."
+      compensation: "You will be paid for the amount of time you have waited (10 pence per minute)."
+    total_time: "The completion of the study should take approximately 30-40 minutes."
+
+  participation:
+    estimated_duration: "30-40 minutes"
+    compensation:
+      amount: "£1.50 - £6.50"
+      currency: "GBP"
+      calculation: "£1.00 base fee + £0.50 completion bonus + performance bonus (up to £5.00 based on decisions) + waiting time compensation"
+      payment_method: "Prolific bonus system"
+
+  eligibility:
+    - "Age 18 or older"
+    - "Fluent in English"
+    - "Access to a computer with stable internet connection"
+    - "Available for the full duration of the study (approximately 30-40 minutes)"
+    - "No previous participation in this study"
+
+  risks:
+    - "Minimal risk: Possible mild fatigue from decision-making tasks"
+    - "No anticipated physical or psychological risks beyond those encountered in everyday life"
+    - "You may experience mild frustration if waiting for other participants"
+
+  benefits:
+    - "Contribution to scientific understanding of cooperation and social decision-making"
+    - "Monetary compensation for your time and decisions"
+    - "Opportunity to learn about your decision-making strategies"
+
+  data:
+    anonymization: "All data will be anonymized and identified only by a participant ID. Your personal information will not be linked to your decisions."
+    storage: "Data will be stored securely on encrypted servers at RIKEN Center for Brain Science"
+    retention_period: "5 years after publication of research findings"
+    sharing: "Anonymized data may be shared with other researchers via public repositories to enable verification and further research"
+    withdrawal: "You may withdraw at any time before completing the study without penalty. However, once data is anonymized, it cannot be withdrawn as it cannot be identified."
+
+  rights:
+    - "Voluntary participation - you may withdraw at any time without penalty"
+    - "Right to ask questions before, during, or after the study"
+    - "Right to request information about the study results"
+    - "Right to privacy and confidentiality of your data"
+    - "Right to refuse to answer any question without penalty"
+
+# =============================================================================
+# QUESTIONNAIRE (Post-experiment, port 8000)
+# =============================================================================
+# NOTE: Using custom questionnaire in pages/questionnaire.html
+questionnaire:
+  enabled: true
+  type: "post_experiment"
+
+game:
+  horizon: 30                     # Total number of PD rounds
+  k_armed_bandit: 2               # Two choices: Cooperate (0) or Defect (1)
+  max_choice_time: 20000          # 20 seconds to make choice
+  max_lobby_wait_time: 300000     # 5 minutes to wait for full group
+  max_scene_wait_time: 10000      # 10 seconds for scene transitions
+
+groups:
+  max_group_size: 8               # 8 players per group
+  min_group_size: 8               # Require full group to start
+
+conditions:
+  indivOrGroup: "group"           # Group experiment (multiplayer)
+  taskType: "networked_pd"        # Task type identifier
+  exp_condition: "baseline"       # Experimental condition label
+
+# Network dynamics configuration
+network:
+  initial_topology: "complete"    # Start with all players connected
+  ostracism_enabled: true         # Allow players to vote to exclude partners
+  ostracism_frequency: 5          # Vote to break links every N rounds
+  ostracism_type: "unilateral"    # "unilateral" (either can break) or "mutual" (both must agree)
+  edge_removal_rule: "either"     # If EITHER player votes to break, edge is removed
+  show_network_state: true        # Show players their current connections
+
+# Pairing/matching configuration
+pairing:
+  strategy: "random_valid"        # "random_valid" | "round_robin" | "preferential_attachment"
+  allow_repeat_partners: true     # Can play same partner multiple times
+  max_consecutive_repeats: 2      # Maximum consecutive rounds with same partner
+  isolation_handling: "sit_out"   # "sit_out" | "dummy_opponent" | "force_reentry"
+  show_partner_history: true      # Show cooperation history with current partner
+
+# Round structure defines the flow within each round
+round_structure:
+  total_rounds: 30
+  phases_per_round:
+    - phase: "pairing"
+      scene: "ScenePDPairing"
+      description: "Shows who your partner is for this round"
+      always: true
+
+    - phase: "choice"
+      scene: "ScenePDChoice"
+      description: "Make cooperate/defect decision"
+      always: true
+
+    - phase: "results"
+      scene: "ScenePDResults"
+      description: "View both players' choices and payoffs"
+      always: true
+
+    - phase: "ostracism"
+      scene: "SceneOstracismVote"
+      description: "Vote whether to continue or break link with partner"
+      frequency: 5              # Every 5 rounds
+      skip_if_isolated: true
+
+    - phase: "network_update"
+      scene: "SceneNetworkUpdate"
+      description: "View updated network connections"
+      frequency: 5              # After each ostracism vote
+      skip_if_no_changes: true
+
+# Prisoner's Dilemma payoff matrix
+reward_system:
+  type: "payoff_matrix"
+  matrix_type: "prisoners_dilemma"
+  payoffs:
+    "[0,0]": [3, 3]   # Both cooperate: mutual cooperation reward
+    "[0,1]": [0, 5]   # P1 cooperates, P2 defects: sucker's payoff / temptation
+    "[1,0]": [5, 0]   # P1 defects, P2 cooperates: temptation / sucker's payoff
+    "[1,1]": [1, 1]   # Both defect: mutual defection punishment
+
+# Payment calculation
+payment:
+  flat_fee: 1.00                  # Base payment in GBP
+  completion_fee: 0.50            # Bonus for completing all 30 rounds
+  points_to_currency: 0.01        # 1 point = 1 penny
+  currency: "GBP"
+  max_bonus: 5.00                 # Maximum bonus cap
+
+# Data logging preferences
+logging:
+  log_network_states: true        # Log network adjacency matrix each round
+  log_pairing_history: true       # Log all partner assignments
+  log_ostracism_votes: true       # Log all break/continue votes
+  log_cooperation_rates: true     # Calculate and log cooperation statistics
+  export_network_graphs: true     # Export network evolution data
+
+# Display preferences
+display:
+  show_player_numbers: true       # Show "Player 1", "Player 2", etc.
+  show_cooperation_history: true  # Show past cooperation rates with partners
+  show_round_number: true         # Display current round (1-30)
+  show_total_points: true         # Display cumulative points
+  show_network_size: true         # Show how many players you can still interact with
