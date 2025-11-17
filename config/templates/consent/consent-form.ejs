@@ -220,23 +220,34 @@
         </ul>
         <% } %>
 
+        <h2>Declaration</h2>
+        <p>Please check the following statements if you agree:</p>
+
         <div class="consent-checkbox">
             <label>
-                <input type="checkbox" id="consentCheckbox" onchange="toggleConsentButton()">
-                <span>
-                    <strong>I have read and understood the information above.</strong>
-                    I voluntarily agree to participate in this research study. I understand that I can withdraw
-                    at any time without penalty.
-                </span>
+                <input type="checkbox" id="consent1" onchange="toggleConsentButton()">
+                <span>I have read and understood the preceding information.</span>
+            </label>
+
+            <label>
+                <input type="checkbox" id="consent2" onchange="toggleConsentButton()">
+                <span>I am 18 years old or older.</span>
+            </label>
+
+            <label>
+                <input type="checkbox" id="consent3" onchange="toggleConsentButton()">
+                <span>I understand how my data will be processed and anonymized.</span>
+            </label>
+
+            <label>
+                <input type="checkbox" id="consent4" onchange="toggleConsentButton()">
+                <span>I agree to take part in the study.</span>
             </label>
         </div>
 
         <div class="button-container">
             <button id="consentButton" class="consent-button" disabled onclick="giveConsent()">
-                I Consent - Start Study
-            </button>
-            <button class="consent-button decline-button" onclick="declineConsent()">
-                I Do Not Consent
+                GO TO THE TASK
             </button>
         </div>
 
@@ -256,9 +267,14 @@
 
     <script>
         function toggleConsentButton() {
-            const checkbox = document.getElementById('consentCheckbox');
+            const consent1 = document.getElementById('consent1').checked;
+            const consent2 = document.getElementById('consent2').checked;
+            const consent3 = document.getElementById('consent3').checked;
+            const consent4 = document.getElementById('consent4').checked;
             const button = document.getElementById('consentButton');
-            button.disabled = !checkbox.checked;
+
+            // Enable button only if all four checkboxes are checked
+            button.disabled = !(consent1 && consent2 && consent3 && consent4);
         }
 
         function giveConsent() {
@@ -267,7 +283,13 @@
                 timestamp: new Date().toISOString(),
                 studyTitle: "<%= study.title %>",
                 version: "<%= consent.version || '1.0' %>",
-                agreed: true
+                agreed: true,
+                declarations: {
+                    readAndUnderstood: true,
+                    ageConfirmed: true,
+                    dataProcessingUnderstood: true,
+                    agreedToParticipate: true
+                }
             };
 
             // Store consent in session/local storage
@@ -275,12 +297,6 @@
 
             // Redirect to experiment
             window.location.href = '/experiment';
-        }
-
-        function declineConsent() {
-            alert('Thank you for your time. You will now be redirected.');
-            // Redirect to Prolific or close window
-            window.location.href = '/declined';
         }
     </script>
 </body>
