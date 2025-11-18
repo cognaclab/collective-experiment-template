@@ -1,0 +1,124 @@
+# Consent Form Configuration Schema
+# This defines the structure for generating consent forms from templates
+
+# =============================================================================
+# STUDY INFORMATION (for consent form)
+# =============================================================================
+study:
+  title: "Study Title"
+  short_description: "Brief description of what participants will do"
+
+  # Research team
+  researchers:
+    principal_investigator:
+      name: "Dr. Principal Investigator"
+      affiliation: "Institution Name"
+      email: "pi@institution.edu"
+
+    co_investigators:  # Optional
+      - name: "Dr. Co-Investigator"
+        affiliation: "Institution Name"
+        email: "co-investigator@institution.edu"
+
+  # Institutional information
+  institution:
+    name: "Institution Name"
+    department: "Department Name"  # Optional
+    address: "Full address"  # Optional
+
+  # Ethics approval
+  ethics:
+    irb_name: "Institutional Review Board Name"
+    approval_number: "IRB-2024-XXX"
+    approval_date: "2024-01-15"  # Optional
+    contact_email: "irb@institution.edu"
+
+# =============================================================================
+# CONSENT FORM CONTENT
+# =============================================================================
+consent:
+  enabled: true
+  version: "1.0"
+  last_updated: "2025-01-17"
+
+  # Study overview (optional, for detailed multi-part study descriptions)
+  overview:
+    enabled: true  # Set to false to skip this section
+    description: "This study is divided into two parts."
+    parts:
+      - description: "A group decision-making game where you will make choices with other participants to earn bonus payments"
+      - description: "A short survey about your decision-making strategies"
+    waiting_info:
+      description: "You may need to wait up to 2 minutes for other participants to join your group"
+      compensation: "You will be compensated for waiting time (10 pence per minute)"
+    total_time: "The complete study should take approximately 15 minutes"
+
+  # What participants will do
+  participation:
+    estimated_duration: "30-40 minutes"
+    compensation:
+      amount: "£2.50"
+      currency: "GBP"
+      payment_method: "Prolific bonus system"  # Optional
+      calculation: "£1.00 base + up to £1.50 performance"  # Optional
+
+  # Who can participate
+  eligibility:
+    - "Age 18 or older"
+    - "Fluent in English"
+    - "Access to computer with stable internet"
+    - "No previous participation in this study"
+
+  # Potential risks
+  risks:
+    - "Minimal risk: Possible mild fatigue from decision-making tasks"
+    - "No physical risks"
+
+  # Benefits to participants or science
+  benefits:
+    - "Contribution to scientific understanding of cooperation"
+    - "Monetary compensation for your time"
+
+  # How data will be handled
+  data:
+    anonymization: "All data will be anonymized and identified only by participant ID"
+    storage: "Secure encrypted database at [Institution]"
+    retention_period: "5 years after publication"
+    sharing: "Anonymized data may be shared with other researchers via public repositories"
+    withdrawal: "You may withdraw at any time before completing the study without penalty"
+
+  # Participant rights
+  rights:
+    - "Voluntary participation - you may withdraw at any time"
+    - "Right to ask questions before or during the study"
+    - "Right to request deletion of your data (before anonymization)"
+    - "Right to receive a summary of research findings"
+
+# =============================================================================
+# EXAMPLE USAGE IN EXPERIMENT CONFIG
+# =============================================================================
+# In your experiment's config.yaml, include:
+#
+# study:
+#   title: "Networked Cooperation Study"
+#   researchers:
+#     principal_investigator:
+#       name: "Dr. Jane Smith"
+#       affiliation: "RIKEN CBS"
+#       email: "jane.smith@riken.jp"
+#   institution:
+#     name: "RIKEN Center for Brain Science"
+#   ethics:
+#     irb_name: "RIKEN Ethics Committee"
+#     approval_number: "2024-001"
+#
+# consent:
+#   enabled: true
+#   participation:
+#     estimated_duration: "30 minutes"
+#     compensation:
+#       amount: "£2.50"
+#       currency: "GBP"
+#   eligibility:
+#     - "Age 18+"
+#     - "Fluent in English"
