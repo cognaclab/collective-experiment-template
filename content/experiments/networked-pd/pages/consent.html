@@ -254,23 +254,17 @@
                 <input type="checkbox" id="consent1" onchange="toggleConsentButton()">
                 <span>I have read and understood the preceding information.</span>
             </label>
-        </div>
 
-        <div class="consent-checkbox">
             <label>
                 <input type="checkbox" id="consent2" onchange="toggleConsentButton()">
                 <span>I am 18 years old or older.</span>
             </label>
-        </div>
 
-        <div class="consent-checkbox">
             <label>
                 <input type="checkbox" id="consent3" onchange="toggleConsentButton()">
                 <span>I understand how my data will be processed and anonymized.</span>
             </label>
-        </div>
 
-        <div class="consent-checkbox">
             <label>
                 <input type="checkbox" id="consent4" onchange="toggleConsentButton()">
                 <span>I agree to take part in the study.</span>
@@ -327,8 +321,13 @@
             // Store consent in session/local storage
             sessionStorage.setItem('consent', JSON.stringify(consentData));
 
-            // Redirect to experiment
-            window.location.href = '/experiment';
+            // Get subjectID from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const subjectID = urlParams.get('subjectID');
+
+            // Redirect to game server with subjectID
+            const gameServerUrl = 'http://localhost:8181';
+            window.location.href = `${gameServerUrl}/?subjectID=${subjectID}`;
         }
     </script>
 </body>
