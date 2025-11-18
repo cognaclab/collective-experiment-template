@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post-Experiment Questionnaire</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .question-container {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        label {
+            display: block;
+            margin: 15px 0 5px 0;
+            font-weight: bold;
+        }
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+        }
+        .radio-group, .checkbox-group {
+            margin: 10px 0;
+        }
+        .radio-group label, .checkbox-group label {
+            font-weight: normal;
+            margin: 5px 0;
+        }
+        input[type="radio"], input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        .submit-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .submit-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Post-Experiment Questionnaire</h1>
+
+    <form id="questionnaireForm" action="/submit-questionnaire" method="POST">
+
+        <div class="question-container">
+            <h2>Strategy and Decision-Making</h2>
+
+            <label for="strategy">1. Please describe your overall strategy in the experiment:</label>
+            <textarea id="strategy" name="strategy" required></textarea>
+
+            <label for="cooperation_reason">2. When did you decide to cooperate vs. defect? What factors influenced your decisions?</label>
+            <textarea id="cooperation_reason" name="cooperation_reason" required></textarea>
+
+            <label for="partner_consideration">3. Did you change your strategy based on who your partner was?</label>
+            <div class="radio-group">
+                <label><input type="radio" name="partner_consideration" value="yes" required> Yes</label>
+                <label><input type="radio" name="partner_consideration" value="no"> No</label>
+                <label><input type="radio" name="partner_consideration" value="sometimes"> Sometimes</label>
+            </div>
+
+            <label for="partner_consideration_explain">If yes or sometimes, please explain:</label>
+            <textarea id="partner_consideration_explain" name="partner_consideration_explain"></textarea>
+        </div>
+
+        <div class="question-container">
+            <h2>Ostracism and Network Decisions</h2>
+
+            <label for="ostracism_criteria">4. What criteria did you use to decide whether to break links with partners?</label>
+            <textarea id="ostracism_criteria" name="ostracism_criteria" required></textarea>
+
+            <label for="ostracism_frequency">5. How many times did you choose to break a link with a partner?</label>
+            <div class="radio-group">
+                <label><input type="radio" name="ostracism_frequency" value="never" required> Never</label>
+                <label><input type="radio" name="ostracism_frequency" value="once_twice"> 1-2 times</label>
+                <label><input type="radio" name="ostracism_frequency" value="few"> 3-5 times</label>
+                <label><input type="radio" name="ostracism_frequency" value="many"> More than 5 times</label>
+            </div>
+
+            <label for="ostracism_impact">6. How did the ability to break links affect your decisions in the game?</label>
+            <textarea id="ostracism_impact" name="ostracism_impact" required></textarea>
+        </div>
+
+        <div class="question-container">
+            <h2>Experience and Engagement</h2>
+
+            <label for="difficulty">7. How difficult was the game?</label>
+            <div class="radio-group">
+                <label><input type="radio" name="difficulty" value="very_easy" required> Very Easy</label>
+                <label><input type="radio" name="difficulty" value="easy"> Easy</label>
+                <label><input type="radio" name="difficulty" value="moderate"> Moderate</label>
+                <label><input type="radio" name="difficulty" value="difficult"> Difficult</label>
+                <label><input type="radio" name="difficulty" value="very_difficult"> Very Difficult</label>
+            </div>
+
+            <label for="engagement">8. How engaged were you during the experiment?</label>
+            <div class="radio-group">
+                <label><input type="radio" name="engagement" value="very_engaged" required> Very Engaged</label>
+                <label><input type="radio" name="engagement" value="engaged"> Engaged</label>
+                <label><input type="radio" name="engagement" value="neutral"> Neutral</label>
+                <label><input type="radio" name="engagement" value="bored"> Somewhat Bored</label>
+                <label><input type="radio" name="engagement" value="very_bored"> Very Bored</label>
+            </div>
+
+            <label for="comments">9. Any additional comments or feedback about the experiment?</label>
+            <textarea id="comments" name="comments"></textarea>
+        </div>
+
+        <button type="submit" class="submit-button">Submit Questionnaire</button>
+    </form>
+
+    <script>
+        document.getElementById('questionnaireForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+
+            fetch('/submit-questionnaire', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = '/endPage';
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    </script>
+</body>
+</html>

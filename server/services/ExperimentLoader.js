@@ -393,12 +393,14 @@ class ExperimentLoader {
             }
 
             const sequenceContent = fs.readFileSync(sequencePath, 'utf8');
-            this.sequence = yaml.load(sequenceContent);
+            const loaded = yaml.load(sequenceContent);
+            // Handle both formats: {sequences: [...]} or {sequence: [...]} or direct array
+            this.sequence = loaded.sequences || loaded.sequence || loaded;
 
             this.validateSequenceConditionalRouting();
 
             logger.info('Experiment sequence loaded successfully', {
-                scenes: this.sequence.sequence ? this.sequence.sequence.length : 0
+                scenes: Array.isArray(this.sequence) ? this.sequence.length : 0
             });
 
             return this.sequence;
@@ -418,7 +420,8 @@ class ExperimentLoader {
         if (!this.sequence) {
             throw new Error('Sequence not loaded. Call loadSequence() first.');
         }
-        return this.sequence.sequence;
+        // Return the sequence array directly (it's already normalized in loadSequence)
+        return Array.isArray(this.sequence) ? this.sequence : (this.sequence.sequence || this.sequence.sequences || []);
     }
 
     validateSequenceConditionalRouting() {
@@ -426,8 +429,9 @@ class ExperimentLoader {
             throw new Error('Sequence not loaded. Call loadSequence() first.');
         }
 
-        const sequence = this.sequence.sequence;
-        const sceneNames = sequence.map(s => s.scene);
+        // this.sequence is already the array after normalization in loadSequence
+        const sequence = Array.isArray(this.sequence) ? this.sequence : (this.sequence.sequence || this.sequence.sequences || []);
+        const sceneNames = sequence.map(s => s.scene || s.name);
 
         for (const scene of sequence) {
             const conditionalFields = ['next_on_timeout', 'next_on_miss', 'next_on_error'];
@@ -436,7 +440,7 @@ class ExperimentLoader {
                 if (scene[field]) {
                     if (!sceneNames.includes(scene[field])) {
                         logger.warn(
-                            `Scene '${scene.scene}' references non-existent scene in ${field}: ${scene[field]}`
+                            `Scene '${scene.scene || scene.name}' references non-existent scene in ${field}: ${scene[field]}`
                         );
                     }
                 }

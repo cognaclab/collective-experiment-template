@@ -184,21 +184,31 @@ class ScenePDChoice extends Phaser.Scene {
                 timerBar.clear();
             }
 
-            // Emit choice to server
-            window.socket.emit('choice made', {
+            // Detect experiment type and emit appropriate event
+            const isNetworkedPD = window.taskType === 'networked_pd' || indivOrGroup === 'group';
+            const eventName = isNetworkedPD ? 'networked_pd_choice' : 'choice made';
+
+            const eventData = {
                 sessionId: window.sessionId,
                 roomId: window.roomId,
                 subjectId: window.subjectId,
-                num_choice: this.selectedChoice,
-                chosenOptionLocation: this.selectedChoice,
-                thisTrial: this.trial,
-                hadClickedBeforeTimeout: true,
-                timedOut: false,
-                individual_payoff: 0,
-                timestamp: new Date().toISOString(),
+                roundNumber: this.trial,
+                choice: this.selectedChoice,
                 reactionTime: reactionTime,
-                prob_means: []
-            });
+                timestamp: new Date().toISOString(),
+                hadClickedBeforeTimeout: true,
+                timedOut: false
+            };
+
+            if (!isNetworkedPD) {
+                eventData.num_choice = this.selectedChoice;
+                eventData.chosenOptionLocation = this.selectedChoice;
+                eventData.thisTrial = this.trial;
+                eventData.individual_payoff = 0;
+                eventData.prob_means = [];
+            }
+
+            window.socket.emit(eventName, eventData);
 
             console.log('Choice confirmed:', choiceName, 'RT:', reactionTime, 'ms');
         };
@@ -338,21 +348,31 @@ class ScenePDChoice extends Phaser.Scene {
     handleTimeout() {
         console.log('Choice timeout - no selection made');
 
-        // Emit timeout event
-        window.socket.emit('choice made', {
+        // Detect experiment type and emit appropriate event
+        const isNetworkedPD = window.taskType === 'networked_pd' || indivOrGroup === 'group';
+        const eventName = isNetworkedPD ? 'networked_pd_choice' : 'choice made';
+
+        const eventData = {
             sessionId: window.sessionId,
             roomId: window.roomId,
             subjectId: window.subjectId,
-            num_choice: null,
-            chosenOptionLocation: null,
-            thisTrial: this.trial,
-            hadClickedBeforeTimeout: false,
-            timedOut: true,
-            individual_payoff: 0,
-            timestamp: new Date().toISOString(),
+            roundNumber: this.trial,
+            choice: null,
             reactionTime: this.maxChoiceTime,
-            prob_means: []
-        });
+            timestamp: new Date().toISOString(),
+            hadClickedBeforeTimeout: false,
+            timedOut: true
+        };
+
+        if (!isNetworkedPD) {
+            eventData.num_choice = null;
+            eventData.chosenOptionLocation = null;
+            eventData.thisTrial = this.trial;
+            eventData.individual_payoff = 0;
+            eventData.prob_means = [];
+        }
+
+        window.socket.emit(eventName, eventData);
     }
 
     shutdown() {

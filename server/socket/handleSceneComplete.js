@@ -127,7 +127,10 @@ async function handleSceneComplete(client, data, config, io) {
     let sequence;
 
     if (config.experimentLoader && config.experimentLoader.sequence) {
-        sequence = config.experimentLoader.sequence.sequence;
+        // experimentLoader.sequence is already the normalized array
+        sequence = Array.isArray(config.experimentLoader.sequence)
+            ? config.experimentLoader.sequence
+            : config.experimentLoader.sequence.sequence || config.experimentLoader.sequence;
     } else if (data.sequence) {
         // Fallback to sequence sent from client
         sequence = data.sequence;

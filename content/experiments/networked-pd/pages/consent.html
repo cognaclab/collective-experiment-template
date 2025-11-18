@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consent Form - <%= study.title %></title>
+    <title>Consent Form - Networked Cooperation Study</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -111,114 +111,140 @@
         <h1>Research Participation Consent Form</h1>
 
         <div class="info-box">
-            <strong>Study Title:</strong> <%= study.title %>
-            <strong>Principal Investigator:</strong> <%= study.researchers.principal_investigator.name %>, <%= study.researchers.principal_investigator.affiliation %>
-            <strong>Institution:</strong> <%= study.institution.name %>
-            <% if (study.ethics && study.ethics.approval_number) { %>
-            <strong>Ethics Approval:</strong> <%= study.ethics.irb_name %> (#<%= study.ethics.approval_number %>)
-            <% } %>
+            <strong>Study Title:</strong> Networked Cooperation Study
+            <strong>Principal Investigator:</strong> Dr. Researcher Name, RIKEN Center for Brain Science
+            <strong>Institution:</strong> RIKEN Center for Brain Science
+            
+            <strong>Ethics Approval:</strong> RIKEN Research Ethics Committee (#2025-XXX)
+            
         </div>
 
         <h2>Study Purpose</h2>
-        <p><%= study.short_description %></p>
+        <p>A study on cooperation and decision-making in social networks</p>
 
-        <% if (consent.overview && consent.overview.enabled) { %>
+        
         <h2>Study Overview</h2>
-        <p><%= consent.overview.description %></p>
+        <p>This study is divided into two parts.</p>
 
-        <% if (consent.overview.parts && consent.overview.parts.length > 0) { %>
-        <% consent.overview.parts.forEach((part, index) => { %>
-        <p><strong>Part <%= index + 1 %>:</strong> <%= part.description %></p>
-        <% }); %>
-        <% } %>
+        
+        
+        <p><strong>Part 1:</strong> A group decision-making game where you will make choices with other participants. Based on these decisions, your team will be able to earn bonus points that will be added to your participation fee.</p>
+        
+        <p><strong>Part 2:</strong> A short survey to help us understand how you made decisions in the first part. All results will be collected fully confidentially.</p>
+        
+        
 
-        <% if (consent.overview.waiting_info) { %>
+        
         <div class="info-box">
-            <p><strong>Waiting Time:</strong> <%= consent.overview.waiting_info.description %></p>
-            <% if (consent.overview.waiting_info.compensation) { %>
-            <p><%= consent.overview.waiting_info.compensation %></p>
-            <% } %>
+            <p><strong>Waiting Time:</strong> This study will be played in groups with other participants (8 people). In order to find enough participants, you might need to wait for up to 5 minutes to begin. Do not worry about losing time during this process - please be patient.</p>
+            
+            <p>You will be paid for the amount of time you have waited (10 pence per minute).</p>
+            
         </div>
-        <% } %>
+        
 
-        <% if (consent.overview.total_time) { %>
-        <p><strong>Total Time:</strong> <%= consent.overview.total_time %></p>
-        <% } %>
-        <% } %>
+        
+        <p><strong>Total Time:</strong> The completion of the study should take approximately 30-40 minutes.</p>
+        
+        
 
         <h2>What Will Happen?</h2>
         <p>If you agree to participate, you will:</p>
         <ul>
-            <li>Complete an online experiment lasting approximately <%= consent.participation.estimated_duration %></li>
+            <li>Complete an online experiment lasting approximately 30-40 minutes</li>
             <li>Make decisions in interactive tasks with other participants</li>
             <li>Answer questionnaires about your experience and strategies</li>
         </ul>
 
         <h2>Compensation</h2>
         <div class="info-box">
-            <p><strong>You will receive <%= consent.participation.compensation.amount %> <%= consent.participation.compensation.currency %></strong></p>
-            <% if (consent.participation.compensation.calculation) { %>
-            <p><%= consent.participation.compensation.calculation %></p>
-            <% } %>
+            <p><strong>You will receive £1.50 - £6.50 GBP</strong></p>
+            
+            <p>£1.00 base fee + £0.50 completion bonus + performance bonus (up to £5.00 based on decisions) + waiting time compensation</p>
+            
         </div>
 
-        <% if (consent.eligibility && consent.eligibility.length > 0) { %>
+        
         <h2>Eligibility</h2>
         <p>To participate, you must:</p>
         <ul>
-            <% consent.eligibility.forEach(criterion => { %>
-            <li><%= criterion %></li>
-            <% }); %>
+            
+            <li>Age 18 or older</li>
+            
+            <li>Fluent in English</li>
+            
+            <li>Access to a computer with stable internet connection</li>
+            
+            <li>Available for the full duration of the study (approximately 30-40 minutes)</li>
+            
+            <li>No previous participation in this study</li>
+            
         </ul>
-        <% } %>
+        
 
-        <% if (consent.risks && consent.risks.length > 0) { %>
+        
         <h2>Risks</h2>
         <ul>
-            <% consent.risks.forEach(risk => { %>
-            <li><%= risk %></li>
-            <% }); %>
+            
+            <li>Minimal risk: Possible mild fatigue from decision-making tasks</li>
+            
+            <li>No anticipated physical or psychological risks beyond those encountered in everyday life</li>
+            
+            <li>You may experience mild frustration if waiting for other participants</li>
+            
         </ul>
-        <% } %>
+        
 
-        <% if (consent.benefits && consent.benefits.length > 0) { %>
+        
         <h2>Benefits</h2>
         <ul>
-            <% consent.benefits.forEach(benefit => { %>
-            <li><%= benefit %></li>
-            <% }); %>
+            
+            <li>Contribution to scientific understanding of cooperation and social decision-making</li>
+            
+            <li>Monetary compensation for your time and decisions</li>
+            
+            <li>Opportunity to learn about your decision-making strategies</li>
+            
         </ul>
-        <% } %>
+        
 
         <h2>Data Privacy & Confidentiality</h2>
-        <% if (consent.data) { %>
+        
         <ul>
-            <% if (consent.data.anonymization) { %>
-            <li><strong>Anonymization:</strong> <%= consent.data.anonymization %></li>
-            <% } %>
-            <% if (consent.data.storage) { %>
-            <li><strong>Storage:</strong> <%= consent.data.storage %></li>
-            <% } %>
-            <% if (consent.data.retention_period) { %>
-            <li><strong>Retention:</strong> Data will be retained for <%= consent.data.retention_period %></li>
-            <% } %>
-            <% if (consent.data.sharing) { %>
-            <li><strong>Data Sharing:</strong> <%= consent.data.sharing %></li>
-            <% } %>
-            <% if (consent.data.withdrawal) { %>
-            <li><strong>Withdrawal:</strong> <%= consent.data.withdrawal %></li>
-            <% } %>
+            
+            <li><strong>Anonymization:</strong> All data will be anonymized and identified only by a participant ID. Your personal information will not be linked to your decisions.</li>
+            
+            
+            <li><strong>Storage:</strong> Data will be stored securely on encrypted servers at RIKEN Center for Brain Science</li>
+            
+            
+            <li><strong>Retention:</strong> Data will be retained for 5 years after publication of research findings</li>
+            
+            
+            <li><strong>Data Sharing:</strong> Anonymized data may be shared with other researchers via public repositories to enable verification and further research</li>
+            
+            
+            <li><strong>Withdrawal:</strong> You may withdraw at any time before completing the study without penalty. However, once data is anonymized, it cannot be withdrawn as it cannot be identified.</li>
+            
         </ul>
-        <% } %>
+        
 
-        <% if (consent.rights && consent.rights.length > 0) { %>
+        
         <h2>Your Rights</h2>
         <ul>
-            <% consent.rights.forEach(right => { %>
-            <li><%= right %></li>
-            <% }); %>
+            
+            <li>Voluntary participation - you may withdraw at any time without penalty</li>
+            
+            <li>Right to ask questions before, during, or after the study</li>
+            
+            <li>Right to request information about the study results</li>
+            
+            <li>Right to privacy and confidentiality of your data</li>
+            
+            <li>Right to refuse to answer any question without penalty</li>
+            
         </ul>
-        <% } %>
+        
 
         <h2>Declaration</h2>
         <p>Please check the following statements if you agree:</p>
@@ -255,13 +281,13 @@
             <strong>Questions or Concerns?</strong>
             <p>If you have questions about this research, please contact:</p>
             <p>
-                <%= study.researchers.principal_investigator.name %><br>
-                Email: <%= study.researchers.principal_investigator.email %>
+                Dr. Researcher Name<br>
+                Email: researcher@riken.jp
             </p>
-            <% if (study.ethics && study.ethics.contact_email) { %>
+            
             <p>For questions about your rights as a research participant, contact:<br>
-            <%= study.ethics.irb_name %>: <%= study.ethics.contact_email %></p>
-            <% } %>
+            RIKEN Research Ethics Committee: ethics@riken.jp</p>
+            
         </div>
     </div>
 
@@ -281,8 +307,8 @@
             // Record consent timestamp
             const consentData = {
                 timestamp: new Date().toISOString(),
-                studyTitle: "<%= study.title %>",
-                version: "<%= consent.version || '1.0' %>",
+                studyTitle: "Networked Cooperation Study",
+                version: "1.0",
                 agreed: true,
                 declarations: {
                     readAndUnderstood: true,
@@ -300,7 +326,7 @@
             const subjectID = urlParams.get('subjectID');
 
             // Redirect to game server with subjectID
-            const gameServerUrl = '<%= typeof gameServerUrl !== "undefined" ? gameServerUrl : "http://localhost:8181" %>';
+            const gameServerUrl = 'http://localhost:8181';
             window.location.href = `${gameServerUrl}/?subjectID=${subjectID}`;
         }
     </script>
