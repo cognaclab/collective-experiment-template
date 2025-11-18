@@ -169,11 +169,45 @@ class SceneGenerator {
             // Generate consent form and questionnaire from templates
             await this.generateConsentAndQuestionnaire();
 
+            // Update .env file with the generated experiment path
+            this.updateEnvFile();
+
             console.log('✅ Scene and page generation completed successfully!');
-            
+
         } catch (error) {
             console.error('❌ Scene generation failed:', error.message);
             process.exit(1);
+        }
+    }
+
+    updateEnvFile() {
+        try {
+            const envPath = path.join(this.rootDir, '.env');
+
+            if (!fs.existsSync(envPath)) {
+                console.warn('⚠️  .env file not found - skipping auto-update');
+                return;
+            }
+
+            let envContent = fs.readFileSync(envPath, 'utf8');
+            const experimentPath = `content/experiments/${this.experimentName}`;
+
+            // Update EXPERIMENT_PATH line, preserving comments
+            const experimentPathRegex = /^(EXPERIMENT_PATH=)(.*)$/m;
+
+            if (experimentPathRegex.test(envContent)) {
+                envContent = envContent.replace(
+                    experimentPathRegex,
+                    `$1${experimentPath}`
+                );
+
+                fs.writeFileSync(envPath, envContent, 'utf8');
+                console.log(`📝 Updated .env: EXPERIMENT_PATH=${experimentPath}`);
+            } else {
+                console.warn('⚠️  EXPERIMENT_PATH not found in .env - skipping auto-update');
+            }
+        } catch (error) {
+            console.warn('⚠️  Failed to update .env:', error.message);
         }
     }
 
