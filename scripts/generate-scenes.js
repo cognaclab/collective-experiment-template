@@ -10,6 +10,7 @@ const path = require('path');
 const yaml = require('js-yaml');
 const matter = require('gray-matter');
 const { marked } = require('marked');
+const { TemplateRenderer } = require('./templateRenderer');
 
 // Registry of variables that should remain as runtime EJS variables
 const RUNTIME_VARIABLES = [
@@ -164,6 +165,9 @@ class SceneGenerator {
 
             // Generate custom main-generated.js with only required scenes
             this.generateMainJs();
+
+            // Generate consent form and questionnaire from templates
+            await this.generateConsentAndQuestionnaire();
 
             console.log('✅ Scene and page generation completed successfully!');
             
@@ -1065,6 +1069,67 @@ ${exampleScenesList}
                 resolve(confirmed);
             });
         });
+    }
+
+    /**
+     * Generate consent form and questionnaire from templates
+     */
+    async generateConsentAndQuestionnaire() {
+        try {
+            console.log('');
+            console.log('📋 Generating consent form and questionnaire...');
+
+            const renderer = new TemplateRenderer(this.config, this.contentDir);
+            const results = await renderer.renderAll();
+
+            if (results.consent) {
+                console.log('  ✓ Generated consent form');
+                await this.copyConsentToViews(results.consent);
+            }
+            if (results.questionnaire) {
+                console.log('  ✓ Generated questionnaire');
+                await this.copyQuestionnaireToViews(results.questionnaire);
+            }
+            if (results.debrief) {
+                console.log('  ✓ Generated debrief page');
+            }
+
+            if (!results.consent && !results.questionnaire && !results.debrief) {
+                console.log('  ⚠ No consent/questionnaire config found - skipping');
+            }
+
+        } catch (error) {
+            console.warn('⚠️  Could not generate consent/questionnaire:', error.message);
+            console.warn('   This is optional - continuing with scene generation');
+        }
+    }
+
+    /**
+     * Copy generated consent.html to client/views/generated/index.ejs
+     */
+    async copyConsentToViews(consentPath) {
+        try {
+            const content = fs.readFileSync(consentPath, 'utf8');
+            const destPath = path.join(this.viewsDir, 'index.ejs');
+            fs.writeFileSync(destPath, content, 'utf8');
+            console.log('  ✓ Copied consent form to views/generated/index.ejs');
+        } catch (error) {
+            console.warn('  ⚠ Could not copy consent to views:', error.message);
+        }
+    }
+
+    /**
+     * Copy generated questionnaire.html to client/views/generated/questionnaire.ejs
+     */
+    async copyQuestionnaireToViews(questionnairePath) {
+        try {
+            const content = fs.readFileSync(questionnairePath, 'utf8');
+            const destPath = path.join(this.viewsDir, 'questionnaire.ejs');
+            fs.writeFileSync(destPath, content, 'utf8');
+            console.log('  ✓ Copied questionnaire to views/generated/questionnaire.ejs');
+        } catch (error) {
+            console.warn('  ⚠ Could not copy questionnaire to views:', error.message);
+        }
     }
 }
 

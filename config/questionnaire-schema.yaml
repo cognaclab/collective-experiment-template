@@ -1,0 +1,169 @@
+# Questionnaire Configuration Schema
+# This defines how to structure post-experiment (or pre-experiment) questionnaires
+
+# =============================================================================
+# QUESTIONNAIRE CONFIGURATION
+# =============================================================================
+questionnaire:
+  enabled: true
+  type: "post_experiment"  # "pre_experiment" | "post_experiment" | "both"
+  title: "Post-Experiment Questionnaire"  # Optional, defaults to "Questionnaire"
+
+  # Question sections - organize questions into logical groups
+  sections:
+    # Example: Strategy questions
+    - id: "strategy"
+      title: "Strategy and Decision-Making"
+      description: "Tell us about how you made decisions"  # Optional
+      questions:
+        - id: "overall_strategy"
+          type: "textarea"
+          text: "Please describe your overall strategy in the experiment:"
+          required: true
+          placeholder: "Describe what factors influenced your decisions..."
+          rows: 5  # Optional, for textarea
+
+        - id: "partner_consideration"
+          type: "radio"
+          text: "Did you change your strategy based on who your partner was?"
+          required: true
+          options:
+            - "Yes"
+            - "No"
+            - "Sometimes"
+
+        - id: "partner_consideration_explain"
+          type: "textarea"
+          text: "If yes or sometimes, please explain:"
+          required: false
+          conditional:  # Only show if certain answer to previous question
+            depends_on: "partner_consideration"
+            show_if: ["Yes", "Sometimes"]
+
+    # Example: Experience questions
+    - id: "experience"
+      title: "Your Experience"
+      questions:
+        - id: "difficulty"
+          type: "radio"
+          text: "How difficult was the game?"
+          required: true
+          options:
+            - "Very Easy"
+            - "Easy"
+            - "Moderate"
+            - "Difficult"
+            - "Very Difficult"
+
+        - id: "engagement"
+          type: "scale"  # Likert scale
+          text: "How engaged were you?"
+          required: true
+          scale:
+            min: 1
+            max: 7
+            min_label: "Not at all engaged"
+            max_label: "Very engaged"
+
+        - id: "comments"
+          type: "textarea"
+          text: "Any additional comments?"
+          required: false
+
+    # Example: Demographics (optional section)
+    - id: "demographics"
+      title: "Demographics"
+      description: "This information helps us understand our participant pool. All responses are optional."
+      questions:
+        - id: "age"
+          type: "number"
+          text: "Age:"
+          required: false
+          min: 18
+          max: 100
+
+        - id: "gender"
+          type: "select"
+          text: "Gender:"
+          required: false
+          options:
+            - "Male"
+            - "Female"
+            - "Non-binary"
+            - "Other"
+            - "Prefer not to say"
+
+        - id: "education"
+          type: "select"
+          text: "Highest level of education:"
+          required: false
+          options:
+            - "High school or equivalent"
+            - "Some college"
+            - "Bachelor's degree"
+            - "Master's degree"
+            - "Doctoral degree"
+            - "Prefer not to say"
+
+# =============================================================================
+# SUPPORTED QUESTION TYPES
+# =============================================================================
+# - text: Single-line text input
+# - textarea: Multi-line text input
+# - number: Numeric input with min/max
+# - radio: Single selection from options
+# - checkbox: Multiple selections allowed
+# - select: Dropdown selection
+# - scale: Likert scale (1-5, 1-7, etc.)
+
+# =============================================================================
+# EXAMPLE: Minimal Questionnaire
+# =============================================================================
+# questionnaire:
+#   enabled: true
+#   sections:
+#     - id: "feedback"
+#       title: "Feedback"
+#       questions:
+#         - id: "strategy"
+#           type: "textarea"
+#           text: "What was your strategy?"
+#           required: true
+#
+#         - id: "difficulty"
+#           type: "radio"
+#           text: "How difficult was it?"
+#           options: ["Easy", "Medium", "Hard"]
+
+# =============================================================================
+# EXAMPLE: Experiment-Specific Questionnaire
+# =============================================================================
+# For networked PD, you might have custom questions:
+#
+# questionnaire:
+#   sections:
+#     - id: "ostracism"
+#       title: "Partner Selection"
+#       questions:
+#         - id: "ostracism_criteria"
+#           type: "textarea"
+#           text: "What criteria did you use to decide whether to break links?"
+#           required: true
+#
+#         - id: "ostracism_frequency"
+#           type: "radio"
+#           text: "How many times did you break a link?"
+#           options:
+#             - "Never"
+#             - "1-2 times"
+#             - "3-5 times"
+#             - "More than 5"
+
+# =============================================================================
+# NOTES
+# =============================================================================
+# - Questionnaire data is saved to Session model in database
+# - Questions can be conditionally shown based on previous answers
+# - Validation happens client-side and server-side
+# - Custom questionnaires can be created manually in pages/questionnaire.html
+#   (generator will skip if file already exists)
