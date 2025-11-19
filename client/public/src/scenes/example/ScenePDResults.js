@@ -129,12 +129,12 @@ class ScenePDResults extends Phaser.Scene {
             }).setOrigin(0.5);
 
             // Total points accumulated
-            const totalY = payoffDetailsY + 60;
-            this.add.text(400, totalY, `Your Total: ${this.totalPoints} points`, {
-                fontSize: '28px',
-                fill: '#4CAF50',
-                fontStyle: 'bold'
-            }).setOrigin(0.5);
+            // const totalY = payoffDetailsY + 60;
+            // this.add.text(400, totalY, `Your Total: ${this.totalPoints} points`, {
+            //     fontSize: '28px',
+            //     fill: '#4CAF50',
+            //     fontStyle: 'bold'
+            // }).setOrigin(0.5);
         }
 
         // Continue button

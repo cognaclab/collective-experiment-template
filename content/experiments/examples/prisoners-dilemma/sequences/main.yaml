@@ -14,12 +14,6 @@ sequence:
   - scene: "ScenePDChoice"
     type: "pd_choice"
     next: "ScenePDResults"
-    next_on_timeout: "SceneAskStillThere"
-    next_on_miss: "SceneAskStillThere"
-
-  - scene: "SceneAskStillThere"
-    type: "warning"
-    next: "ScenePDResults"
 
   - scene: "ScenePDResults"
     type: "pd_results"
