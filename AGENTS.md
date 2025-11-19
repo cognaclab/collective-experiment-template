@@ -820,7 +820,7 @@ APP_URL=http://localhost:8000          # Web server URL
 GAME_SERVER_URL=http://localhost:8181  # Game server URL
 
 # Database
-MONGODB_URI=mongodb://localhost:27017/collective_reward_exp
+MONGODB_URI=mongodb://localhost:27017/collective_experiments
 
 # Logging
 LOG_LEVEL=info                         # debug, info, warn, error
