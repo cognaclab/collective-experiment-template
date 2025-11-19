@@ -1,7 +1,7 @@
 services:
   mongodb:
     image: mongo:latest
-    container_name: collective-exp-db
+    container_name: collective-experiment-mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"
@@ -12,12 +12,12 @@ services:
       - mongodb_data:/data/db
       - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/01-init.js:ro
     networks:
-      - collective-exp-network
+      - collective-experiment-network
 
 volumes:
   mongodb_data:
-    name: collective_exp_mongodb_data
+    name: collective_experiment_mongodb_data
 
 networks:
-  collective-exp-network:
-    name: collective_exp_network
+  collective-experiment-network:
+    name: collective_experiment_network
