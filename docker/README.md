@@ -25,31 +25,40 @@ npm run dev:full
 ## Database Structure
 
 The MongoDB instance includes:
-- **Database:** `collective_bandit_dev` (development)
-- **Database:** `collective_bandit_test` (testing)
-- **Main Collection:** `default_experiment` (behavioural data)
-- **Schema:** See `models/behaviouralData.js`
+- **Database:** `collective_experiments` (single database for all experiments)
+- **Collections:**
+  - `experiments` - Experiment metadata and configuration
+  - `sessions` - Per-participant session data
+  - `trials` - Trial-level choice and outcome data
 
 ## Viewing Data
 
 Connect with MongoDB Compass or mongosh:
 ```bash
-mongosh mongodb://localhost:27017/collective_bandit_dev
+mongosh mongodb://localhost:27017/collective_experiments
+```
+
+Or use the npm script:
+```bash
+npm run db:shell
 ```
 
 Common queries:
 ```javascript
-// View all subjects
-db.default_experiment.distinct("subjectID")
+// List all experiments
+db.experiments.find({}, { experimentName: 1, status: 1 })
 
-// Find data for a specific subject
-db.default_experiment.find({ subjectID: "wataruDebug" })
+// View sessions for an experiment
+db.sessions.find({ experimentName: "Quick Test" })
 
-// Count total records
-db.default_experiment.countDocuments()
+// View trials for a specific session
+db.trials.find({ sessionId: "your-session-id" })
 
-// View recent experiments
-db.default_experiment.find().sort({ date: -1, time: -1 }).limit(10)
+// Count total trials
+db.trials.countDocuments()
+
+// View recent trials
+db.trials.find().sort({ timestamp: -1 }).limit(10)
 ```
 
 ## Docker Commands
@@ -84,17 +93,17 @@ npm run docker:down && npm run docker:up
 ```
 
 ### Data persistence
-Data is stored in a Docker volume named `collective_bandit_mongodb_data`. To completely reset:
+Data is stored in a Docker volume named `collective_exp_mongodb_data`. To completely reset:
 ```bash
 npm run docker:clean  # This removes all data permanently
 ```
 
-## Collection Configuration
+## Database Configuration
 
-The collection name can be changed via environment variable:
+The database name is configured via environment variable:
 ```bash
 # In your .env file
-MONGODB_COLLECTION=my_custom_experiment
+MONGODB_URI=mongodb://localhost:27017/collective_experiments
 ```
 
-Default collection: `default_experiment`
+All experiments share the same database. Individual experiment data is differentiated by the `experimentName` field in each collection.
