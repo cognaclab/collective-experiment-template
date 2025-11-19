@@ -93,7 +93,7 @@ npm run docker:down && npm run docker:up
 ```
 
 ### Data persistence
-Data is stored in a Docker volume named `collective_exp_mongodb_data`. To completely reset:
+Data is stored in a Docker volume named `collective_experiment_mongodb_data`. To completely reset:
 ```bash
 npm run docker:clean  # This removes all data permanently
 ```
