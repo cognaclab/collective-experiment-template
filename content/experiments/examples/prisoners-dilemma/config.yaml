@@ -8,6 +8,148 @@ experiment:
   version: "1.0"
   created: "2025-01-05"
 
+# =============================================================================
+# CONSENT FORM CONFIGURATION
+# =============================================================================
+study:
+  title: "Prisoner's Dilemma Study"
+  short_description: "A two-player cooperation game to study decision-making"
+
+  researchers:
+    principal_investigator:
+      name: "Dr. Researcher Name"
+      affiliation: "Your Institution"
+      email: "researcher@institution.edu"
+
+  institution:
+    name: "Your Institution"
+    department: "Department of Psychology"
+
+  ethics:
+    irb_name: "Institutional Review Board"
+    approval_number: "IRB-2025-XXX"
+    contact_email: "irb@institution.edu"
+
+consent:
+  enabled: true
+  version: "1.0"
+  last_updated: "2025-01-01"
+
+  overview:
+    enabled: true
+    description: "This study is divided into two parts."
+    parts:
+      - description: "A two-player decision-making game where you will interact with another participant. Your earnings depend on both your choices and your partner's choices."
+      - description: "A brief survey about your decision-making strategies"
+    waiting_info:
+      description: "You will need to wait for another participant to join before the game can begin. This may take up to 2 minutes."
+      compensation: "You will be compensated for waiting time (10 pence per minute)"
+    total_time: "The study should take approximately 10-15 minutes"
+
+  participation:
+    estimated_duration: "10-15 minutes"
+
+  eligibility:
+    - "Age 18 or older"
+    - "Fluent in English"
+    - "Access to a computer with stable internet connection"
+    - "Available for the full duration (approximately 15 minutes)"
+
+  risks:
+    - "Minimal risk: No anticipated risks beyond those encountered in everyday life"
+    - "You may experience brief frustration while waiting for another participant"
+
+  benefits:
+    - "Contribution to scientific understanding of cooperation and decision-making"
+    - "Monetary compensation for your time"
+
+  data:
+    anonymization: "All data will be anonymized and identified only by a participant ID"
+    storage: "Data will be stored securely on encrypted servers"
+    retention_period: "5 years after publication"
+    sharing: "Anonymized data may be shared with other researchers"
+    withdrawal: "You may withdraw at any time before completing the study"
+
+  rights:
+    - "Voluntary participation - you may withdraw at any time"
+    - "Right to ask questions before or during the study"
+    - "Right to privacy and confidentiality of your data"
+
+# =============================================================================
+# QUESTIONNAIRE CONFIGURATION
+# =============================================================================
+questionnaire:
+  enabled: true
+  type: "post_experiment"
+  title: "Post-Game Survey"
+
+  sections:
+    - id: "strategy"
+      title: "Strategy and Decision-Making"
+      questions:
+        - id: "overall_strategy"
+          type: "textarea"
+          text: "Please describe your overall strategy in the game:"
+          required: true
+          placeholder: "What factors influenced your decisions to cooperate or defect?"
+          rows: 4
+
+        - id: "partner_influence"
+          type: "radio"
+          text: "Did your partner's choices influence your decisions?"
+          required: true
+          options:
+            - "Yes, significantly"
+            - "Yes, somewhat"
+            - "Not really"
+            - "Not at all"
+
+        - id: "partner_influence_explain"
+          type: "textarea"
+          text: "If yes, please explain how your partner influenced you:"
+          required: false
+          rows: 3
+
+    - id: "experience"
+      title: "Your Experience"
+      questions:
+        - id: "difficulty"
+          type: "radio"
+          text: "How difficult was it to decide what to do?"
+          required: true
+          options:
+            - "Very Easy"
+            - "Easy"
+            - "Moderate"
+            - "Difficult"
+            - "Very Difficult"
+
+        - id: "engagement"
+          type: "scale"
+          text: "How engaged were you during the game?"
+          required: true
+          scale:
+            min: 1
+            max: 7
+            min_label: "Not at all engaged"
+            max_label: "Very engaged"
+
+        - id: "fairness"
+          type: "scale"
+          text: "How fair do you think your partner played?"
+          required: true
+          scale:
+            min: 1
+            max: 7
+            min_label: "Very unfair"
+            max_label: "Very fair"
+
+        - id: "comments"
+          type: "textarea"
+          text: "Any additional comments or feedback?"
+          required: false
+          rows: 3
+
 game:
   horizon: 3                      # 3 trials (minimal for testing)
   total_game_rounds: 1            # One round only

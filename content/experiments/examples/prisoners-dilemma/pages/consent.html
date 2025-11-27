@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consent Form - <%= study.title %></title>
+    <title>Consent Form - Prisoner&#39;s Dilemma Study</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -111,121 +111,132 @@
         <h1>Research Participation Consent Form</h1>
 
         <div class="info-box">
-            <strong>Study Title:</strong> <%= study.title %>
-            <strong>Principal Investigator:</strong> <%= study.researchers.principal_investigator.name %>, <%= study.researchers.principal_investigator.affiliation %>
-            <strong>Institution:</strong> <%= study.institution.name %>
-            <% if (study.ethics && study.ethics.approval_number) { %>
-            <strong>Ethics Approval:</strong> <%= study.ethics.irb_name %> (#<%= study.ethics.approval_number %>)
-            <% } %>
+            <strong>Study Title:</strong> Prisoner&#39;s Dilemma Study
+            <strong>Principal Investigator:</strong> Dr. Researcher Name, Your Institution
+            <strong>Institution:</strong> Your Institution
+            
+            <strong>Ethics Approval:</strong> Institutional Review Board (#IRB-2025-XXX)
+            
         </div>
 
         <h2>Study Purpose</h2>
-        <p><%= study.short_description %></p>
+        <p>A two-player cooperation game to study decision-making</p>
 
-        <% if (consent.overview && consent.overview.enabled) { %>
+        
         <h2>Study Overview</h2>
-        <p><%= consent.overview.description %></p>
+        <p>This study is divided into two parts.</p>
 
-        <% if (consent.overview.parts && consent.overview.parts.length > 0) { %>
-        <% consent.overview.parts.forEach((part, index) => { %>
-        <p><strong>Part <%= index + 1 %>:</strong> <%= part.description %></p>
-        <% }); %>
-        <% } %>
+        
+        
+        <p><strong>Part 1:</strong> A two-player decision-making game where you will interact with another participant. Your earnings depend on both your choices and your partner&#39;s choices.</p>
+        
+        <p><strong>Part 2:</strong> A brief survey about your decision-making strategies</p>
+        
+        
 
-        <% if (consent.overview.waiting_info) { %>
+        
         <div class="info-box">
-            <p><strong>Waiting Time:</strong> <%= consent.overview.waiting_info.description %></p>
-            <% if (consent.overview.waiting_info.compensation) { %>
-            <p><%= consent.overview.waiting_info.compensation %></p>
-            <% } %>
+            <p><strong>Waiting Time:</strong> You will need to wait for another participant to join before the game can begin. This may take up to 2 minutes.</p>
+            
+            <p>You will be compensated for waiting time (10 pence per minute)</p>
+            
         </div>
-        <% } %>
+        
 
-        <% if (consent.overview.total_time) { %>
-        <p><strong>Total Time:</strong> <%= consent.overview.total_time %></p>
-        <% } %>
-        <% } %>
+        
+        <p><strong>Total Time:</strong> The study should take approximately 10-15 minutes</p>
+        
+        
 
         <h2>What Will Happen?</h2>
         <p>If you agree to participate, you will:</p>
         <ul>
-            <li>Complete an online experiment lasting approximately <%= consent.participation.estimated_duration %></li>
+            <li>Complete an online experiment lasting approximately 10-15 minutes</li>
             <li>Make decisions in interactive tasks with other participants</li>
             <li>Answer questionnaires about your experience and strategies</li>
         </ul>
 
         <h2>Compensation</h2>
         <div class="info-box">
-            <% if (typeof compensation !== 'undefined' && compensation.minimumPayment > 0) { %>
-            <p><strong>You will receive at least <%= compensation.minimumFormatted %> <%= compensation.currency %></strong></p>
-            <% if (compensation.breakdown) { %>
-            <p><%= compensation.breakdown %></p>
-            <% } %>
-            <% } else if (consent.participation && consent.participation.compensation) { %>
-            <p><strong>You will receive <%= consent.participation.compensation.amount %> <%= consent.participation.compensation.currency %></strong></p>
-            <% if (consent.participation.compensation.calculation) { %>
-            <p><%= consent.participation.compensation.calculation %></p>
-            <% } %>
-            <% } %>
+            
+            <p><strong>You will receive at least £0.75 GBP</strong></p>
+            
+            <p>£0.50 base fee + £0.25 completion bonus + performance bonus based on your decisions</p>
+            
+            
         </div>
 
-        <% if (consent.eligibility && consent.eligibility.length > 0) { %>
+        
         <h2>Eligibility</h2>
         <p>To participate, you must:</p>
         <ul>
-            <% consent.eligibility.forEach(criterion => { %>
-            <li><%= criterion %></li>
-            <% }); %>
+            
+            <li>Age 18 or older</li>
+            
+            <li>Fluent in English</li>
+            
+            <li>Access to a computer with stable internet connection</li>
+            
+            <li>Available for the full duration (approximately 15 minutes)</li>
+            
         </ul>
-        <% } %>
+        
 
-        <% if (consent.risks && consent.risks.length > 0) { %>
+        
         <h2>Risks</h2>
         <ul>
-            <% consent.risks.forEach(risk => { %>
-            <li><%= risk %></li>
-            <% }); %>
+            
+            <li>Minimal risk: No anticipated risks beyond those encountered in everyday life</li>
+            
+            <li>You may experience brief frustration while waiting for another participant</li>
+            
         </ul>
-        <% } %>
+        
 
-        <% if (consent.benefits && consent.benefits.length > 0) { %>
+        
         <h2>Benefits</h2>
         <ul>
-            <% consent.benefits.forEach(benefit => { %>
-            <li><%= benefit %></li>
-            <% }); %>
+            
+            <li>Contribution to scientific understanding of cooperation and decision-making</li>
+            
+            <li>Monetary compensation for your time</li>
+            
         </ul>
-        <% } %>
+        
 
         <h2>Data Privacy & Confidentiality</h2>
-        <% if (consent.data) { %>
+        
         <ul>
-            <% if (consent.data.anonymization) { %>
-            <li><strong>Anonymization:</strong> <%= consent.data.anonymization %></li>
-            <% } %>
-            <% if (consent.data.storage) { %>
-            <li><strong>Storage:</strong> <%= consent.data.storage %></li>
-            <% } %>
-            <% if (consent.data.retention_period) { %>
-            <li><strong>Retention:</strong> Data will be retained for <%= consent.data.retention_period %></li>
-            <% } %>
-            <% if (consent.data.sharing) { %>
-            <li><strong>Data Sharing:</strong> <%= consent.data.sharing %></li>
-            <% } %>
-            <% if (consent.data.withdrawal) { %>
-            <li><strong>Withdrawal:</strong> <%= consent.data.withdrawal %></li>
-            <% } %>
+            
+            <li><strong>Anonymization:</strong> All data will be anonymized and identified only by a participant ID</li>
+            
+            
+            <li><strong>Storage:</strong> Data will be stored securely on encrypted servers</li>
+            
+            
+            <li><strong>Retention:</strong> Data will be retained for 5 years after publication</li>
+            
+            
+            <li><strong>Data Sharing:</strong> Anonymized data may be shared with other researchers</li>
+            
+            
+            <li><strong>Withdrawal:</strong> You may withdraw at any time before completing the study</li>
+            
         </ul>
-        <% } %>
+        
 
-        <% if (consent.rights && consent.rights.length > 0) { %>
+        
         <h2>Your Rights</h2>
         <ul>
-            <% consent.rights.forEach(right => { %>
-            <li><%= right %></li>
-            <% }); %>
+            
+            <li>Voluntary participation - you may withdraw at any time</li>
+            
+            <li>Right to ask questions before or during the study</li>
+            
+            <li>Right to privacy and confidentiality of your data</li>
+            
         </ul>
-        <% } %>
+        
 
         <h2>Declaration</h2>
         <p>Please check the following statements if you agree:</p>
@@ -262,13 +273,13 @@
             <strong>Questions or Concerns?</strong>
             <p>If you have questions about this research, please contact:</p>
             <p>
-                <%= study.researchers.principal_investigator.name %><br>
-                Email: <%= study.researchers.principal_investigator.email %>
+                Dr. Researcher Name<br>
+                Email: researcher@institution.edu
             </p>
-            <% if (study.ethics && study.ethics.contact_email) { %>
+            
             <p>For questions about your rights as a research participant, contact:<br>
-            <%= study.ethics.irb_name %>: <%= study.ethics.contact_email %></p>
-            <% } %>
+            Institutional Review Board: irb@institution.edu</p>
+            
         </div>
     </div>
 
@@ -288,8 +299,8 @@
             // Record consent timestamp
             const consentData = {
                 timestamp: new Date().toISOString(),
-                studyTitle: "<%= study.title %>",
-                version: "<%= consent.version || '1.0' %>",
+                studyTitle: "Prisoner&#39;s Dilemma Study",
+                version: "1.0",
                 agreed: true,
                 declarations: {
                     readAndUnderstood: true,
@@ -307,7 +318,7 @@
             const subjectID = urlParams.get('subjectID');
 
             // Redirect to game server with subjectID
-            const gameServerUrl = '<%= typeof gameServerUrl !== "undefined" ? gameServerUrl : "http://localhost:8181" %>';
+            const gameServerUrl = 'http://localhost:8181';
             window.location.href = `${gameServerUrl}/?subjectID=${subjectID}`;
         }
     </script>

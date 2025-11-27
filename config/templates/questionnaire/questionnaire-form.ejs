@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= questionnaire.title || "Questionnaire" %> - <%= study.title %></title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .questionnaire-container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        h3 {
+            color: #2c3e50;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            font-weight: normal;
+        }
+        .info-box {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+        .info-box strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        .introduction {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 1.05em;
+        }
+        .privacy-note {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 25px;
+            font-size: 0.95em;
+        }
+
+        /* Question Section Styles */
+        .question-section {
+            margin-bottom: 35px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .question-section:last-of-type {
+            border-bottom: none;
+        }
+        .section-description {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+        .question {
+            margin-bottom: 25px;
+        }
+        .question-text {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .required-marker {
+            color: #e74c3c;
+            margin-left: 3px;
+        }
+
+        /* Text and Number Inputs */
+        .text-input,
+        .number-input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            transition: border-color 0.3s;
+        }
+        .text-input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .number-input {
+            width: 100px;
+        }
+        .text-input:focus,
+        .number-input:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        .input-suffix {
+            margin-left: 10px;
+            color: #666;
+        }
+
+        /* Textarea */
+        .textarea-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            min-height: 100px;
+            resize: vertical;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        .textarea-input:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+
+        /* Radio and Checkbox Groups */
+        .radio-group,
+        .checkbox-group {
+            margin-left: 10px;
+        }
+        .radio-option,
+        .checkbox-option {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .radio-option input,
+        .checkbox-option input {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .radio-option label,
+        .checkbox-option label {
+            cursor: pointer;
+            color: #555;
+        }
+
+        /* Select Dropdown */
+        .select-input {
+            min-width: 200px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            background-color: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .select-input:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+
+        /* Scale (Likert) - Table Layout */
+        .scale-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        .scale-table th {
+            font-weight: normal;
+            font-size: 0.9em;
+            color: #555;
+            padding: 8px 5px;
+            text-align: center;
+            min-width: 60px;
+        }
+        .scale-table td {
+            text-align: center;
+            padding: 8px 5px;
+        }
+        .scale-table input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        /* Button Styles */
+        .button-container {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .submit-button {
+            background-color: #27ae60;
+            color: white;
+            padding: 15px 50px;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .submit-button:hover {
+            background-color: #229954;
+        }
+        .submit-button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        /* Contact Info Footer */
+        .contact-info {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.95em;
+        }
+        .contact-info strong {
+            color: #2c3e50;
+        }
+
+        /* Error States */
+        .error {
+            border-color: #e74c3c !important;
+        }
+        .error-message {
+            color: #e74c3c;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+
+        /* Conditional Hidden Questions */
+        .conditional-hidden {
+            display: none;
+        }
+    </style>
+    <script type="text/javascript">
+        (function () {
+            // Prevent back navigation
+            history.pushState(null, document.title, location.href);
+            window.addEventListener('popstate', function () {
+                history.pushState(null, document.title, location.href);
+            });
+
+            // Prevent reload (F5, Ctrl+R, Cmd+R)
+            window.addEventListener('keydown', function (e) {
+                const key = e.key.toLowerCase();
+                const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+
+                if (
+                    (key === 'f5') ||
+                    (!isMac && e.ctrlKey && key === 'r') ||
+                    (isMac && e.metaKey && key === 'r')
+                ) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            });
+        })();
+    </script>
+</head>
+<body>
+    <div class="questionnaire-container">
+        <h1><%= questionnaire.title || "Questionnaire" %></h1>
+
+        <% if (questionnaire.introduction) { %>
+        <p class="introduction"><%= questionnaire.introduction %></p>
+        <% } %>
+
+        <% if (questionnaire.privacy_note) { %>
+        <p class="privacy-note"><%= questionnaire.privacy_note %></p>
+        <% } %>
+
+        <% if (questionnaire.show_study_info !== false && study && study.title) { %>
+        <div class="info-box">
+            <strong>Study:</strong> <%= study.title %>
+            <% if (study.researchers && study.researchers.principal_investigator) { %>
+            <strong>Researcher:</strong> <%= study.researchers.principal_investigator.name %><%= study.researchers.principal_investigator.affiliation ? ', ' + study.researchers.principal_investigator.affiliation : '' %>
+            <% } %>
+        </div>
+        <% } %>
+
+        <form id="questionnaireForm" name="questionForm" action="/endPage" method="POST">
+            <!-- Hidden Fields for Session Data -->
+            <input type="hidden" id="subjectID" name="subjectID" value="">
+            <input type="hidden" id="confirmationID" name="confirmationID" value="">
+            <input type="hidden" id="totalEarning" name="totalEarning" value="">
+            <input type="hidden" id="bonus_for_waiting" name="bonus_for_waiting" value="">
+            <input type="hidden" id="exp_condition" name="exp_condition" value="">
+            <input type="hidden" id="indivOrGroup" name="indivOrGroup" value="">
+            <input type="hidden" id="completed" name="completed" value="">
+            <input type="hidden" id="latency" name="latency" value="">
+            <input type="hidden" id="info_share_cost" name="info_share_cost" value="">
+            <input type="hidden" id="country" name="country" value="NA">
+
+            <% if (questionnaire.sections && questionnaire.sections.length > 0) { %>
+                <% questionnaire.sections.forEach(function(section) { %>
+                <div class="question-section" id="section-<%= section.id %>">
+                    <h2><%= section.title %></h2>
+                    <% if (section.description) { %>
+                    <p class="section-description"><%= section.description %></p>
+                    <% } %>
+
+                    <% section.questions.forEach(function(question) { %>
+                    <div class="question" id="question-<%= question.id %>"
+                         <% if (question.conditional) { %>
+                         data-depends-on="<%= question.conditional.depends_on %>"
+                         data-show-if='<%= JSON.stringify(question.conditional.show_if) %>'
+                         class="conditional-hidden"
+                         <% } %>>
+
+                        <% if (question.type === 'scale' && question.scale && question.scale.labels) { %>
+                        <!-- Scale with labels (Likert) - Table Layout -->
+                        <h3><%= question.text %><% if (question.required) { %><span class="required-marker">*</span><% } %></h3>
+                        <table class="scale-table">
+                            <tr>
+                                <% question.scale.labels.forEach(function(label) { %>
+                                <th><%= label %></th>
+                                <% }); %>
+                            </tr>
+                            <tr>
+                                <% question.scale.labels.forEach(function(label, idx) { %>
+                                <% var value = question.scale.min + idx; %>
+                                <td><input type="radio" name="<%= question.id %>" value="<%= value %>" <%= question.required ? 'required' : '' %>></td>
+                                <% }); %>
+                            </tr>
+                        </table>
+
+                        <% } else if (question.type === 'scale') { %>
+                        <!-- Scale without custom labels (numeric) -->
+                        <h3><%= question.text %><% if (question.required) { %><span class="required-marker">*</span><% } %></h3>
+                        <table class="scale-table">
+                            <tr>
+                                <% for (var i = question.scale.min; i <= question.scale.max; i++) { %>
+                                <th><%= i === question.scale.min && question.scale.min_label ? question.scale.min_label : (i === question.scale.max && question.scale.max_label ? question.scale.max_label : i) %></th>
+                                <% } %>
+                            </tr>
+                            <tr>
+                                <% for (var i = question.scale.min; i <= question.scale.max; i++) { %>
+                                <td><input type="radio" name="<%= question.id %>" value="<%= i %>" <%= question.required ? 'required' : '' %>></td>
+                                <% } %>
+                            </tr>
+                        </table>
+
+                        <% } else if (question.type === 'text') { %>
+                        <!-- Text Input -->
+                        <h3><%= question.text %><% if (question.required) { %><span class="required-marker">*</span><% } %></h3>
+                        <input type="text"
+                               name="<%= question.id %>"
+                               class="text-input"
+                               placeholder="<%= question.placeholder || '' %>"
+                               <%= question.required ? 'required' : '' %>>
+
+                        <% } else if (question.type === 'textarea') { %>
+                        <!-- Textarea -->
+                        <h3><%= question.text %><% if (question.required) { %><span class="required-marker">*</span><% } %></h3>
+                        <textarea name="<%= question.id %>"
+                                  class="textarea-input"
+                                  rows="<%= question.rows || 4 %>"
+                                  placeholder="<%= question.placeholder || '' %>"
+                                  <%= question.required ? 'required' : '' %>></textarea>
+
+                        <% } else if (question.type === 'number') { %>
+                        <!-- Number Input -->
+                        <h3><%= question.text %><% if (question.required) { %><span class="required-marker">*</span><% } %></h3>
+                        <input type="number"
+                               name="<%= question.id %>"
+                               class="number-input"
+                               <%= question.min !== undefined ? 'min="' + question.min + '"' : '' %>
+                               <%= question.max !== undefined ? 'max="' + question.max + '"' : '' %>
+                               <%= question.required ? 'required' : '' %>>
+                        <% if (question.suffix) { %><span class="input-suffix"><%= question.suffix %></span><% } %>
+
+                        <% } else if (question.type === 'radio') { %>
+                        <!-- Radio Buttons -->
+                        <h3><%= question.text %><% if (question.required) { %><span class="required-marker">*</span><% } %></h3>
+                        <div class="radio-group">
+                            <% question.options.forEach(function(option, idx) { %>
+                            <div class="radio-option">
+                                <input type="radio"
+                                       name="<%= question.id %>"
+                                       id="<%= question.id %>_<%= idx %>"
+                                       value="<%= typeof option === 'object' ? option.value : option %>"
+                                       <%= question.required ? 'required' : '' %>>
+                                <label for="<%= question.id %>_<%= idx %>"><%= typeof option === 'object' ? option.label : option %></label>
+                            </div>
+                            <% }); %>
+                        </div>
+
+                        <% } else if (question.type === 'checkbox') { %>
+                        <!-- Checkboxes -->
+                        <h3><%= question.text %><% if (question.required) { %><span class="required-marker">*</span><% } %></h3>
+                        <div class="checkbox-group">
+                            <% question.options.forEach(function(option, idx) { %>
+                            <div class="checkbox-option">
+                                <input type="checkbox"
+                                       name="<%= question.id %>"
+                                       id="<%= question.id %>_<%= idx %>"
+                                       value="<%= typeof option === 'object' ? option.value : option %>">
+                                <label for="<%= question.id %>_<%= idx %>"><%= typeof option === 'object' ? option.label : option %></label>
+                            </div>
+                            <% }); %>
+                        </div>
+
+                        <% } else if (question.type === 'select') { %>
+                        <!-- Select Dropdown -->
+                        <h3><%= question.text %><% if (question.required) { %><span class="required-marker">*</span><% } %></h3>
+                        <select name="<%= question.id %>"
+                                class="select-input"
+                                <%= question.required ? 'required' : '' %>>
+                            <option value="" selected="selected"><%= question.placeholder || 'Select an option' %></option>
+                            <% question.options.forEach(function(option) { %>
+                            <option value="<%= typeof option === 'object' ? option.value : option %>"><%= typeof option === 'object' ? option.label : option %></option>
+                            <% }); %>
+                        </select>
+
+                        <% } %>
+                    </div>
+                    <% }); %>
+                </div>
+                <% }); %>
+            <% } %>
+
+            <div class="button-container">
+                <input type="submit" class="submit-button" value="<%= questionnaire.submit_button_text || 'Submit' %>">
+            </div>
+        </form>
+
+        <% if (questionnaire.show_contact_info !== false && study && study.researchers && study.researchers.principal_investigator) { %>
+        <div class="contact-info">
+            <strong>Questions or Concerns?</strong>
+            <p>If you have questions about this research, please contact:</p>
+            <p>
+                <%= study.researchers.principal_investigator.name %><br>
+                Email: <%= study.researchers.principal_investigator.email %>
+            </p>
+        </div>
+        <% } %>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get configuration from URL parameters or sessionStorage
+            var config = {};
+
+            // Try sessionStorage first (set by game client)
+            if (sessionStorage.getItem('gameConfig')) {
+                try {
+                    config = JSON.parse(sessionStorage.getItem('gameConfig'));
+                } catch (e) {
+                    console.warn('Could not parse gameConfig from sessionStorage');
+                }
+            }
+
+            // Fall back to URL parameters
+            var urlParams = new URLSearchParams(window.location.search);
+            if (!config.subjectID) config.subjectID = urlParams.get('subjectID') || '';
+            if (!config.confirmationID) config.confirmationID = urlParams.get('confirmationID') || '';
+
+            // Populate hidden fields
+            var fields = ['subjectID', 'confirmationID', 'totalEarning', 'bonus_for_waiting',
+                         'exp_condition', 'indivOrGroup', 'completed', 'latency', 'info_share_cost'];
+
+            fields.forEach(function(field) {
+                var element = document.getElementById(field);
+                if (element && config[field] !== undefined) {
+                    element.value = config[field];
+                }
+            });
+
+            // Initialize conditional question logic
+            initConditionalQuestions();
+        });
+
+        function initConditionalQuestions() {
+            var conditionalQuestions = document.querySelectorAll('[data-depends-on]');
+
+            conditionalQuestions.forEach(function(question) {
+                var dependsOn = question.dataset.dependsOn;
+                var showIf = JSON.parse(question.dataset.showIf);
+
+                var dependentInputs = document.querySelectorAll('[name="' + dependsOn + '"]');
+
+                dependentInputs.forEach(function(input) {
+                    input.addEventListener('change', function() {
+                        var selectedInput = document.querySelector('[name="' + dependsOn + '"]:checked');
+                        var selectedValue = selectedInput ? selectedInput.value : '';
+
+                        if (showIf.indexOf(selectedValue) > -1) {
+                            question.classList.remove('conditional-hidden');
+                        } else {
+                            question.classList.add('conditional-hidden');
+                        }
+                    });
+                });
+            });
+        }
+    </script>
+</body>
+</html>

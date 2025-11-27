@@ -46,6 +46,41 @@ class TemplateRenderer {
   }
 
   /**
+   * Calculate compensation details from payment config
+   * @returns {Object} - Calculated compensation info
+   */
+  calculateCompensation() {
+    const payment = this.config.payment || {};
+    const currency = payment.currency || 'GBP';
+    const currencySymbol = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency;
+
+    const flatFee = payment.flat_fee || 0;
+    const completionFee = payment.completion_fee || 0;
+    const minimumPayment = flatFee + completionFee;
+
+    // Build breakdown components
+    const breakdownParts = [];
+    if (flatFee > 0) {
+      breakdownParts.push(`${currencySymbol}${flatFee.toFixed(2)} base fee`);
+    }
+    if (completionFee > 0) {
+      breakdownParts.push(`${currencySymbol}${completionFee.toFixed(2)} completion bonus`);
+    }
+    if (payment.points_to_currency && payment.points_to_currency > 0) {
+      breakdownParts.push('performance bonus based on your decisions');
+    }
+
+    return {
+      minimumPayment: minimumPayment,
+      minimumFormatted: `${currencySymbol}${minimumPayment.toFixed(2)}`,
+      currency: currency,
+      currencySymbol: currencySymbol,
+      breakdown: breakdownParts.join(' + '),
+      hasPerformanceBonus: payment.points_to_currency && payment.points_to_currency > 0
+    };
+  }
+
+  /**
    * Render consent form
    */
   async renderConsentForm() {
@@ -55,7 +90,9 @@ class TemplateRenderer {
     const templateData = {
       study: this.config.study || {},
       consent: this.config.consent || {},
-      experiment: this.config.experiment || {}
+      experiment: this.config.experiment || {},
+      payment: this.config.payment || {},
+      compensation: this.calculateCompensation()
     };
 
     const html = await this.renderTemplate(templatePath, templateData);
@@ -69,7 +106,7 @@ class TemplateRenderer {
    * Render questionnaire
    */
   async renderQuestionnaire() {
-    // Check if custom template exists
+    // Check if custom questionnaire.html already exists (skip generation)
     const customTemplatePath = path.join(this.experimentPath, 'pages', 'questionnaire.html');
     const customTemplateExists = await this.fileExists(customTemplatePath);
 
@@ -78,8 +115,8 @@ class TemplateRenderer {
       return customTemplatePath;
     }
 
-    // Use default template
-    const templatePath = path.join(this.templatesDir, 'questionnaire', 'default-questionnaire.ejs');
+    // Use styled questionnaire template
+    const templatePath = path.join(this.templatesDir, 'questionnaire', 'questionnaire-form.ejs');
     const templateExists = await this.fileExists(templatePath);
 
     if (!templateExists) {
@@ -87,12 +124,23 @@ class TemplateRenderer {
       return null;
     }
 
-    const outputPath = path.join(this.experimentPath, 'pages', 'questionnaire.html');
+    // Ensure output directory exists
+    const outputDir = path.join(this.experimentPath, 'pages');
+    try {
+      await fs.mkdir(outputDir, { recursive: true });
+    } catch (err) {
+      // Directory may already exist
+    }
+
+    const outputPath = path.join(outputDir, 'questionnaire.html');
 
     const templateData = {
       study: this.config.study || {},
       questionnaire: this.config.questionnaire || {},
-      experiment: this.config.experiment || {}
+      experiment: this.config.experiment || {},
+      payment: this.config.payment || {},
+      compensation: this.calculateCompensation(),
+      conditions: this.config.conditions || {}
     };
 
     const html = await this.renderTemplate(templatePath, templateData);
