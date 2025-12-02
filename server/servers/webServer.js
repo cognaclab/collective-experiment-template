@@ -105,6 +105,18 @@ app.use('/questionnaire', questionnaireRouter);
 app.use('/questionnaireForDisconnectedSubjects', questionnaireForDisconnectedSubjectsRouter);
 app.use('/multipleAccess', multipleAccessRouter);
 
+// No partner found page - shown when waiting room times out with insufficient players
+app.get('/no-partner', function(req, res) {
+  logger.info('No partner page accessed', {
+    participant_id: req.query.participant_id
+  });
+
+  res.render('no-partner', {
+    title: 'No Partner Found',
+    participant_id: req.query.participant_id || 'Not provided'
+  });
+});
+
 app.post('/endPage', function(req, res) {
   logger.info('End page submission', {
     subjectID: req.body.subjectID,

@@ -235,6 +235,30 @@ async function handleSceneComplete(client, data, config, io) {
                 bypassSync: bypassSync
             }
         );
+
+        // Check for insufficient players when leaving waiting room in group mode
+        // This applies to both temporary and non-temporary rooms
+        if (currentSceneConfig?.type === 'waiting') {
+            const minGroupSize = config.experimentLoader?.gameConfig?.min_group_size || config.minGroupSize || 2;
+            const isGroupMode = config.experimentLoader?.gameConfig?.mode === 'group' || room.indivOrGroup === 1;
+
+            if (isGroupMode && room.n < minGroupSize) {
+                logger.warn('Insufficient players for group experiment after waiting room', {
+                    room: client.room,
+                    players: room.n,
+                    minRequired: minGroupSize,
+                    mode: 'group',
+                    isTemporaryRoom: isTemporaryRoom
+                });
+
+                io.to(client.room).emit('insufficient_players', {
+                    message: 'Not enough players joined. The experiment cannot continue.',
+                    minRequired: minGroupSize,
+                    actual: room.n
+                });
+                return;
+            }
+        }
     } else {
         // For permanent rooms, check if all players are ready
         const allReady = room.sceneReadyCount[sceneKey] >= room.n;

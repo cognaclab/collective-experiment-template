@@ -1091,6 +1091,15 @@ ${exampleScenesList}
         // Server tells client which scene to start next
         window.socket.on('start_scene', (data) => {
             console.log('🎬 Server instructed to start scene:', data.scene);
+
+            // Sync global identifiers when server sends them (e.g., after room transitions)
+            if (data.roomId !== undefined) {
+                window.roomId = data.roomId;
+            }
+            if (data.sessionId !== undefined) {
+                window.sessionId = data.sessionId;
+            }
+
             const sceneConfig = data.sceneConfig;
             const sceneData = data.sceneData;
 
@@ -1111,6 +1120,13 @@ ${exampleScenesList}
         window.socket.on('experiment_complete', (data) => {
             console.log('✅ Experiment complete:', data.message);
             // Could show a completion message or automatically redirect
+        });
+
+        // Handle insufficient players (waiting room timeout with not enough participants)
+        window.socket.on('insufficient_players', (data) => {
+            console.log('⚠️ Insufficient players:', data.message);
+            const participantId = window.subjectId || 'unknown';
+            window.location.href = \`/no-partner?participant_id=\${participantId}\`;
         });
 
         console.log('📡 Server-controlled flow listeners registered');
