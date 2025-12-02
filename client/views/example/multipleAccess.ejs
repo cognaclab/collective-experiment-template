@@ -1,27 +1,134 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <meta http-equiv="x-ua-compatible" content="IE=Edge">
-    <meta name="viewport" content="width=device-width, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Reloaded</title>
-    <link href="/stylesheets/import.css" rel="stylesheet" type="text/css" media="all" />
-    <script type="text/javascript" src="/src/jquery.min.js"></script>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Error - Experiment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .error-container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #c0392b;
+            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .error-box {
+            background-color: #fdf2f2;
+            padding: 15px;
+            border-left: 4px solid #e74c3c;
+            margin: 20px 0;
+        }
+        .info-box {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+        .info-box strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        ul {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .contact-info {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.95em;
+        }
+        .apology {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #fff9e6;
+            border: 2px solid #f39c12;
+            border-radius: 5px;
+        }
+    </style>
     <script type="text/javascript">
-        // ban on back-button
+        // Disable back button
         history.pushState(null, null, null);
-
         window.addEventListener("popstate", function() {
             history.pushState(null, null, null);
         });
     </script>
-  </head>
-  <body>
-    <div id="wrap">
-      <p>
-        <span class='note'>Your ID might already be stored in the database.</span>
-      </p>
+</head>
+<body>
+    <div class="error-container">
+        <h1>We're Sorry!</h1>
+
+        <p>Unfortunately, something went wrong and we cannot continue with the experiment.</p>
+
+        <div class="error-box">
+            <strong>What happened?</strong>
+            <p>This subject ID has already been used. Please use a different ID.</p>
+        </div>
+
+        <h2>What This Means</h2>
+        <ul>
+            <li>Your participation has been recorded up to this point</li>
+            <li>You will receive compensation for the time you have already spent</li>
+            <li>No further action is required from you</li>
+        </ul>
+
+        <h2>Next Steps</h2>
+        <div class="info-box">
+            <ul>
+                <li>Please contact us using the information below so we can process your payment</li>
+                <li>Include your participant ID in your message</li>
+                <li>We will respond within 24 hours to arrange your compensation</li>
+            </ul>
+        </div>
+
+        <div class="contact-info">
+            <strong>Contact Information</strong>
+            <p>If you have any questions or concerns, please contact us:</p>
+            <p>
+                <strong>Email:</strong> btcc.cognac@gmail.com<br>
+                <strong>Subject:</strong> Experiment Technical Issue
+            </p>
+            <p>Please include:</p>
+            <ul>
+                <li>Your participant/subject ID</li>
+                <li>A brief description of what you were doing when the error occurred</li>
+                <li>Any error messages you saw</li>
+            </ul>
+        </div>
+
+        <div class="apology">
+            <strong>Our Apology</strong>
+            <p>We sincerely apologize for this technical issue. Online experiments sometimes encounter unexpected problems, and we work continuously to improve the system.</p>
+            <p>Your time is valuable, and we will ensure you receive fair compensation for your participation.</p>
+        </div>
+
+        <p style="margin-top: 30px; text-align: center; color: #7f8c8d;">
+            You may now close this browser window.
+        </p>
     </div>
-  </body>
+</body>
 </html>
