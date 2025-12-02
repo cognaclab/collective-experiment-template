@@ -666,8 +666,11 @@ class ExperimentFlow {
     startScene(sceneConfig, sceneData = {}) {
         console.log('ExperimentFlow: Starting scene:', sceneConfig.scene);
 
-        // Store in history
-        this.sceneHistory.push(sceneConfig.scene);
+        // Store in history (avoid duplicates when navigating back then forward)
+        const lastScene = this.sceneHistory[this.sceneHistory.length - 1];
+        if (lastScene !== sceneConfig.scene) {
+            this.sceneHistory.push(sceneConfig.scene);
+        }
 
         // Check for explicit redirect
         if (sceneConfig.redirect) {
@@ -747,6 +750,37 @@ class ExperimentFlow {
         } else {
             console.error('Next scene not found:', nextSceneId);
         }
+    }
+
+    previous() {
+        // Navigate to previous scene using history
+        if (this.sceneHistory.length <= 1) {
+            console.log('ExperimentFlow: No previous scene available');
+            return null;
+        }
+
+        // Remove current scene from history
+        this.sceneHistory.pop();
+
+        // Get the previous scene name
+        const previousSceneName = this.sceneHistory[this.sceneHistory.length - 1];
+
+        // Find scene config in sequence
+        const sceneConfig = this.sequence.find(s => s.scene === previousSceneName);
+
+        if (sceneConfig) {
+            console.log('ExperimentFlow: Going back to:', previousSceneName);
+            this.startScene(sceneConfig, {});
+            return sceneConfig;
+        }
+
+        console.error('Previous scene not found:', previousSceneName);
+        return null;
+    }
+
+    canGoBack() {
+        // Can go back if there's more than one scene in history
+        return this.sceneHistory.length > 1;
     }
 }
 

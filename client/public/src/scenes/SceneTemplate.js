@@ -85,22 +85,103 @@ class SceneTemplate extends Phaser.Scene {
 
     createContentDisplay(content, metadata) {
         // Convert markdown to HTML using global marked function
-        const marked = window.marked || this.basicMarkdown;
-        const htmlContent = marked(content);
-        
+        let htmlContent;
+        if (window.marked && window.marked.parse) {
+            htmlContent = window.marked.parse(content);
+        } else if (window.marked) {
+            htmlContent = window.marked(content);
+        } else {
+            htmlContent = this.basicMarkdown(content);
+        }
+
         // Create styling based on metadata or defaults
         const style = this.buildContentStyle(metadata);
-        
-        // Create DOM element
+
+        // Create DOM element with wrapper for proper styling
         let contentDiv = document.createElement('div');
+        contentDiv.className = 'markdown-content';
         contentDiv.style.cssText = style;
         contentDiv.innerHTML = htmlContent;
-        
+
+        // Inject CSS for markdown elements (tables, lists, etc.)
+        this.injectMarkdownStyles();
+
         // Add to scene
         const centerX = configWidth / 2;
         const centerY = configHeight / 2 - 50; // Leave room for navigation
 
         this.contentElement = this.add.dom(centerX, centerY, contentDiv);
+    }
+
+    injectMarkdownStyles() {
+        // Only inject once
+        if (document.getElementById('markdown-styles')) return;
+
+        const styleSheet = document.createElement('style');
+        styleSheet.id = 'markdown-styles';
+        styleSheet.textContent = `
+            .markdown-content h1 {
+                color: #8B0000;
+                border-bottom: 2px solid #8B0000;
+                padding-bottom: 8px;
+                margin-bottom: 16px;
+                font-size: 1.5em;
+            }
+            .markdown-content h2 {
+                color: #8B4513;
+                margin-top: 20px;
+                margin-bottom: 12px;
+                font-size: 1.25em;
+            }
+            .markdown-content h3 {
+                color: #2F4F4F;
+                margin-top: 16px;
+                margin-bottom: 8px;
+                font-size: 1.1em;
+            }
+            .markdown-content table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 16px 0;
+                font-size: 0.9em;
+            }
+            .markdown-content th, .markdown-content td {
+                border: 1px solid #ddd;
+                padding: 8px 12px;
+                text-align: left;
+            }
+            .markdown-content th {
+                background-color: #f5f5f5;
+                font-weight: bold;
+            }
+            .markdown-content tr:nth-child(even) {
+                background-color: #fafafa;
+            }
+            .markdown-content tr:hover {
+                background-color: #f0f0f0;
+            }
+            .markdown-content ul, .markdown-content ol {
+                margin: 12px 0;
+                padding-left: 24px;
+            }
+            .markdown-content li {
+                margin: 6px 0;
+                line-height: 1.5;
+            }
+            .markdown-content p {
+                margin: 10px 0;
+                line-height: 1.6;
+            }
+            .markdown-content strong {
+                color: #333;
+            }
+            .markdown-content hr {
+                border: none;
+                border-top: 1px solid #ddd;
+                margin: 20px 0;
+            }
+        `;
+        document.head.appendChild(styleSheet);
     }
 
     buildContentStyle(metadata) {
@@ -145,13 +226,14 @@ class SceneTemplate extends Phaser.Scene {
             );
         }
         
-        // Back button (for linear navigation)
+        // Back button (for linear navigation) - enabled if we can go back
         if (navigation === 'linear' && !metadata.hideBack) {
+            const canGoBack = window.experimentFlow && window.experimentFlow.canGoBack();
             this.createNavigationButton(
                 150, buttonY,
-                metadata.buttons?.back || 'Back', 
+                metadata.buttons?.back || 'Back',
                 () => this.handleBack(),
-                false // Not enabled by default
+                canGoBack  // Enable based on history
             );
         }
     }
@@ -205,9 +287,13 @@ class SceneTemplate extends Phaser.Scene {
     }
 
     handleBack() {
-        // Implementation depends on how we want to handle back navigation
-        // For now, just log
-        console.log('Back navigation not implemented');
+        // Navigate to previous scene using ExperimentFlow history
+        if (window.experimentFlow && window.experimentFlow.canGoBack()) {
+            this.scene.stop();
+            window.experimentFlow.previous();
+        } else {
+            console.log('Cannot go back - no previous scene in history');
+        }
     }
 
     basicMarkdown(text) {
