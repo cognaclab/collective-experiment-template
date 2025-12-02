@@ -90,23 +90,23 @@
 
         <div class="error-box">
             <strong>What happened?</strong>
-            <p><%= typeof errorMessage !== 'undefined' ? errorMessage : 'An unexpected error occurred.' %></p>
+            <p><%%= typeof errorMessage !== 'undefined' ? errorMessage : 'An unexpected error occurred.' %></p>
         </div>
 
-        <% if (typeof showCompensationInfo === 'undefined' || showCompensationInfo !== false) { %>
+        <%% if (typeof showCompensationInfo === 'undefined' || showCompensationInfo !== false) { %>
         <h2>What This Means</h2>
         <ul>
             <li>Your participation has been recorded up to this point</li>
             <li>You will receive compensation for the time you have already spent</li>
             <li>No further action is required from you</li>
         </ul>
-        <% } %>
+        <%% } %>
 
         <h2>Next Steps</h2>
         <div class="info-box">
             <ol>
                 <li><strong>Please contact us</strong> using the information below so we can process your payment</li>
-                <li><strong>Include your participant ID</strong> in your message: <code><%= typeof participant_id !== 'undefined' ? participant_id : 'Not provided' %></code></li>
+                <li><strong>Include your participant ID</strong> in your message: <code><%%= typeof participant_id !== 'undefined' ? participant_id : 'Not provided' %></code></li>
                 <li>We will respond within 24 hours to arrange your compensation</li>
             </ol>
         </div>
@@ -115,8 +115,8 @@
             <strong>Contact Information</strong>
             <p>If you have any questions or concerns, please contact us:</p>
             <p>
-                <strong>Email:</strong> <%= typeof support_contact !== 'undefined' ? support_contact : 'btcc.cognac@gmail.com' %><br>
-                <strong>Subject:</strong> Experiment Technical Issue - ID <%= typeof participant_id !== 'undefined' ? participant_id : 'Not provided' %>
+                <strong>Email:</strong> <%= study.researchers.principal_investigator.email %><br>
+                <strong>Subject:</strong> Experiment Technical Issue
             </p>
             <p>Please include:</p>
             <ul>
