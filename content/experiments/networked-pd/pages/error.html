@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oops! Something went wrong</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .error-container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #c0392b;
+            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .error-box {
+            background-color: #fdf2f2;
+            padding: 15px;
+            border-left: 4px solid #e74c3c;
+            margin: 20px 0;
+        }
+        .info-box {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+        .info-box strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        ul, ol {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .contact-info {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.95em;
+        }
+        .apology {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #fff9e6;
+            border: 2px solid #f39c12;
+            border-radius: 5px;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #ecf0f1;
+            margin: 30px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1>We're Sorry!</h1>
+
+        <p>Unfortunately, something went wrong and we cannot continue with the experiment.</p>
+
+        <div class="error-box">
+            <strong>What happened?</strong>
+            <p><%= typeof errorMessage !== 'undefined' ? errorMessage : 'An unexpected error occurred.' %></p>
+        </div>
+
+        <% if (typeof showCompensationInfo === 'undefined' || showCompensationInfo !== false) { %>
+        <h2>What This Means</h2>
+        <ul>
+            <li>Your participation has been recorded up to this point</li>
+            <li>You will receive compensation for the time you have already spent</li>
+            <li>No further action is required from you</li>
+        </ul>
+        <% } %>
+
+        <h2>Next Steps</h2>
+        <div class="info-box">
+            <ol>
+                <li><strong>Please contact us</strong> using the information below so we can process your payment</li>
+                <li><strong>Include your participant ID</strong> in your message: <code><%= typeof participant_id !== 'undefined' ? participant_id : 'Not provided' %></code></li>
+                <li>We will respond within 24 hours to arrange your compensation</li>
+            </ol>
+        </div>
+
+        <div class="contact-info">
+            <strong>Contact Information</strong>
+            <p>If you have any questions or concerns, please contact us:</p>
+            <p>
+                <strong>Email:</strong> researcher@riken.jp<br>
+                <strong>Subject:</strong> Experiment Technical Issue
+            </p>
+            <p>Please include:</p>
+            <ul>
+                <li>Your participant/subject ID</li>
+                <li>A brief description of what you were doing when the error occurred</li>
+                <li>Any error messages you saw</li>
+            </ul>
+        </div>
+
+        <div class="apology">
+            <strong>Our Apology</strong>
+            <p>We sincerely apologize for this technical issue. Online experiments sometimes encounter unexpected problems, and we work continuously to improve the system.</p>
+            <p>Your time is valuable, and we will ensure you receive fair compensation for your participation.</p>
+        </div>
+
+        <hr>
+
+        <p style="text-align: center; color: #7f8c8d;">
+            <em>You may now close this browser window.</em>
+        </p>
+    </div>
+</body>
+</html>
