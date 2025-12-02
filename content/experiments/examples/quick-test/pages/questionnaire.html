@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Questionnaire - Quick Test Experiment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .questionnaire-container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        h3 {
+            color: #2c3e50;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            font-weight: normal;
+        }
+        .info-box {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+        .info-box strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        .introduction {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 1.05em;
+        }
+        .privacy-note {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 25px;
+            font-size: 0.95em;
+        }
+
+        /* Question Section Styles */
+        .question-section {
+            margin-bottom: 35px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .question-section:last-of-type {
+            border-bottom: none;
+        }
+        .section-description {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+        .question {
+            margin-bottom: 25px;
+        }
+        .question-text {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .required-marker {
+            color: #e74c3c;
+            margin-left: 3px;
+        }
+
+        /* Text and Number Inputs */
+        .text-input,
+        .number-input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            transition: border-color 0.3s;
+        }
+        .text-input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .number-input {
+            width: 100px;
+        }
+        .text-input:focus,
+        .number-input:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        .input-suffix {
+            margin-left: 10px;
+            color: #666;
+        }
+
+        /* Textarea */
+        .textarea-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            min-height: 100px;
+            resize: vertical;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        .textarea-input:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+
+        /* Radio and Checkbox Groups */
+        .radio-group,
+        .checkbox-group {
+            margin-left: 10px;
+        }
+        .radio-option,
+        .checkbox-option {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .radio-option input,
+        .checkbox-option input {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .radio-option label,
+        .checkbox-option label {
+            cursor: pointer;
+            color: #555;
+        }
+
+        /* Select Dropdown */
+        .select-input {
+            min-width: 200px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            background-color: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .select-input:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+
+        /* Scale (Likert) - Table Layout */
+        .scale-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        .scale-table th {
+            font-weight: normal;
+            font-size: 0.9em;
+            color: #555;
+            padding: 8px 5px;
+            text-align: center;
+            min-width: 60px;
+        }
+        .scale-table td {
+            text-align: center;
+            padding: 8px 5px;
+        }
+        .scale-table input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        /* Button Styles */
+        .button-container {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .submit-button {
+            background-color: #27ae60;
+            color: white;
+            padding: 15px 50px;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .submit-button:hover {
+            background-color: #229954;
+        }
+        .submit-button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        /* Contact Info Footer */
+        .contact-info {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.95em;
+        }
+        .contact-info strong {
+            color: #2c3e50;
+        }
+
+        /* Error States */
+        .error {
+            border-color: #e74c3c !important;
+        }
+        .error-message {
+            color: #e74c3c;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+
+        /* Conditional Hidden Questions */
+        .conditional-hidden {
+            display: none;
+        }
+    </style>
+    <script type="text/javascript">
+        (function () {
+            // Prevent back navigation
+            history.pushState(null, document.title, location.href);
+            window.addEventListener('popstate', function () {
+                history.pushState(null, document.title, location.href);
+            });
+
+            // Prevent reload (F5, Ctrl+R, Cmd+R)
+            window.addEventListener('keydown', function (e) {
+                const key = e.key.toLowerCase();
+                const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+
+                if (
+                    (key === 'f5') ||
+                    (!isMac && e.ctrlKey && key === 'r') ||
+                    (isMac && e.metaKey && key === 'r')
+                ) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            });
+        })();
+    </script>
+</head>
+<body>
+    <div class="questionnaire-container">
+        <h1>Questionnaire</h1>
+
+        
+        <p class="introduction">The decision-making task has been completed! Please answer the following questions on how you perceived this task.</p>
+        
+
+        
+        <p class="privacy-note">Your answers will be recorded anonymously, being disconnected to your Prolific ID right after the entire experiment is done.</p>
+        
+
+        
+
+        <form id="questionnaireForm" name="questionForm" action="/endPage" method="POST">
+            <!-- Hidden Fields for Session Data -->
+            <input type="hidden" id="subjectID" name="subjectID" value="">
+            <input type="hidden" id="confirmationID" name="confirmationID" value="">
+            <input type="hidden" id="totalEarning" name="totalEarning" value="">
+            <input type="hidden" id="bonus_for_waiting" name="bonus_for_waiting" value="">
+            <input type="hidden" id="exp_condition" name="exp_condition" value="">
+            <input type="hidden" id="indivOrGroup" name="indivOrGroup" value="">
+            <input type="hidden" id="completed" name="completed" value="">
+            <input type="hidden" id="latency" name="latency" value="">
+            <input type="hidden" id="info_share_cost" name="info_share_cost" value="">
+            <input type="hidden" id="country" name="country" value="NA">
+
+            
+                
+                <div class="question-section" id="section-study">
+                    <h2>About this study</h2>
+                    
+
+                    
+                    <div class="question" id="question-q1"
+                         >
+
+                        
+                        <!-- Scale with labels (Likert) - Table Layout -->
+                        <h3>While working on the task, how confident were you in identifying the best slot machine?<span class="required-marker">*</span></h3>
+                        <table class="scale-table">
+                            <tr>
+                                
+                                <th>Not applicable</th>
+                                
+                                <th>Not at all</th>
+                                
+                                <th>Very little</th>
+                                
+                                <th>Moderately</th>
+                                
+                                <th>Somewhat</th>
+                                
+                                <th>Very confident</th>
+                                
+                            </tr>
+                            <tr>
+                                
+                                
+                                <td><input type="radio" name="q1" value="-1" required></td>
+                                
+                                
+                                <td><input type="radio" name="q1" value="0" required></td>
+                                
+                                
+                                <td><input type="radio" name="q1" value="1" required></td>
+                                
+                                
+                                <td><input type="radio" name="q1" value="2" required></td>
+                                
+                                
+                                <td><input type="radio" name="q1" value="3" required></td>
+                                
+                                
+                                <td><input type="radio" name="q1" value="4" required></td>
+                                
+                            </tr>
+                        </table>
+
+                        
+                    </div>
+                    
+                    <div class="question" id="question-q2"
+                         >
+
+                        
+                        <!-- Scale with labels (Likert) - Table Layout -->
+                        <h3>While working on the task, how much did you try to explore different slot machines?<span class="required-marker">*</span></h3>
+                        <table class="scale-table">
+                            <tr>
+                                
+                                <th>Not applicable</th>
+                                
+                                <th>Not at all</th>
+                                
+                                <th>Very little</th>
+                                
+                                <th>Moderately</th>
+                                
+                                <th>Somewhat</th>
+                                
+                                <th>To a great extent</th>
+                                
+                            </tr>
+                            <tr>
+                                
+                                
+                                <td><input type="radio" name="q2" value="-1" required></td>
+                                
+                                
+                                <td><input type="radio" name="q2" value="0" required></td>
+                                
+                                
+                                <td><input type="radio" name="q2" value="1" required></td>
+                                
+                                
+                                <td><input type="radio" name="q2" value="2" required></td>
+                                
+                                
+                                <td><input type="radio" name="q2" value="3" required></td>
+                                
+                                
+                                <td><input type="radio" name="q2" value="4" required></td>
+                                
+                            </tr>
+                        </table>
+
+                        
+                    </div>
+                    
+                    <div class="question" id="question-q3"
+                         >
+
+                        
+                        <!-- Scale with labels (Likert) - Table Layout -->
+                        <h3>While working on the task, how much did you focus on maximizing your rewards?<span class="required-marker">*</span></h3>
+                        <table class="scale-table">
+                            <tr>
+                                
+                                <th>Not applicable</th>
+                                
+                                <th>Not at all</th>
+                                
+                                <th>Very little</th>
+                                
+                                <th>Moderately</th>
+                                
+                                <th>Somewhat</th>
+                                
+                                <th>To a great extent</th>
+                                
+                            </tr>
+                            <tr>
+                                
+                                
+                                <td><input type="radio" name="q3" value="-1" required></td>
+                                
+                                
+                                <td><input type="radio" name="q3" value="0" required></td>
+                                
+                                
+                                <td><input type="radio" name="q3" value="1" required></td>
+                                
+                                
+                                <td><input type="radio" name="q3" value="2" required></td>
+                                
+                                
+                                <td><input type="radio" name="q3" value="3" required></td>
+                                
+                                
+                                <td><input type="radio" name="q3" value="4" required></td>
+                                
+                            </tr>
+                        </table>
+
+                        
+                    </div>
+                    
+                    <div class="question" id="question-q4"
+                         >
+
+                        
+                        <!-- Textarea -->
+                        <h3>While working on the task, how did you decide which slot to choose? Could you guess which slot seemed to be a better one? Please describe freely in the form below:</h3>
+                        <textarea name="q4"
+                                  class="textarea-input"
+                                  rows="6"
+                                  placeholder=""
+                                  ></textarea>
+
+                        
+                    </div>
+                    
+                    <div class="question" id="question-q5"
+                         >
+
+                        
+                        <!-- Textarea -->
+                        <h3>What was the most difficult part of the decision-making task? Please describe freely in the form below:</h3>
+                        <textarea name="q5"
+                                  class="textarea-input"
+                                  rows="6"
+                                  placeholder=""
+                                  ></textarea>
+
+                        
+                    </div>
+                    
+                </div>
+                
+                <div class="question-section" id="section-demographics">
+                    <h2>About Yourself</h2>
+                    
+
+                    
+                    <div class="question" id="question-age"
+                         >
+
+                        
+                        <!-- Number Input -->
+                        <h3>Your age:<span class="required-marker">*</span></h3>
+                        <input type="number"
+                               name="age"
+                               class="number-input"
+                               min=&#34;18&#34;
+                               max=&#34;120&#34;
+                               required>
+                        <span class="input-suffix">years old</span>
+
+                        
+                    </div>
+                    
+                    <div class="question" id="question-sex"
+                         >
+
+                        
+                        <!-- Select Dropdown -->
+                        <h3>Your gender:<span class="required-marker">*</span></h3>
+                        <select name="sex"
+                                class="select-input"
+                                required>
+                            <option value="" selected="selected">Select Gender</option>
+                            
+                            <option value="1">Male</option>
+                            
+                            <option value="2">Female</option>
+                            
+                            <option value="3">Non-binary</option>
+                            
+                            <option value="4">Prefer not to answer</option>
+                            
+                        </select>
+
+                        
+                    </div>
+                    
+                </div>
+                
+            
+
+            <div class="button-container">
+                <input type="submit" class="submit-button" value="Submit">
+            </div>
+        </form>
+
+        
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get configuration from URL parameters or sessionStorage
+            var config = {};
+
+            // Try sessionStorage first (set by game client)
+            if (sessionStorage.getItem('gameConfig')) {
+                try {
+                    config = JSON.parse(sessionStorage.getItem('gameConfig'));
+                } catch (e) {
+                    console.warn('Could not parse gameConfig from sessionStorage');
+                }
+            }
+
+            // Fall back to URL parameters
+            var urlParams = new URLSearchParams(window.location.search);
+            if (!config.subjectID) config.subjectID = urlParams.get('subjectID') || '';
+            if (!config.confirmationID) config.confirmationID = urlParams.get('confirmationID') || '';
+
+            // Populate hidden fields
+            var fields = ['subjectID', 'confirmationID', 'totalEarning', 'bonus_for_waiting',
+                         'exp_condition', 'indivOrGroup', 'completed', 'latency', 'info_share_cost'];
+
+            fields.forEach(function(field) {
+                var element = document.getElementById(field);
+                if (element && config[field] !== undefined) {
+                    element.value = config[field];
+                }
+            });
+
+            // Initialize conditional question logic
+            initConditionalQuestions();
+        });
+
+        function initConditionalQuestions() {
+            var conditionalQuestions = document.querySelectorAll('[data-depends-on]');
+
+            conditionalQuestions.forEach(function(question) {
+                var dependsOn = question.dataset.dependsOn;
+                var showIf = JSON.parse(question.dataset.showIf);
+
+                var dependentInputs = document.querySelectorAll('[name="' + dependsOn + '"]');
+
+                dependentInputs.forEach(function(input) {
+                    input.addEventListener('change', function() {
+                        var selectedInput = document.querySelector('[name="' + dependsOn + '"]:checked');
+                        var selectedValue = selectedInput ? selectedInput.value : '';
+
+                        if (showIf.indexOf(selectedValue) > -1) {
+                            question.classList.remove('conditional-hidden');
+                        } else {
+                            question.classList.add('conditional-hidden');
+                        }
+                    });
+                });
+            });
+        }
+    </script>
+</body>
+</html>

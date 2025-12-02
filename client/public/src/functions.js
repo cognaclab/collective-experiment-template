@@ -671,7 +671,11 @@ export function madeChoice (optionLocation, choiceType, optionOrder, reactionTim
     // scoreText.setText('Total score: ' + score);
     // payoffText.setText(payoff);
     // payoffText.visible = true;
-    trialText.setText(' - Current trial: ' + thisTrial + ' / ' + horizon);
+    if (taskType === 'static') {
+        trialText.setText(`Current trial: ${thisTrial} / ${horizon} (Round ${gameRound + 1})`);
+    } else {
+        trialText.setText(`Current trial: ${thisTrial} / ${horizon}`);
+    }
 }
 
 export function payoffGenerator(chosenOptionLocation, num_choice, payoffProb, prob_means, reactionTime, trial = null) {

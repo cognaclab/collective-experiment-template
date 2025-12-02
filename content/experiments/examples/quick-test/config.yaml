@@ -3,6 +3,170 @@ experiment:
   description: "Minimal experiment for testing setup"
   author: "Lab Template"
 
+# =============================================================================
+# CONSENT FORM CONFIGURATION
+# =============================================================================
+study:
+  title: "Quick Test Experiment"
+  short_description: "A brief decision-making task for testing the experiment platform"
+
+  researchers:
+    principal_investigator:
+      name: "Dr. Researcher Name"
+      affiliation: "Your Institution"
+      email: "researcher@institution.edu"
+
+  institution:
+    name: "Your Institution"
+    department: "Department of Psychology"
+
+  ethics:
+    irb_name: "Institutional Review Board"
+    approval_number: "IRB-2025-XXX"
+    contact_email: "irb@institution.edu"
+
+consent:
+  enabled: true
+  version: "1.0"
+  last_updated: "2025-01-01"
+
+  overview:
+    enabled: true
+    description: "This study consists of a short decision-making task."
+    parts:
+      - description: "A simple slot machine game where you choose between two options to earn points"
+      - description: "A brief survey about your experience"
+    waiting_info:
+      description: "This is an individual task, so you can start immediately"
+      compensation: "N/A"
+    total_time: "The study should take approximately 5 minutes"
+
+  participation:
+    estimated_duration: "5 minutes"
+
+  eligibility:
+    - "Age 18 or older"
+    - "Fluent in English"
+    - "Access to a computer with stable internet connection"
+
+  risks:
+    - "Minimal risk: No anticipated risks beyond those encountered in everyday life"
+
+  benefits:
+    - "Contribution to scientific research"
+    - "Monetary compensation for your time"
+
+  data:
+    anonymization: "All data will be anonymized and identified only by a participant ID"
+    storage: "Data will be stored securely on encrypted servers"
+    retention_period: "5 years after publication"
+    sharing: "Anonymized data may be shared with other researchers"
+    withdrawal: "You may withdraw at any time before completing the study"
+
+  rights:
+    - "Voluntary participation - you may withdraw at any time"
+    - "Right to ask questions before or during the study"
+    - "Right to privacy and confidentiality of your data"
+
+# =============================================================================
+# QUESTIONNAIRE CONFIGURATION
+# =============================================================================
+questionnaire:
+  enabled: true
+  type: "post_experiment"
+  title: "Questionnaire"
+  introduction: "The decision-making task has been completed! Please answer the following questions on how you perceived this task."
+  privacy_note: "Your answers will be recorded anonymously, being disconnected to your Prolific ID right after the entire experiment is done."
+  show_study_info: false
+  show_contact_info: false
+
+  sections:
+    - id: "study"
+      title: "About this study"
+      questions:
+        - id: "q1"
+          type: "scale"
+          text: "While working on the task, how confident were you in identifying the best slot machine?"
+          required: true
+          scale:
+            min: -1
+            max: 5
+            labels:
+              - "Not applicable"
+              - "Not at all"
+              - "Very little"
+              - "Moderately"
+              - "Somewhat"
+              - "Very confident"
+
+        - id: "q2"
+          type: "scale"
+          text: "While working on the task, how much did you try to explore different slot machines?"
+          required: true
+          scale:
+            min: -1
+            max: 5
+            labels:
+              - "Not applicable"
+              - "Not at all"
+              - "Very little"
+              - "Moderately"
+              - "Somewhat"
+              - "To a great extent"
+
+        - id: "q3"
+          type: "scale"
+          text: "While working on the task, how much did you focus on maximizing your rewards?"
+          required: true
+          scale:
+            min: -1
+            max: 5
+            labels:
+              - "Not applicable"
+              - "Not at all"
+              - "Very little"
+              - "Moderately"
+              - "Somewhat"
+              - "To a great extent"
+
+        - id: "q4"
+          type: "textarea"
+          text: "While working on the task, how did you decide which slot to choose? Could you guess which slot seemed to be a better one? Please describe freely in the form below:"
+          required: false
+          rows: 6
+
+        - id: "q5"
+          type: "textarea"
+          text: "What was the most difficult part of the decision-making task? Please describe freely in the form below:"
+          required: false
+          rows: 6
+
+    - id: "demographics"
+      title: "About Yourself"
+      questions:
+        - id: "age"
+          type: "number"
+          text: "Your age:"
+          required: true
+          suffix: "years old"
+          min: 18
+          max: 120
+
+        - id: "sex"
+          type: "select"
+          text: "Your gender:"
+          required: true
+          placeholder: "Select Gender"
+          options:
+            - value: "1"
+              label: "Male"
+            - value: "2"
+              label: "Female"
+            - value: "3"
+              label: "Non-binary"
+            - value: "4"
+              label: "Prefer not to answer"
+
 game:
   horizon: 5                  # 5 trials for testing
   total_game_rounds: 1        # One round only
