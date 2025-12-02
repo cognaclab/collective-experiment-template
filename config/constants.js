@@ -39,7 +39,7 @@ const debugExceptions = [
   'test', 'debug', 'quicktest',    // Quick-test recommended IDs
   'test1', 'test2', 'test3',       // Common test IDs used in docs
   'alice', 'bob', 'carol',         // Named test users in docs
-  'player1', 'player2', 'player3'  // Player IDs for group testing
+  'player1', 'player2', 'player3', 'player4', 'player5', 'player6', 'player7', 'player8'  // Player IDs for 8-player group testing
 ];
 
 // Date and time (formatted with leading zeros)

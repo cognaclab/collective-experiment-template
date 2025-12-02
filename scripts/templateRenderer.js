@@ -38,6 +38,9 @@ class TemplateRenderer {
         results.debrief = await this.renderDebrief();
       }
 
+      // Always render error page (uses study contact info)
+      results.error = await this.renderErrorPage();
+
       return results;
     } catch (error) {
       console.error('Error rendering templates:', error);
@@ -174,6 +177,40 @@ class TemplateRenderer {
     await fs.writeFile(outputPath, html, 'utf8');
 
     console.log(`✓ Generated debrief page: ${outputPath}`);
+    return outputPath;
+  }
+
+  /**
+   * Render error page with experiment-specific contact info
+   */
+  async renderErrorPage() {
+    const templatePath = path.join(this.templatesDir, 'error', 'error-page.ejs');
+    const templateExists = await this.fileExists(templatePath);
+
+    if (!templateExists) {
+      console.log('⚠ No error template found, skipping');
+      return null;
+    }
+
+    // Ensure output directory exists
+    const outputDir = path.join(this.experimentPath, 'pages');
+    try {
+      await fs.mkdir(outputDir, { recursive: true });
+    } catch (err) {
+      // Directory may already exist
+    }
+
+    const outputPath = path.join(outputDir, 'error.html');
+
+    const templateData = {
+      study: this.config.study || {},
+      experiment: this.config.experiment || {}
+    };
+
+    const html = await this.renderTemplate(templatePath, templateData);
+    await fs.writeFile(outputPath, html, 'utf8');
+
+    console.log(`✓ Generated error page: ${outputPath}`);
     return outputPath;
   }
 
