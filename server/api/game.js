@@ -26,16 +26,30 @@ const subjectIdList = [];
 /* GET handler for direct access and page refreshes */
 router.get('/', function(req, res, next) {
 	if(req.query.subjectID) {
-		// Check if subjectID is valid (either in list or debug exception)
-		if(subjectIdList.indexOf(req.query.subjectID) > -1 ||
-		   debugExceptions.indexOf(req.query.subjectID) > -1) {
+		const subjectID = req.query.subjectID;
+
+		// Allow debug exceptions (can be reused multiple times)
+		if(debugExceptions.indexOf(subjectID) > -1) {
 			res.render('game', {
 				title: 'Collective Reward Experiment',
-				subjectID: req.query.subjectID
+				subjectID: subjectID
 			});
-		} else {
-			res.render('multipleAccess');
-			console.log('GET request with invalid/unrecognized subjectID: ' + req.query.subjectID);
+		}
+		// Allow if already registered via POST or previous GET
+		else if(subjectIdList.indexOf(subjectID) > -1) {
+			res.render('game', {
+				title: 'Collective Reward Experiment',
+				subjectID: subjectID
+			});
+		}
+		// Allow new IDs via direct GET access (register them first)
+		else {
+			subjectIdList.push(subjectID);
+			console.log('New subject registered via GET: ' + subjectID);
+			res.render('game', {
+				title: 'Collective Reward Experiment',
+				subjectID: subjectID
+			});
 		}
 	} else {
 		// No subjectID provided - show error
