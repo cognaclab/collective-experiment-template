@@ -201,6 +201,14 @@ async function processOstracismVotes(room, roundNumber, io) {
   // Save updated network state to database
   await saveOstracismNetworkState(room, roundNumber, edgesRemoved);
 
+  // Store results for network_update scene to access via handleSceneComplete
+  room.lastOstracismResults = {
+    edgesRemoved: edgesRemoved,
+    newlyIsolated: newlyIsolated,
+    roundNumber: roundNumber,
+    networkAfter: networkAfter
+  };
+
   // Log summary
   logger.info(`[OstracismVote] Round ${roundNumber} summary:`);
   logger.info(`  - Edges removed: ${edgesRemoved.length}`);

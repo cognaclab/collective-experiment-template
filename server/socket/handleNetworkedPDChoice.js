@@ -138,9 +138,19 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
       room.pairResults[roundNumber] = {};
     }
 
+    // Get round/turn info for display
+    const gameRound = (room.gameRound || 0) + 1;  // 1-indexed for display
+    const turnWithinRound = room.turnWithinRound || 1;
+    const turnsPerRound = room.turnsPerRound || 2;
+    const totalRounds = room.totalGameRounds || 3;
+
     // Store result for player 1 (current player)
     room.pairResults[roundNumber][subjectNumber] = {
       roundNumber,
+      gameRound,
+      turnWithinRound,
+      turnsPerRound,
+      totalRounds,
       myChoice: player1Choice,
       partnerChoice: player2Choice,
       myPayoff: player1Payoff,
@@ -153,6 +163,10 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
     // Store result for player 2 (partner)
     room.pairResults[roundNumber][partnerId] = {
       roundNumber,
+      gameRound,
+      turnWithinRound,
+      turnsPerRound,
+      totalRounds,
       myChoice: player2Choice,
       partnerChoice: player1Choice,
       myPayoff: player2Payoff,

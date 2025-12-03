@@ -106,7 +106,17 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode
         isolatedPlayers: [],           // Players with no valid partners
         ostracismVotes: {},            // { roundNum: { playerId: { partnerId, vote, timestamp } } }
         cooperationHistory: {},        // { playerId: { partnerId: [choices] } }
-        roundNumber: 0                 // Current round (for networked PD)
+        roundNumber: 0,                // Current round (for networked PD)
+
+        // Round/Turn structure for networked PD
+        // gameRound: which round we're in (0-indexed, e.g., 0, 1, 2 for 3 rounds)
+        // turnWithinRound: which turn within the current round (1-indexed, e.g., 1, 2 for 2 turns)
+        // turnsPerRound: how many turns per round (from config, default 2)
+        // totalGameRounds: total number of rounds (from config, default 3)
+        turnWithinRound: 1,
+        turnsPerRound: config?.game?.horizon || 2,
+        totalGameRounds: config?.game?.total_game_rounds || 3,
+        currentRoundPartner: {}        // { playerId: partnerId } - persists for entire round
     };
 }
 

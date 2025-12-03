@@ -10,8 +10,18 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
     }
 
     init(data) {
+        console.log('SceneNetworkUpdate.init() received data:', data);
+
         this.roundNumber = data.roundNumber || 5;
         this.totalRounds = data.totalRounds || 30;
+
+        // Check if network data was passed via start_scene sceneData
+        if (data.edgesRemoved !== undefined || data.networkDensity !== undefined || data.playerStatus) {
+            // Data was passed via start_scene - store it for use in create()
+            this.pendingNetworkData = data;
+        } else {
+            this.pendingNetworkData = null;
+        }
 
         this.networkData = null;
         this.countdown = 3;
@@ -153,7 +163,14 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
         window.socket.off('network_summary', this.networkListener);
         window.socket.on('network_summary', this.networkListener);
 
-        console.log('SceneNetworkUpdate: Waiting for network summary');
+        // If we have pending network data from start_scene, use it immediately
+        if (this.pendingNetworkData) {
+            console.log('SceneNetworkUpdate: Using data from start_scene');
+            this.handleNetworkSummary(this.pendingNetworkData);
+        } else {
+            // Fall back to waiting for socket event (legacy behavior)
+            console.log('SceneNetworkUpdate: Waiting for network_summary socket event');
+        }
     }
 
     handleNetworkSummary(data) {

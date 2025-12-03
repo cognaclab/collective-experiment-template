@@ -11,7 +11,10 @@ export default class ScenePDPairing extends Phaser.Scene {
 
     init(data) {
         this.roundNumber = data.roundNumber || 1;
-        this.totalRounds = data.totalRounds || 30;
+        this.totalRounds = data.totalRounds || 3;
+
+        // Round/turn structure info
+        this.turnsPerRound = data.turnsPerRound || data.pairingData?.turnsPerRound || 2;
 
         // Server-provided pairing data (new server-initiated flow)
         this.serverPairingData = data.pairingData || null;
@@ -31,9 +34,16 @@ export default class ScenePDPairing extends Phaser.Scene {
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        this.roundText = this.add.text(centerX, 140, `Round ${this.roundNumber} of ${this.totalRounds}`, {
+        this.roundText = this.add.text(centerX, 130, `Round ${this.roundNumber} of ${this.totalRounds}`, {
             fontSize: '24px',
             fill: '#555'
+        }).setOrigin(0.5);
+
+        // Show turns per round info
+        this.turnsText = this.add.text(centerX, 158, `You will play ${this.turnsPerRound} turns with your partner`, {
+            fontSize: '18px',
+            fill: '#666',
+            fontStyle: 'italic'
         }).setOrigin(0.5);
 
         const progressBarWidth = 400;

@@ -25,49 +25,46 @@ sequence:
     type: "waiting"
     next: "ScenePDPairing"
 
-  # Main game loop: 30 rounds of networked PD
-  # Round 1 (complete flow with ostracism and network update)
+  # Main game loop: 3 rounds × 2 turns = 6 total interactions
+  # Dynamic looping is handled in handleSceneComplete.js:
+  # - After ScenePDResults: if more turns needed → loop back to ScenePDChoice
+  # - After SceneNetworkUpdate: if more rounds needed → loop back to ScenePDPairing
+
+  # Pairing scene - shows partner for this round (same partner for all turns in round)
   - scene: "ScenePDPairing"
     type: "pairing"
     params:
-      roundNumber: 1
-      totalRounds: 30
+      turnsPerRound: 2
+      totalRounds: 3
     next: "ScenePDChoice"
 
+  # Choice scene - make cooperate/defect decision
   - scene: "ScenePDChoice"
     type: "choice"
     params:
-      roundNumber: 1
-      trial: 1
-      totalTrials: 30
       maxChoiceTime: 20000
       showTimer: true
       showPartner: true
     next: "ScenePDResults"
 
+  # Results scene - view both players' choices and payoffs
+  # Server intercepts transition: if more turns in round → ScenePDChoice, else → SceneOstracismVote
   - scene: "ScenePDResults"
     type: "results"
     params:
-      roundNumber: 1
       showBothChoices: true
     next: "SceneOstracismVote"
 
+  # Ostracism vote - vote to continue or break connection with partner
   - scene: "SceneOstracismVote"
     type: "ostracism"
-    params:
-      roundNumber: 1
-      totalRounds: 30
     next: "SceneNetworkUpdate"
 
+  # Network update - shows network changes after ostracism
+  # Server intercepts transition: if more rounds → ScenePDPairing, else → SceneGoToQuestionnaire
   - scene: "SceneNetworkUpdate"
     type: "network_update"
-    params:
-      roundNumber: 1
-      totalRounds: 30
-    next: "SceneGoToQuestionnaire"
-
-  # For Phase 2 testing: After round 1, go to questionnaire
-  # Phase 3 will expand this to 30 rounds
+    next: "ScenePDPairing"
 
   # Questionnaire
   - scene: "SceneGoToQuestionnaire"

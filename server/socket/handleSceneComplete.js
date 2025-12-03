@@ -31,6 +31,21 @@ const SYNCHRONIZED_SCENE_TYPES = [
 ];
 
 /**
+ * Find player index in membersID array, handling both string and object formats.
+ * membersID can contain either:
+ * - strings (legacy format): the subjectID directly
+ * - objects (new format): { socketId, subjectId, sessionId, subjectNumber }
+ * @param {Array} membersID - Array of member entries
+ * @param {string} subjectID - The subject ID to find
+ * @returns {number} Index of player (0-based), or -1 if not found
+ */
+function findPlayerIndex(membersID, subjectID) {
+    return membersID.findIndex(m =>
+        m === subjectID || m?.subjectId === subjectID
+    );
+}
+
+/**
  * Get next scene from sequence with conditional routing support
  * @param {string} currentSceneKey - Current scene identifier
  * @param {Array} sequence - Experiment sequence from YAML
@@ -327,7 +342,9 @@ async function handleSceneComplete(client, data, config, io) {
     }
 
     // Define result scene types that complete a trial and increment counter
-    const RESULT_SCENE_TYPES = ['feedback', 'pd_results', 'results'];
+    // Note: 'results' is NOT included - it's used in networked-pd for mid-round display
+    // and has its own turn-looping logic in the ostracism handler
+    const RESULT_SCENE_TYPES = ['feedback', 'pd_results'];
 
     // Handle trial progression - increment AFTER result/feedback scenes
     if (currentSceneConfig && RESULT_SCENE_TYPES.includes(currentSceneConfig.type)) {
@@ -554,12 +571,18 @@ async function handleSceneComplete(client, data, config, io) {
             mySocialInfo: room.socialInfo?.[currentPointer] || {}
         };
     } else if (nextScene.type === 'pd_choice') {
-        // Prisoner's Dilemma choice scene
+        // Prisoner's Dilemma choice scene (simple PD without turns)
+        const horizon = config.experimentLoader.gameConfig.horizon || 3;
         sceneData = {
             trial: room.trial || 1,
-            totalTrials: config.experimentLoader.gameConfig.horizon || 3,
+            totalTrials: horizon,
             maxChoiceTime: config.experimentLoader.gameConfig.max_choice_time || 10000,
-            showTimer: true
+            showTimer: true,
+            // Explicitly set turnsPerRound=1 for simple PD (no turn structure)
+            turnsPerRound: 1,
+            gameRound: 1,
+            turnWithinRound: room.trial || 1,
+            totalRounds: 1
         };
         logger.debug('Preparing ScenePDChoice sceneData', {
             sceneData: sceneData,
@@ -594,8 +617,8 @@ async function handleSceneComplete(client, data, config, io) {
 
         // Emit personalized data to EACH player individually
         for (const playerSocket of sockets) {
-            // Find this player's subject number
-            const playerSubjectNumber = room.membersID.indexOf(playerSocket.subjectID) + 1;
+            // Find this player's subject number (supports both string and object membersID formats)
+            const playerSubjectNumber = findPlayerIndex(room.membersID, playerSocket.subjectID) + 1;
 
             if (playerSubjectNumber === 0) {
                 logger.warn('Player not found in membersID', {
@@ -666,6 +689,78 @@ async function handleSceneComplete(client, data, config, io) {
         // Early return - skip default broadcast for pd_results
         return;
     } else if (nextScene.type === 'ostracism') {
+        // Check if we need to loop back to choice (more turns in this round)
+        // This implements the round/turn structure: multiple turns with same partner before ostracism
+        const turnsPerRound = room.turnsPerRound || config.experimentLoader?.gameConfig?.horizon || 2;
+        const turnWithinRound = room.turnWithinRound || 1;
+
+        if (turnWithinRound < turnsPerRound) {
+            // Not done with this round yet - loop back to choice scene with same partner
+            room.turnWithinRound = turnWithinRound + 1;
+            room.trial = (room.trial || 1) + 1;
+
+            logger.info('Looping back to choice scene (more turns in round)', {
+                room: client.room,
+                gameRound: room.gameRound,
+                turnWithinRound: room.turnWithinRound,
+                turnsPerRound: turnsPerRound,
+                trial: room.trial,
+                player: client.subjectID
+            });
+
+            // Find this player's index and partner (same partner as before)
+            let playerId = -1;
+            for (const [idx, player] of Object.entries(room.membersID)) {
+                if (player && player.subjectId === client.subjectID) {
+                    playerId = parseInt(idx);
+                    break;
+                }
+            }
+
+            // Get partner from currentRoundPartner or currentPairings
+            const partnerId = room.currentRoundPartner?.[playerId] ??
+                (room.currentPairings?.find(([p1, p2]) => p1 === playerId || p2 === playerId)
+                    ?.find(p => p !== playerId));
+            const partner = partnerId !== null && partnerId !== undefined ? room.membersID[partnerId] : null;
+
+            // Build choice scene data with same partner info
+            const choiceData = {
+                trial: room.trial,
+                totalTrials: turnsPerRound * (room.totalGameRounds || 3),
+                gameRound: (room.gameRound || 0) + 1,
+                turnWithinRound: room.turnWithinRound,
+                turnsPerRound: turnsPerRound,
+                totalRounds: room.totalGameRounds || 3,
+                maxChoiceTime: config.experimentLoader?.gameConfig?.max_choice_time || 20000,
+                showTimer: true,
+                showPartner: true,
+                partnerId: partnerId,
+                partnerSubjectId: partner?.subjectId || `Player ${partnerId}`
+            };
+
+            // Emit choice scene to triggering player (they proceed independently, but sync at choice submission)
+            client.emit('start_scene', {
+                scene: 'ScenePDChoice',
+                sceneConfig: {
+                    scene: 'ScenePDChoice',
+                    type: 'choice',
+                    next: 'ScenePDResults'
+                },
+                sceneData: choiceData,
+                roomId: client.room,
+                sessionId: client.sessionId,
+                subjectId: client.subjectID
+            });
+
+            // Track current scene
+            if (config.roomStatus[client.room]) {
+                config.roomStatus[client.room].currentScene = 'ScenePDChoice';
+            }
+
+            return; // Skip ostracism - loop back to choice
+        }
+
+        // All turns complete - proceed to ostracism voting
         // Ostracism voting scene - emit PERSONALIZED data to TRIGGERING player only
         // Each player transitions independently when they click Continue on results
         // Synchronization happens AFTER voting via handleOstracismVote.js
@@ -708,8 +803,8 @@ async function handleSceneComplete(client, data, config, io) {
         const partnerCooperations = cooperationHistory.filter(c => c === 0).length;
 
         const ostracismData = {
-            roundNumber: room.roundNumber || room.trial || 1,
-            totalRounds: config.experimentLoader?.gameConfig?.horizon || 30,
+            roundNumber: (room.gameRound || 0) + 1,
+            totalRounds: room.totalGameRounds || config.experimentLoader?.gameConfig?.total_game_rounds || 3,
             partnerId: partnerId,
             partnerSubjectId: partner?.subjectId || `Player ${partnerId}`,
             cooperationHistory: cooperationHistory,
@@ -747,6 +842,105 @@ async function handleSceneComplete(client, data, config, io) {
 
         // Early return - skip default broadcast for ostracism
         return;
+    } else if (nextScene.type === 'network_update') {
+        // Network update scene - emit network state data to each player
+        // This runs AFTER all ostracism votes have been processed
+        const sockets = await io.in(client.room).fetchSockets();
+
+        logger.info('Emitting network_update scene data to all players', {
+            room: client.room,
+            playerCount: sockets.length
+        });
+
+        for (const playerSocket of sockets) {
+            // Find player ID from membersID (object keyed by player number)
+            let playerId = -1;
+            for (const [idx, player] of Object.entries(room.membersID)) {
+                if (player && player.subjectId === playerSocket.subjectID) {
+                    playerId = parseInt(idx);
+                    break;
+                }
+            }
+
+            if (playerId === -1) {
+                logger.warn('Player not found in membersID for network_update', {
+                    subjectID: playerSocket.subjectID
+                });
+                continue;
+            }
+
+            // Get network state data
+            const networkData = room.network ? room.network.serialize() : {};
+
+            // Get player-specific status
+            const playerConnections = room.network ? room.network.getDegree(playerId) : 0;
+            const availablePartners = room.network ? room.network.getValidPartners(playerId) : [];
+            const isIsolated = room.network ? room.network.isIsolated(playerId) : false;
+
+            // Get edges removed this round from lastOstracismResults
+            const lastOstracismResults = room.lastOstracismResults || {};
+            const edgesRemovedThisRound = lastOstracismResults.edgesRemoved || [];
+
+            // Find connections removed that affected this player
+            const removedConnections = edgesRemovedThisRound
+                .filter(e => e.player1 === playerId || e.player2 === playerId)
+                .map(e => ({
+                    number: e.player1 === playerId ? e.player2 : e.player1,
+                    subjectId: room.membersID[e.player1 === playerId ? e.player2 : e.player1]?.subjectId
+                }));
+
+            // Get newly isolated players
+            const newlyIsolated = lastOstracismResults.newlyIsolated || [];
+
+            const networkUpdateData = {
+                roundNumber: (room.gameRound || 0) + 1,
+                totalRounds: room.totalGameRounds || config.experimentLoader?.gameConfig?.total_game_rounds || 3,
+                edgesRemoved: edgesRemovedThisRound.length,
+                totalEdgesRemaining: networkData.totalEdges || 0,
+                networkDensity: networkData.density || 0,
+                playerStatus: {
+                    currentConnections: playerConnections,
+                    availablePartners: availablePartners.map(p => ({
+                        number: p,
+                        subjectId: room.membersID[p]?.subjectId
+                    })),
+                    isIsolated: isIsolated
+                },
+                removedConnections: removedConnections,
+                isolatedPlayers: newlyIsolated.map(p => ({
+                    number: p,
+                    subjectId: room.membersID[p]?.subjectId
+                }))
+            };
+
+            playerSocket.emit('start_scene', {
+                scene: nextScene.scene,
+                sceneConfig: nextScene,
+                sceneData: networkUpdateData,
+                roomId: client.room,
+                sessionId: playerSocket.sessionId,
+                subjectId: playerSocket.subjectID
+            });
+
+            logger.debug('Emitted network_update data to player', {
+                playerId: playerId,
+                subjectID: playerSocket.subjectID,
+                edgesRemoved: edgesRemovedThisRound.length,
+                playerConnections: playerConnections,
+                isIsolated: isIsolated
+            });
+        }
+
+        // Clear lastOstracismResults after sending to all players (prevent stale data)
+        delete room.lastOstracismResults;
+
+        // Track current scene in room state
+        if (config.roomStatus[client.room]) {
+            config.roomStatus[client.room].currentScene = nextScene.scene;
+        }
+
+        // Early return - skip default broadcast for network_update
+        return;
     } else if (nextScene.type === 'round_summary') {
         // Round summary scene - emit PERSONALIZED trial history for current round to each player
         const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
@@ -775,8 +969,8 @@ async function handleSceneComplete(client, data, config, io) {
 
             // Emit personalized data to EACH player individually
             for (const playerSocket of sockets) {
-                // Find this player's subject number
-                const playerSubjectNumber = room.membersID.indexOf(playerSocket.subjectID) + 1;
+                // Find this player's subject number (supports both string and object membersID formats)
+                const playerSubjectNumber = findPlayerIndex(room.membersID, playerSocket.subjectID) + 1;
 
                 if (playerSubjectNumber === 0) {
                     logger.warn('Player not found in membersID for round summary', {
@@ -861,7 +1055,7 @@ async function handleSceneComplete(client, data, config, io) {
             }
         } else {
             // Non-synchronized multiplayer - emit only to triggering player
-            const playerSubjectNumber = room.membersID.indexOf(client.subjectID) + 1;
+            const playerSubjectNumber = findPlayerIndex(room.membersID, client.subjectID) + 1;
 
             logger.info('Emitting round summary to triggering player only (non-synchronized)', {
                 room: client.room,
@@ -986,8 +1180,8 @@ async function handleSceneComplete(client, data, config, io) {
 
             // Emit personalized data to EACH player individually
             for (const playerSocket of sockets) {
-                // Find this player's subject number
-                const playerSubjectNumber = room.membersID.indexOf(playerSocket.subjectID) + 1;
+                // Find this player's subject number (supports both string and object membersID formats)
+                const playerSubjectNumber = findPlayerIndex(room.membersID, playerSocket.subjectID) + 1;
 
                 if (playerSubjectNumber === 0) {
                     logger.warn('Player not found in membersID for final summary', {
@@ -1069,7 +1263,7 @@ async function handleSceneComplete(client, data, config, io) {
             }
         } else {
             // Non-synchronized multiplayer - emit only to triggering player
-            const playerSubjectNumber = room.membersID.indexOf(client.subjectID) + 1;
+            const playerSubjectNumber = findPlayerIndex(room.membersID, client.subjectID) + 1;
 
             logger.info('Emitting final summary to triggering player only (non-synchronized)', {
                 room: client.room,
@@ -1293,8 +1487,60 @@ async function handleSceneComplete(client, data, config, io) {
         // Server-initiated pairing for networked experiments
         // Generate pairings ONCE here instead of each client requesting them
         const { generatePairingsForRoom } = require('./handlePairingStart');
-        const roundNumber = nextScene.params?.roundNumber || 1;
-        const totalRounds = nextScene.params?.totalRounds || 30;
+
+        // Handle round progression when coming from network_update scene
+        // This implements the round loop: after each round's ostracism/network update,
+        // increment gameRound and check if all rounds are complete
+        if (currentSceneConfig?.type === 'network_update') {
+            // Increment game round after network update (end of round)
+            room.gameRound = (room.gameRound || 0) + 1;
+            room.turnWithinRound = 1;  // Reset turn counter for new round
+            room.currentRoundPartner = {};  // Clear partner assignments
+
+            const totalGameRounds = room.totalGameRounds || config.experimentLoader?.gameConfig?.total_game_rounds || 3;
+
+            logger.info('Round progression after network_update', {
+                room: client.room,
+                newGameRound: room.gameRound,
+                totalGameRounds: totalGameRounds,
+                turnWithinRound: room.turnWithinRound
+            });
+
+            // Check if all rounds are complete
+            if (room.gameRound >= totalGameRounds) {
+                // All rounds complete - redirect to questionnaire instead of pairing
+                const questionnaireScene = sequence.find(s => s.type === 'questionnaire');
+
+                if (questionnaireScene) {
+                    logger.info('All rounds complete, transitioning to questionnaire', {
+                        room: client.room,
+                        completedRounds: room.gameRound,
+                        totalGameRounds: totalGameRounds
+                    });
+
+                    // Emit questionnaire scene to all players
+                    io.to(client.room).emit('start_scene', {
+                        scene: questionnaireScene.scene,
+                        sceneConfig: questionnaireScene,
+                        sceneData: {
+                            gameRound: room.gameRound,
+                            totalRounds: totalGameRounds,
+                            experimentComplete: true
+                        },
+                        roomId: client.room
+                    });
+
+                    if (config.roomStatus[client.room]) {
+                        config.roomStatus[client.room].currentScene = questionnaireScene.scene;
+                    }
+
+                    return; // Skip pairing - experiment complete
+                }
+            }
+        }
+
+        const roundNumber = room.gameRound !== undefined ? room.gameRound + 1 : (nextScene.params?.roundNumber || 1);
+        const totalRounds = room.totalGameRounds || nextScene.params?.totalRounds || 3;
 
         logger.info('Server-initiated pairing generation', {
             room: client.room,
@@ -1338,10 +1584,8 @@ async function handleSceneComplete(client, data, config, io) {
 
         // Emit personalized pairing data to EACH player individually
         for (const playerSocket of sockets) {
-            // Find this player's subject number (0-indexed in membersID)
-            const playerIndex = room.membersID.findIndex(m =>
-                m && (m.subjectId === playerSocket.subjectID || m === playerSocket.subjectID)
-            );
+            // Find this player's index (0-indexed in membersID, supports both string and object formats)
+            const playerIndex = findPlayerIndex(room.membersID, playerSocket.subjectID);
 
             if (playerIndex === -1) {
                 logger.warn('Player not found in membersID for pairing', {
@@ -1359,9 +1603,11 @@ async function handleSceneComplete(client, data, config, io) {
             };
 
             // Build personalized sceneData for THIS player
+            const turnsPerRound = room.turnsPerRound || config.experimentLoader?.gameConfig?.horizon || 2;
             const personalizedSceneData = {
                 roundNumber,
                 totalRounds,
+                turnsPerRound,
                 pairingData: playerPairingData
             };
 

@@ -89,7 +89,8 @@ questionnaire:
   type: "post_experiment"
 
 game:
-  horizon: 30                     # Total number of PD rounds
+  horizon: 2                      # Turns per round (2 for testing, 5 for production)
+  total_game_rounds: 3            # Number of rounds (3 rounds × 2 turns = 6 total interactions)
   k_armed_bandit: 2               # Two choices: Cooperate (0) or Defect (1)
   max_choice_time: 20000          # 20 seconds to make choice
   max_lobby_wait_time: 300000     # 5 minutes to wait for full group
@@ -108,10 +109,10 @@ conditions:
 network:
   initial_topology: "complete"    # Start with all players connected
   ostracism_enabled: true         # Allow players to vote to exclude partners
-  ostracism_frequency: 5          # Vote to break links every N rounds
   ostracism_type: "unilateral"    # "unilateral" (either can break) or "mutual" (both must agree)
   edge_removal_rule: "either"     # If EITHER player votes to break, edge is removed
   show_network_state: true        # Show players their current connections
+  # Note: Ostracism now happens at end of each round (after all turns with same partner)
 
 # Pairing/matching configuration
 pairing:
@@ -122,34 +123,37 @@ pairing:
   show_partner_history: true      # Show cooperation history with current partner
 
 # Round structure defines the flow within each round
+# Each ROUND consists of multiple TURNS with the same partner
+# After all turns in a round, players vote on ostracism, then re-pair for next round
 round_structure:
-  total_rounds: 30
+  total_rounds: 3               # Number of rounds (re-pairing between rounds)
+  turns_per_round: 2            # Turns per round with same partner
   phases_per_round:
     - phase: "pairing"
       scene: "ScenePDPairing"
-      description: "Shows who your partner is for this round"
-      always: true
+      description: "Shows who your partner is for this round (same partner for all turns)"
+      at_round_start: true
 
     - phase: "choice"
       scene: "ScenePDChoice"
       description: "Make cooperate/defect decision"
-      always: true
+      every_turn: true
 
     - phase: "results"
       scene: "ScenePDResults"
       description: "View both players' choices and payoffs"
-      always: true
+      every_turn: true
 
     - phase: "ostracism"
       scene: "SceneOstracismVote"
       description: "Vote whether to continue or break link with partner"
-      frequency: 5              # Every 5 rounds
+      at_round_end: true
       skip_if_isolated: true
 
     - phase: "network_update"
       scene: "SceneNetworkUpdate"
       description: "View updated network connections"
-      frequency: 5              # After each ostracism vote
+      at_round_end: true
       skip_if_no_changes: true
 
 # Prisoner's Dilemma payoff matrix

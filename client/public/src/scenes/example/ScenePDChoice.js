@@ -16,11 +16,23 @@ class ScenePDChoice extends Phaser.Scene {
     init(data) {
         console.log('ScenePDChoice.init() received data:', data);
         this.trial = data.trial || 1;
-        this.totalTrials = data.totalTrials || 3;
+        this.totalTrials = data.totalTrials || 6;  // Default: 3 rounds × 2 turns
         this.maxChoiceTime = data.maxChoiceTime || 10000;
         this.showTimer = data.showTimer !== undefined ? data.showTimer : true;
 
+        // Round/turn structure
+        this.gameRound = data.gameRound || 1;
+        this.turnWithinRound = data.turnWithinRound || 1;
+        this.turnsPerRound = data.turnsPerRound || 2;
+        this.totalRounds = data.totalRounds || 3;
+
+        // Partner info (same partner for all turns in a round)
+        this.partnerId = data.partnerId;
+        this.partnerSubjectId = data.partnerSubjectId;
+        this.showPartner = data.showPartner !== undefined ? data.showPartner : true;
+
         console.log('ScenePDChoice.init() - maxChoiceTime set to:', this.maxChoiceTime);
+        console.log('ScenePDChoice.init() - Round', this.gameRound, 'Turn', this.turnWithinRound, 'of', this.turnsPerRound);
 
         // Reset choice state
         this.choiceConfirmed = false;
@@ -33,16 +45,44 @@ class ScenePDChoice extends Phaser.Scene {
         // Background
         this.cameras.main.setBackgroundColor('#FFFFFF');
 
-        // Title
-        const titleText = `Round ${this.trial} of ${this.totalTrials}`;
-        const title = this.add.text(400, 80, titleText, {
+        // Title - conditional based on experiment type
+        let titleText;
+        if (this.turnsPerRound > 1) {
+            // Networked PD with turn structure
+            titleText = `Round ${this.gameRound} - Turn ${this.turnWithinRound} of ${this.turnsPerRound}`;
+        } else {
+            // Simple PD without turns
+            titleText = `Trial ${this.trial} of ${this.totalTrials}`;
+        }
+        const title = this.add.text(400, 60, titleText, {
             fontSize: '32px',
             fill: '#000',
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
+        // Show partner info if available (only for networked PD)
+        if (this.turnsPerRound > 1 && this.showPartner && this.partnerSubjectId) {
+            this.add.text(400, 100, `Playing with: ${this.partnerSubjectId}`, {
+                fontSize: '20px',
+                fill: '#2196F3',
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
+        }
+
+        // Show remaining turns info (only for networked PD with turns)
+        if (this.turnsPerRound > 1) {
+            const turnsRemaining = this.turnsPerRound - this.turnWithinRound;
+            if (turnsRemaining > 0) {
+                this.add.text(400, 130, `${turnsRemaining} turn${turnsRemaining !== 1 ? 's' : ''} remaining with this partner`, {
+                    fontSize: '16px',
+                    fill: '#666',
+                    fontStyle: 'italic'
+                }).setOrigin(0.5);
+            }
+        }
+
         // Instructions
-        const instructions = this.add.text(400, 150, 'Make your choice:', {
+        const instructions = this.add.text(400, 170, 'Make your choice:', {
             fontSize: '24px',
             fill: '#333'
         }).setOrigin(0.5);

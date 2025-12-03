@@ -45,6 +45,13 @@ async function generatePairingsForRoom(room, roundNumber, io = null) {
     room.currentPairings = pairs;
     room.isolatedPlayers = isolated;
 
+    // Store partner mapping for the entire round (persists across turns)
+    room.currentRoundPartner = {};
+    for (const [p1, p2] of pairs) {
+      room.currentRoundPartner[p1] = p2;
+      room.currentRoundPartner[p2] = p1;
+    }
+
     logger.info(`[Pairing] Round ${roundNumber}: ${pairs.length} pairs, ${isolated.length} isolated, ${unpaired.length} unpaired`);
 
     // Build per-player pairing data for scene initialization

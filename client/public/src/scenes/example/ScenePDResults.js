@@ -15,6 +15,12 @@ class ScenePDResults extends Phaser.Scene {
         this.showBothChoices = data.showBothChoices !== undefined ? data.showBothChoices : true;
         this.showPayoffs = data.showPayoffs !== undefined ? data.showPayoffs : true;
 
+        // Round/turn structure
+        this.gameRound = data.gameRound || 1;
+        this.turnWithinRound = data.turnWithinRound || 1;
+        this.turnsPerRound = data.turnsPerRound || 2;
+        this.totalRounds = data.totalRounds || 3;
+
         // Get result data - prefer passed data from server, fallback to window.lastPDResult (for networked PD)
         const result = window.lastPDResult || {};
 
@@ -33,6 +39,9 @@ class ScenePDResults extends Phaser.Scene {
             myPayoff: this.myPayoff,
             partnerPayoff: this.partnerPayoff,
             totalPoints: this.totalPoints,
+            gameRound: this.gameRound,
+            turnWithinRound: this.turnWithinRound,
+            turnsPerRound: this.turnsPerRound,
             fromServer: data.myChoice !== undefined,
             fromWindow: result.myChoice !== undefined
         });
@@ -46,12 +55,38 @@ class ScenePDResults extends Phaser.Scene {
         // Background
         this.cameras.main.setBackgroundColor('#FFFFFF');
 
-        // Title
-        const title = this.add.text(400, 60, `Round ${this.trial} Results`, {
-            fontSize: '36px',
+        // Title - conditional based on experiment type
+        let titleText;
+        if (this.turnsPerRound > 1) {
+            // Networked PD with turn structure
+            titleText = `Round ${this.gameRound} - Turn ${this.turnWithinRound} Results`;
+        } else {
+            // Simple PD without turns
+            titleText = `Trial ${this.trial} Results`;
+        }
+        const title = this.add.text(400, 50, titleText, {
+            fontSize: '32px',
             fill: '#000',
             fontStyle: 'bold'
         }).setOrigin(0.5);
+
+        // Show remaining turns info (only for networked PD with turns)
+        if (this.turnsPerRound > 1) {
+            const turnsRemaining = this.turnsPerRound - this.turnWithinRound;
+            if (turnsRemaining > 0) {
+                this.add.text(400, 85, `${turnsRemaining} turn${turnsRemaining !== 1 ? 's' : ''} remaining with this partner`, {
+                    fontSize: '16px',
+                    fill: '#666',
+                    fontStyle: 'italic'
+                }).setOrigin(0.5);
+            } else {
+                this.add.text(400, 85, 'Final turn with this partner - vote next', {
+                    fontSize: '16px',
+                    fill: '#FF9800',
+                    fontStyle: 'italic'
+                }).setOrigin(0.5);
+            }
+        }
 
         // Choice labels
         const choiceLabels = ['Cooperate', 'Defect'];
