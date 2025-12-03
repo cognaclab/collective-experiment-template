@@ -175,29 +175,51 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
     logger.info(`[NetworkedPDChoice] Round ${roundNumber}: ${completedPlayers}/${totalPairedPlayers} players have results`);
 
     if (completedPlayers >= totalPairedPlayers) {
-      // All pairs complete - emit pd_result AND all_pairs_complete to all players
-      logger.info(`[NetworkedPDChoice] All ${room.currentPairings.length} pairs complete. Triggering synchronized transition.`);
+      // All pairs complete - show 3-second countdown before transitioning to results
+      logger.info(`[NetworkedPDChoice] All ${room.currentPairings.length} pairs complete. Starting 3s countdown.`);
 
-      for (const [playerIdStr, resultData] of Object.entries(room.pairResults[roundNumber])) {
+      // Emit all_choices_confirmed to trigger client countdown UI
+      for (const [playerIdStr] of Object.entries(room.pairResults[roundNumber])) {
         const playerId = parseInt(playerIdStr);
         const player = room.membersID[playerId];
-
         if (player && player.socketId) {
-          // Emit pd_result so client has the data
-          io.to(player.socketId).emit('pd_result', resultData);
-
-          // Emit all_pairs_complete to trigger synchronized scene transition
-          io.to(player.socketId).emit('all_pairs_complete', {
-            roundNumber,
-            resultData
+          io.to(player.socketId).emit('all_choices_confirmed', {
+            message: 'All players have confirmed their choices'
           });
-
-          logger.debug(`[NetworkedPDChoice] Emitted pd_result and all_pairs_complete to player ${playerId}`);
         }
       }
 
-      // Clear round results after emitting
-      delete room.pairResults[roundNumber];
+      // Wait 3 seconds, then emit results and trigger synchronized transition
+      setTimeout(() => {
+        logger.info(`[NetworkedPDChoice] 3s countdown complete. Transitioning to results.`);
+
+        // Check if pairResults still exists (room may have been cleaned up)
+        if (!room.pairResults || !room.pairResults[roundNumber]) {
+          logger.warn(`[NetworkedPDChoice] pairResults no longer exists for round ${roundNumber}`);
+          return;
+        }
+
+        for (const [playerIdStr, resultData] of Object.entries(room.pairResults[roundNumber])) {
+          const playerId = parseInt(playerIdStr);
+          const player = room.membersID[playerId];
+
+          if (player && player.socketId) {
+            // Emit pd_result so client has the data
+            io.to(player.socketId).emit('pd_result', resultData);
+
+            // Emit all_pairs_complete to trigger synchronized scene transition
+            io.to(player.socketId).emit('all_pairs_complete', {
+              roundNumber,
+              resultData
+            });
+
+            logger.debug(`[NetworkedPDChoice] Emitted pd_result and all_pairs_complete to player ${playerId}`);
+          }
+        }
+
+        // Clear round results after emitting
+        delete room.pairResults[roundNumber];
+      }, 3000);
     }
 
   } else {
