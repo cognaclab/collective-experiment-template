@@ -25,6 +25,8 @@ const SYNCHRONIZED_SCENE_TYPES = [
     'game',        // Main bandit task scenes (quick-test example)
     'pd_choice',   // 2-player PD choice (prisoners-dilemma example)
     'pd_results',  // 2-player PD results (prisoners-dilemma example)
+    'choice',      // Generic choice scenes (networked-pd)
+    'results',     // Generic results scenes (networked-pd)
     'feedback',    // Trial feedback scenes (quick-test example)
     'pairing'      // Networked PD: wait for all players before pairs assigned
     // Note: 'ostracism' removed - sync handled by handleOstracismVote after voting
