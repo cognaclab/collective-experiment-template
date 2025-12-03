@@ -180,7 +180,12 @@ function transitionToSharedRoom(client, config, io) {
         client.join(newRoomName);
 
         newRoom.n++;
-        newRoom.membersID.push(client.subjectID);
+        newRoom.membersID.push({
+            socketId: client.id,
+            subjectId: client.subjectID,
+            sessionId: client.sessionId,
+            subjectNumber: newRoom.n
+        });
         if (!newRoom.subjectNumbers) newRoom.subjectNumbers = [];
         newRoom.subjectNumbers.push(newRoom.n);
 
@@ -217,7 +222,11 @@ function transitionToSharedRoom(client, config, io) {
                 numEnv: config.numEnv,
                 task_order: [],
                 options: Array.from({length: config.experimentLoader.gameConfig.k_armed_bandit}, (_, i) => i + 1),
-                horizon: config.experimentLoader.gameConfig.horizon
+                horizon: config.experimentLoader.gameConfig.horizon,
+                network: config.experimentLoader.gameConfig.network,
+                pairing: config.experimentLoader.gameConfig.pairing,
+                reward_system: config.experimentLoader.gameConfig.reward_system,
+                task_type: config.experimentLoader.gameConfig.task_type
             }
         });
 
@@ -227,7 +236,12 @@ function transitionToSharedRoom(client, config, io) {
         client.join(newRoomName);
 
         newRoom.n = 1;
-        newRoom.membersID = [client.subjectID];
+        newRoom.membersID = [{
+            socketId: client.id,
+            subjectId: client.subjectID,
+            sessionId: client.sessionId,
+            subjectNumber: 1
+        }];
         newRoom.subjectNumbers = [1];
         newRoom.starting = 0;
         newRoom.isTemporary = false;

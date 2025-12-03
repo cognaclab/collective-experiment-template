@@ -13,6 +13,9 @@ export default class ScenePDPairing extends Phaser.Scene {
         this.roundNumber = data.roundNumber || 1;
         this.totalRounds = data.totalRounds || 30;
 
+        // Server-provided pairing data (new server-initiated flow)
+        this.serverPairingData = data.pairingData || null;
+
         this.pairingData = null;
         this.isIsolated = false;
         this.isUnpaired = false;
@@ -113,21 +116,30 @@ export default class ScenePDPairing extends Phaser.Scene {
             this.handleContinue();
         });
 
-        this.pairingListener = (data) => {
-            if (!this.scene.isActive('ScenePDPairing')) return;
-            this.handlePairingAssigned(data);
-        };
+        // Check if server provided pairing data directly (new server-initiated flow)
+        if (this.serverPairingData) {
+            console.log('ScenePDPairing: Using server-provided pairing data', this.serverPairingData);
+            this.handlePairingAssigned(this.serverPairingData);
+        } else {
+            // Fallback: request pairing from server (legacy client-initiated flow)
+            console.log('ScenePDPairing: No server pairing data, requesting from server');
 
-        window.socket.off('pairing_assigned', this.pairingListener);
-        window.socket.on('pairing_assigned', this.pairingListener);
+            this.pairingListener = (data) => {
+                if (!this.scene.isActive('ScenePDPairing')) return;
+                this.handlePairingAssigned(data);
+            };
 
-        window.socket.emit('pairing_start', {
-            sessionId: window.sessionId,
-            roomId: window.roomId,
-            roundNumber: this.roundNumber
-        });
+            window.socket.off('pairing_assigned', this.pairingListener);
+            window.socket.on('pairing_assigned', this.pairingListener);
 
-        console.log('ScenePDPairing: Requested pairing for round', this.roundNumber);
+            window.socket.emit('pairing_start', {
+                sessionId: window.sessionId,
+                roomId: window.roomId,
+                roundNumber: this.roundNumber
+            });
+
+            console.log('ScenePDPairing: Requested pairing for round', this.roundNumber);
+        }
     }
 
     handlePairingAssigned(data) {
@@ -215,7 +227,8 @@ export default class ScenePDPairing extends Phaser.Scene {
             this.historyText.setText('This is your first time playing with this partner');
         } else {
             const history = data.cooperationHistory || {};
-            const cooperations = history.cooperations || 0;
+            // Server sends player2Cooperated (times the partner cooperated with viewing player)
+            const cooperations = history.player2Cooperated || 0;
             const total = data.timesPlayedWithPartner || 1;
             const rate = Math.round((cooperations / total) * 100);
 

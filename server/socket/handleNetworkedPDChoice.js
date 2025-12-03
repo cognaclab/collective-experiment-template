@@ -28,9 +28,19 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
   }
 
   // Find this player's subject number
-  const playerIndex = room.membersID.findIndex(p => p.subjectId === subjectId);
+  // membersID is an object keyed by player number (0 to n-1)
+  let playerIndex = -1;
+  for (const [idx, player] of Object.entries(room.membersID)) {
+    if (player && player.subjectId === subjectId) {
+      playerIndex = parseInt(idx);
+      break;
+    }
+  }
+
   if (playerIndex === -1) {
-    logger.error(`[NetworkedPDChoice] Player ${subjectId} not found in room ${roomId}`);
+    logger.error(`[NetworkedPDChoice] Player ${subjectId} not found in room ${roomId}`, {
+      availablePlayers: Object.entries(room.membersID).map(([idx, p]) => ({ idx, subjectId: p?.subjectId }))
+    });
     socket.emit('error', { message: 'Player not found in room' });
     return;
   }
@@ -78,6 +88,11 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
   // Check if both players have chosen
   const partnerChoice = room.roundChoices[roundNumber][partnerId];
 
+  logger.debug(`[NetworkedPDChoice] Checking partner choice: roundNumber=${roundNumber}, partnerId=${partnerId}, partnerChoice exists=${!!partnerChoice}`, {
+    roundChoicesKeys: Object.keys(room.roundChoices[roundNumber] || {}),
+    currentPairings: room.currentPairings
+  });
+
   if (partnerChoice) {
     // Both players have chosen - calculate payoffs
     logger.info(`[NetworkedPDChoice] Both players chose in round ${roundNumber}. Calculating payoffs...`);
@@ -86,7 +101,7 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
     const player2Choice = partnerChoice.choice;
 
     // Calculate payoffs using RewardCalculator
-    const rewardCalculator = new RewardCalculator(room.config || room.gameConfig);
+    const rewardCalculator = new RewardCalculator(room.experimentConfig);
     const payoffs = rewardCalculator.calculateReward([player1Choice, player2Choice], {
       roundNumber,
       taskType: 'prisoners_dilemma'
@@ -115,11 +130,16 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
       player2ReactionTime: partnerChoice.reactionTime
     });
 
-    // Emit results to both players
-    const player1Socket = room.membersID[subjectNumber].socketId;
-    const player2Socket = room.membersID[partnerId].socketId;
+    // Store results for synchronized transition (instead of emitting pd_result immediately)
+    if (!room.pairResults) {
+      room.pairResults = {};
+    }
+    if (!room.pairResults[roundNumber]) {
+      room.pairResults[roundNumber] = {};
+    }
 
-    io.to(player1Socket).emit('pd_result', {
+    // Store result for player 1 (current player)
+    room.pairResults[roundNumber][subjectNumber] = {
       roundNumber,
       myChoice: player1Choice,
       partnerChoice: player2Choice,
@@ -128,9 +148,10 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
       cumulativePayoff: room.cumulativePayoffs[subjectNumber],
       partnerId,
       cooperationOutcome: getCooperationOutcome(player1Choice, player2Choice)
-    });
+    };
 
-    io.to(player2Socket).emit('pd_result', {
+    // Store result for player 2 (partner)
+    room.pairResults[roundNumber][partnerId] = {
       roundNumber,
       myChoice: player2Choice,
       partnerChoice: player1Choice,
@@ -139,12 +160,45 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
       cumulativePayoff: room.cumulativePayoffs[partnerId],
       partnerId: subjectNumber,
       cooperationOutcome: getCooperationOutcome(player2Choice, player1Choice)
-    });
+    };
 
-    logger.info(`[NetworkedPDChoice] Round ${roundNumber} complete. Payoffs: P${subjectNumber}=${player1Payoff}, P${partnerId}=${player2Payoff}`);
+    logger.info(`[NetworkedPDChoice] Pair ${subjectNumber}-${partnerId} complete. Payoffs: P${subjectNumber}=${player1Payoff}, P${partnerId}=${player2Payoff}`);
 
-    // Clear choices for this round
-    delete room.roundChoices[roundNumber];
+    // Clear this pair's choices
+    delete room.roundChoices[roundNumber][subjectNumber];
+    delete room.roundChoices[roundNumber][partnerId];
+
+    // Check if ALL pairs have completed for this round
+    const completedPlayers = Object.keys(room.pairResults[roundNumber]).length;
+    const totalPairedPlayers = room.currentPairings.length * 2;
+
+    logger.info(`[NetworkedPDChoice] Round ${roundNumber}: ${completedPlayers}/${totalPairedPlayers} players have results`);
+
+    if (completedPlayers >= totalPairedPlayers) {
+      // All pairs complete - emit pd_result AND all_pairs_complete to all players
+      logger.info(`[NetworkedPDChoice] All ${room.currentPairings.length} pairs complete. Triggering synchronized transition.`);
+
+      for (const [playerIdStr, resultData] of Object.entries(room.pairResults[roundNumber])) {
+        const playerId = parseInt(playerIdStr);
+        const player = room.membersID[playerId];
+
+        if (player && player.socketId) {
+          // Emit pd_result so client has the data
+          io.to(player.socketId).emit('pd_result', resultData);
+
+          // Emit all_pairs_complete to trigger synchronized scene transition
+          io.to(player.socketId).emit('all_pairs_complete', {
+            roundNumber,
+            resultData
+          });
+
+          logger.debug(`[NetworkedPDChoice] Emitted pd_result and all_pairs_complete to player ${playerId}`);
+        }
+      }
+
+      // Clear round results after emitting
+      delete room.pairResults[roundNumber];
+    }
 
   } else {
     logger.info(`[NetworkedPDChoice] Player ${subjectNumber} chose, waiting for partner ${partnerId}...`);

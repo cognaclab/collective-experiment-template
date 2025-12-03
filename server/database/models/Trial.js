@@ -41,7 +41,7 @@ const trialSchema = new mongoose.Schema({
   // ==========================================
   experimentConfig: {
     mode: { type: String, enum: ['individual', 'group'] },      // Experiment mode
-    taskType: { type: String, enum: ['static', 'dynamic'] },    // Environment type
+    taskType: { type: String, enum: ['static', 'dynamic', 'networked_pd', 'prisoners_dilemma'] },
     expCondition: { type: String },                              // Experimental condition
     groupSize: { type: Number, required: true },                 // n (1 for individual)
     maxGroupSize: { type: Number },                              // Max possible group size

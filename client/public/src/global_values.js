@@ -43,6 +43,9 @@ if (window.performance && window.performance.navigation) {
 window.socket = io.connect(htmlServer+portnum, { query: 'subjectID='+subjectID }); // portnum is defined in game.ejs
 const socket = window.socket; // Local reference for backward compatibility
 
+// Expose subjectID to window for ES6 module access (subjectID comes from EJS template)
+window.subjectId = subjectID;
+
 const flatBonus = 1.6; // pounds sterling (GBP)
 
 // experimental parameters 

@@ -33,14 +33,20 @@ async function handleOstracismVote(data, socket, io, rooms) {
   }
 
   // Find player's subject number
-  const playerIndex = room.membersID.findIndex(p => p.subjectId === subjectId);
-  if (playerIndex === -1) {
+  // membersID is an object keyed by player number (0 to n-1)
+  let playerId = -1;
+  for (const [idx, player] of Object.entries(room.membersID)) {
+    if (player && player.subjectId === subjectId) {
+      playerId = parseInt(idx);
+      break;
+    }
+  }
+
+  if (playerId === -1) {
     logger.error(`[OstracismVote] Player ${subjectId} not found in room ${roomId}`);
     socket.emit('error', { message: 'Player not found' });
     return;
   }
-
-  const playerId = playerIndex;
 
   // Validate vote
   if (vote !== 'continue' && vote !== 'break') {

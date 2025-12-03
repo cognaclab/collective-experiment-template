@@ -81,7 +81,9 @@ function onConnectioncConfig({ config, client, io }) {
                             numEnv: config.numEnv,
                             task_order: [],
                             options: Array.from({length: config.experimentLoader.gameConfig.k_armed_bandit}, (_, i) => i + 1),
-                            horizon: config.experimentLoader.gameConfig.horizon
+                            horizon: config.experimentLoader.gameConfig.horizon,
+                            network: config.experimentLoader.gameConfig.network,
+                            pairing: config.experimentLoader.gameConfig.pairing
                         }
                     });
                     config.roomStatus[client.room].n = 1;
@@ -115,7 +117,9 @@ function onConnectioncConfig({ config, client, io }) {
                         numEnv: config.numEnv,
                         task_order: [],
                         options: Array.from({length: config.experimentLoader.gameConfig.k_armed_bandit}, (_, i) => i + 1),
-                        horizon: config.experimentLoader.gameConfig.horizon
+                        horizon: config.experimentLoader.gameConfig.horizon,
+                        network: config.experimentLoader.gameConfig.network,
+                        pairing: config.experimentLoader.gameConfig.pairing
                     }
                 });
 

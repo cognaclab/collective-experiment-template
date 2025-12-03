@@ -15,14 +15,27 @@ class ScenePDResults extends Phaser.Scene {
         this.showBothChoices = data.showBothChoices !== undefined ? data.showBothChoices : true;
         this.showPayoffs = data.showPayoffs !== undefined ? data.showPayoffs : true;
 
-        // Data from server (passed via start_scene event)
-        this.myChoice = data.myChoice;
-        this.partnerChoice = data.partnerChoice;
-        this.myPayoff = data.myPayoff;
-        this.partnerPayoff = data.partnerPayoff;
-        this.totalPoints = data.totalPoints || 0;
+        // Get result data - prefer passed data from server, fallback to window.lastPDResult (for networked PD)
+        const result = window.lastPDResult || {};
+
+        // Use data from server if provided, otherwise use stored result from all_pairs_complete
+        this.myChoice = data.myChoice !== undefined ? data.myChoice : result.myChoice;
+        this.partnerChoice = data.partnerChoice !== undefined ? data.partnerChoice : result.partnerChoice;
+        this.myPayoff = data.myPayoff !== undefined ? data.myPayoff : result.myPayoff;
+        this.partnerPayoff = data.partnerPayoff !== undefined ? data.partnerPayoff : result.partnerPayoff;
+        this.totalPoints = data.totalPoints || result.cumulativePayoff || 0;
         this.wasMiss = data.wasMiss || false;
         this.wasTimeout = data.wasTimeout || false;
+
+        console.log('ScenePDResults.init() - resolved data:', {
+            myChoice: this.myChoice,
+            partnerChoice: this.partnerChoice,
+            myPayoff: this.myPayoff,
+            partnerPayoff: this.partnerPayoff,
+            totalPoints: this.totalPoints,
+            fromServer: data.myChoice !== undefined,
+            fromWindow: result.myChoice !== undefined
+        });
     }
 
     create() {

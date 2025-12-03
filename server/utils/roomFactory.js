@@ -38,7 +38,8 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode
 
     const totalHorizon = minHorizon * numEnv;
     const taskOrder = shuffle(task_order);
-    const taskType = taskOrder[0];//shuffleAndTakeFirst(taskList);
+    // Use taskType from config (e.g., 'networked_pd') if provided, otherwise default to first shuffled task
+    const taskType = config?.task_type || taskOrder[0];
 
     // Convert mode string to numeric if provided, otherwise use -1
     const indivOrGroupValue = mode ? modeToNumeric(mode) : -1;
@@ -58,6 +59,7 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode
 
     return {
         roomId: name, // Store room identifier for database
+        experimentConfig: config, // Store full config for RewardCalculator and other uses
         exp_condition: expConditionValue,
         riskDistributionId: getRandomIntInclusive(13, 13),
         optionOrder: shuffle(options),

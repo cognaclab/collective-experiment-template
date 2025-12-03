@@ -96,8 +96,8 @@ game:
   max_scene_wait_time: 10000      # 10 seconds for scene transitions
 
 groups:
-  max_group_size: 8               # 8 players per group
-  min_group_size: 8               # Require full group to start
+  max_group_size: 4               # 4 players per group (reduced for testing)
+  min_group_size: 4               # Require full group to start
 
 conditions:
   indivOrGroup: "group"           # Group experiment (multiplayer)

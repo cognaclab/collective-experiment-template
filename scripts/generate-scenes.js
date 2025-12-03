@@ -1076,6 +1076,7 @@ ${exampleScenesList}
             exp_condition = params.exp_condition;
             prob_means = params.prob_means;
             horizon = params.horizon;
+            window.taskType = params.taskType;
 
             // Calculate positions based on number of options
             const calculated_space = params.numOptions === 2 ? 350 : 185;

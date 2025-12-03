@@ -47,7 +47,7 @@ const { handleDisconnect } = require('../socket/handleDisconnect');
 const handleSceneComplete = require('../socket/handleSceneComplete');
 
 // Networked PD handlers
-const handlePairingStart = require('../socket/handlePairingStart');
+const { handlePairingStart } = require('../socket/handlePairingStart');
 const handleNetworkedPDChoice = require('../socket/handleNetworkedPDChoice');
 const handleOstracismVote = require('../socket/handleOstracismVote');
 
@@ -225,7 +225,14 @@ const roomCreationConfig = {
 	options,
 	prob_conditions,
 	exp_condition_list: config.exp_condition_list,
-	horizon
+	horizon,
+	// Task type from YAML config (e.g., 'networked_pd', 'static', 'dynamic')
+	task_type: loadedConfig?.task_type,
+	// Network and pairing config for networked experiments
+	network: loadedConfig?.network,
+	pairing: loadedConfig?.pairing,
+	// Reward system config for payoff calculation (PD matrix, probabilistic, etc.)
+	reward_system: loadedConfig?.reward_system
 };
 
 // this 'decoyRoom' is where reconnected subjects are sent

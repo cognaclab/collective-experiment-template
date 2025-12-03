@@ -22,10 +22,12 @@ const logger = require('../utils/logger');
  * Other scene types allow players to proceed independently at their own pace
  */
 const SYNCHRONIZED_SCENE_TYPES = [
-    'game',        // Main bandit task scenes
-    'pd_choice',   // Prisoner's Dilemma choice scenes
-    'pd_results',  // Immediate trial results (keeps gameplay synchronized)
-    'feedback'     // Trial feedback scenes in bandit tasks
+    'game',        // Main bandit task scenes (quick-test example)
+    'pd_choice',   // 2-player PD choice (prisoners-dilemma example)
+    'pd_results',  // 2-player PD results (prisoners-dilemma example)
+    'feedback',    // Trial feedback scenes (quick-test example)
+    'pairing'      // Networked PD: wait for all players before pairs assigned
+    // Note: 'ostracism' removed - sync handled by handleOstracismVote after voting
 ];
 
 /**
@@ -215,12 +217,15 @@ async function handleSceneComplete(client, data, config, io) {
     const currentSceneConfig = sequence.find(s => s.scene === sceneKey);
 
     // Determine if this scene type requires player synchronization
+    // Also check if the NEXT scene requires sync (e.g., results → pairing needs sync)
     const requiresSync = currentSceneConfig && SYNCHRONIZED_SCENE_TYPES.includes(currentSceneConfig.type);
+    const nextRequiresSync = nextScene && SYNCHRONIZED_SCENE_TYPES.includes(nextScene.type);
 
     // For temporary rooms (instruction phase), always allow individual progression
     // Also skip synchronization if bypassSync flag is set (server-driven transition)
     // Also skip synchronization for non-synchronized scene types (summaries, instructions, etc.)
-    if (isTemporaryRoom || bypassSync || !requiresSync) {
+    // BUT require sync if the NEXT scene requires it (e.g., results → pairing)
+    if (isTemporaryRoom || bypassSync || (!requiresSync && !nextRequiresSync)) {
         logger.info(
             bypassSync ? 'Server-driven transition - skipping sync' :
             isTemporaryRoom ? 'Temporary room - allowing individual progression' :
@@ -230,6 +235,7 @@ async function handleSceneComplete(client, data, config, io) {
                 scene: sceneKey,
                 sceneType: currentSceneConfig?.type,
                 requiresSync: requiresSync,
+                nextRequiresSync: nextRequiresSync,
                 nextScene: nextScene?.scene,
                 player: client.subjectID,
                 bypassSync: bypassSync
@@ -321,7 +327,7 @@ async function handleSceneComplete(client, data, config, io) {
     }
 
     // Define result scene types that complete a trial and increment counter
-    const RESULT_SCENE_TYPES = ['feedback', 'pd_results'];
+    const RESULT_SCENE_TYPES = ['feedback', 'pd_results', 'results'];
 
     // Handle trial progression - increment AFTER result/feedback scenes
     if (currentSceneConfig && RESULT_SCENE_TYPES.includes(currentSceneConfig.type)) {
@@ -443,21 +449,27 @@ async function handleSceneComplete(client, data, config, io) {
         return;
     }
 
-    // For game-type scenes, initialize parameters if not already done
-    if (nextScene.type === 'game' && !room.parametersInitialized) {
+    // For game-type and choice-type scenes, initialize parameters if not already done
+    if ((nextScene.type === 'game' || nextScene.type === 'choice') && !room.parametersInitialized) {
         logger.info('Initializing experiment parameters for game scene', {
             room: client.room,
             scene: nextScene.scene
         });
 
-        // Get environment probabilities from config
-        const numOptions = config.experimentLoader?.gameConfig?.k_armed_bandit || config.numOptions;
-        const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
+        // Get environment probabilities from config (for bandit tasks)
+        // For PD/choice scenes, these may not exist - that's OK
+        const numOptions = config.experimentLoader?.gameConfig?.k_armed_bandit || config.numOptions || 2;
+        const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon || 30;
         const envKey = nextScene.environment || 'static';
 
-        // Build prob_means array from environment probabilities
-        let prob_means;
-        if (config.experimentLoader) {
+        // Build prob_means array from environment probabilities (only for bandit tasks)
+        let prob_means = [];
+        let vals = [];
+
+        // Only try to get environment probabilities if environments are defined
+        const hasEnvironments = config.experimentLoader?.config?.environments;
+
+        if (hasEnvironments && config.experimentLoader) {
             try {
                 // Get normalized probabilities (works with both old and new format)
                 const probArray = config.experimentLoader.getEnvironmentProbs(envKey);
@@ -472,21 +484,25 @@ async function handleSceneComplete(client, data, config, io) {
                     horizon,
                     prob_means
                 });
+
+                // Build vals array (payoff values - typically 100 for all options)
+                vals = Array(numOptions).fill(null).map(() => Array(horizon).fill(100));
             } catch (error) {
-                logger.error('Failed to get environment probabilities', {
+                logger.warn('Could not get environment probabilities (may be PD experiment)', {
                     envKey,
                     error: error.message
                 });
-                throw error;
+                // Not fatal for PD experiments
             }
+        } else if (!hasEnvironments) {
+            // For PD/choice experiments without environments, use empty arrays
+            logger.info('No environments defined (PD/choice experiment), skipping prob_means');
         } else {
             // Fallback to legacy config format
             prob_means = [config.prob_0, config.prob_1, config.prob_2, config.prob_3, config.prob_4].slice(0, numOptions);
+            vals = Array(numOptions).fill(null).map(() => Array(horizon).fill(100));
             logger.info('Using legacy prob_means', { prob_means });
         }
-
-        // Build vals array (payoff values - typically 100 for all options)
-        const vals = Array(numOptions).fill(null).map(() => Array(horizon).fill(100));
 
         // Store on room object for database tracking
         room.prob_means = prob_means;
@@ -499,7 +515,8 @@ async function handleSceneComplete(client, data, config, io) {
             indivOrGroup: room.indivOrGroup,
             exp_condition: room.exp_condition,
             prob_means: prob_means,
-            horizon: horizon
+            horizon: horizon,
+            taskType: room.taskType  // 'networked_pd', 'static', 'dynamic', etc.
         });
 
         room.parametersInitialized = true;
@@ -647,6 +664,88 @@ async function handleSceneComplete(client, data, config, io) {
         }
 
         // Early return - skip default broadcast for pd_results
+        return;
+    } else if (nextScene.type === 'ostracism') {
+        // Ostracism voting scene - emit PERSONALIZED data to TRIGGERING player only
+        // Each player transitions independently when they click Continue on results
+        // Synchronization happens AFTER voting via handleOstracismVote.js
+
+        // Find this player's index in membersID (object keyed by player number)
+        let playerId = -1;
+        for (const [idx, player] of Object.entries(room.membersID)) {
+            if (player && player.subjectId === client.subjectID) {
+                playerId = parseInt(idx);
+                break;
+            }
+        }
+
+        if (playerId === -1) {
+            logger.warn('Player not found in membersID for ostracism', {
+                subjectID: client.subjectID
+            });
+            return;
+        }
+
+        // Helper function to find partner from currentPairings
+        const findPartner = (pId) => {
+            if (!room.currentPairings) return null;
+            for (const [p1, p2] of room.currentPairings) {
+                if (p1 === pId) return p2;
+                if (p2 === pId) return p1;
+            }
+            return null;
+        };
+
+        // Find this player's partner from currentPairings
+        const partnerId = findPartner(playerId);
+        const partner = partnerId !== null ? room.membersID[partnerId] : null;
+
+        // Get cooperation history with this partner
+        const cooperationHistory = room.cooperationHistory?.[playerId]?.[partnerId] || [];
+
+        // Calculate cooperation stats
+        const totalInteractions = cooperationHistory.length;
+        const partnerCooperations = cooperationHistory.filter(c => c === 0).length;
+
+        const ostracismData = {
+            roundNumber: room.roundNumber || room.trial || 1,
+            totalRounds: config.experimentLoader?.gameConfig?.horizon || 30,
+            partnerId: partnerId,
+            partnerSubjectId: partner?.subjectId || `Player ${partnerId}`,
+            cooperationHistory: cooperationHistory,
+            cooperationStats: {
+                totalInteractions: totalInteractions,
+                partnerCooperations: partnerCooperations,
+                cooperationRate: totalInteractions > 0 ? Math.round((partnerCooperations / totalInteractions) * 100) : 0
+            },
+            cumulativePayoff: room.cumulativePayoffs?.[playerId] || 0,
+            isIsolated: room.network?.isIsolated?.(playerId) || false
+        };
+
+        // Emit ONLY to the triggering client (not all players)
+        client.emit('start_scene', {
+            scene: nextScene.scene,
+            sceneConfig: nextScene,
+            sceneData: ostracismData,
+            roomId: client.room,
+            sessionId: client.sessionId,
+            subjectId: client.subjectID
+        });
+
+        logger.info('Emitted ostracism scene to triggering player only', {
+            playerId: playerId,
+            partnerId: partnerId,
+            subjectID: client.subjectID,
+            totalInteractions: totalInteractions,
+            partnerCooperations: partnerCooperations
+        });
+
+        // Track current scene in room state
+        if (config.roomStatus[client.room]) {
+            config.roomStatus[client.room].currentScene = nextScene.scene;
+        }
+
+        // Early return - skip default broadcast for ostracism
         return;
     } else if (nextScene.type === 'round_summary') {
         // Round summary scene - emit PERSONALIZED trial history for current round to each player
@@ -1190,6 +1289,107 @@ async function handleSceneComplete(client, data, config, io) {
             maxPlayers: maxGroupSize,
             roomReady: sceneData.roomReady
         });
+    } else if (nextScene.type === 'pairing') {
+        // Server-initiated pairing for networked experiments
+        // Generate pairings ONCE here instead of each client requesting them
+        const { generatePairingsForRoom } = require('./handlePairingStart');
+        const roundNumber = nextScene.params?.roundNumber || 1;
+        const totalRounds = nextScene.params?.totalRounds || 30;
+
+        logger.info('Server-initiated pairing generation', {
+            room: client.room,
+            roundNumber,
+            totalRounds,
+            playerCount: room.n
+        });
+
+        // Generate pairings (without emitting events - we'll send data with start_scene)
+        const pairingResult = await generatePairingsForRoom(room, roundNumber, null);
+
+        if (!pairingResult.success) {
+            if (pairingResult.alreadyProcessed) {
+                logger.debug('Pairing already processed for this round', {
+                    room: client.room,
+                    roundNumber
+                });
+            } else {
+                logger.error('Failed to generate pairings', {
+                    room: client.room,
+                    roundNumber,
+                    error: pairingResult.error
+                });
+                io.to(client.room).emit('error', {
+                    message: 'Failed to generate pairings',
+                    details: pairingResult.error
+                });
+                return;
+            }
+        }
+
+        // Get all sockets in room for personalized emission
+        const sockets = await io.in(client.room).fetchSockets();
+
+        logger.info('Emitting personalized pairing data to each player', {
+            room: client.room,
+            roundNumber,
+            playerCount: sockets.length,
+            pairsGenerated: pairingResult.pairs?.length || 0
+        });
+
+        // Emit personalized pairing data to EACH player individually
+        for (const playerSocket of sockets) {
+            // Find this player's subject number (0-indexed in membersID)
+            const playerIndex = room.membersID.findIndex(m =>
+                m && (m.subjectId === playerSocket.subjectID || m === playerSocket.subjectID)
+            );
+
+            if (playerIndex === -1) {
+                logger.warn('Player not found in membersID for pairing', {
+                    subjectID: playerSocket.subjectID,
+                    membersID: room.membersID.map(m => m?.subjectId || m)
+                });
+                continue;
+            }
+
+            // Get this player's pairing data
+            const playerPairingData = pairingResult.playerPairings?.[playerIndex] || {
+                roundNumber,
+                isUnpaired: true,
+                reason: 'No pairing data found'
+            };
+
+            // Build personalized sceneData for THIS player
+            const personalizedSceneData = {
+                roundNumber,
+                totalRounds,
+                pairingData: playerPairingData
+            };
+
+            // Emit to THIS player only
+            playerSocket.emit('start_scene', {
+                scene: nextScene.scene,
+                sceneConfig: nextScene,
+                sceneData: personalizedSceneData,
+                roomId: client.room,
+                sessionId: playerSocket.sessionId,
+                subjectId: playerSocket.subjectID
+            });
+
+            logger.debug('Emitted pairing data to player', {
+                subjectID: playerSocket.subjectID,
+                playerIndex,
+                hasPairing: !playerPairingData.isIsolated && !playerPairingData.isUnpaired,
+                partnerId: playerPairingData.partnerId
+            });
+        }
+
+        // Track current scene in room state
+        if (config.roomStatus[client.room]) {
+            config.roomStatus[client.room].currentScene = nextScene.scene;
+        }
+
+        // Early return - skip default broadcast for pairing scene
+        return;
     }
 
     // Broadcast next scene to all players in room

@@ -281,10 +281,13 @@ class PairingManager {
    * Get total number of times two players have been paired
    * @param {number} player1 - First player ID
    * @param {number} player2 - Second player ID
+   * @param {number} excludeRound - Round number to exclude from count (optional)
    * @returns {number} - Number of times paired
    */
-  getTimesPaired(player1, player2) {
-    return this.getPairHistory(player1, player2).length;
+  getTimesPaired(player1, player2, excludeRound = null) {
+    return this.getPairHistory(player1, player2)
+      .filter(h => excludeRound === null || h.round !== excludeRound)
+      .length;
   }
 
   /**

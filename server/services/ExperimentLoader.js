@@ -311,6 +311,10 @@ class ExperimentLoader {
             // Environments (legacy bandit probabilities - kept for backward compatibility)
             environments: this.config.environments,
 
+            // Network configuration (for networked experiments like PD with ostracism)
+            network: this.config.network || null,
+            pairing: this.config.pairing || null,
+
             // Payment settings
             payment: this.config.payment || {
                 flat_fee: 2.0,

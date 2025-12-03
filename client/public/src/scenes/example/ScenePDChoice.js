@@ -113,7 +113,7 @@ class ScenePDChoice extends Phaser.Scene {
         }).setOrigin(0.5).setVisible(false);
 
         // Waiting message (shown after confirmation)
-        const waitingText = this.add.text(400, 520, 'Waiting for your partner...', {
+        const waitingText = this.add.text(400, 520, 'Waiting for other players...', {
             fontSize: '20px',
             fill: '#FF9800',
             fontStyle: 'bold'
@@ -180,12 +180,13 @@ class ScenePDChoice extends Phaser.Scene {
             instructions.setText(`You chose: ${choiceName}`);
 
             if (this.showTimer) {
-                timerText.setText('Waiting for partner...');
+                timerText.setVisible(false);
                 timerBar.clear();
             }
 
             // Detect experiment type and emit appropriate event
-            const isNetworkedPD = window.taskType === 'networked_pd' || indivOrGroup === 'group';
+            // Check for networked_pd taskType or group mode (indivOrGroup=1 is group)
+            const isNetworkedPD = window.taskType === 'networked_pd' || (indivOrGroup === 1 && window.taskType !== 'prisoners_dilemma');
             const eventName = isNetworkedPD ? 'networked_pd_choice' : 'choice made';
 
             const eventData = {
@@ -341,15 +342,67 @@ class ScenePDChoice extends Phaser.Scene {
             }
         });
 
-        // Listen for server response (handled by main.js socket listener)
-        // Scene transition will be triggered by 'start_scene' event
+        // Listen for pd_result from networked PD handler
+        // This stores the result but does NOT trigger transition - we wait for all_pairs_complete
+        window.socket.on('pd_result', (data) => {
+            console.log('Received pd_result:', data);
+
+            // Store result data for ScenePDResults to access
+            window.lastPDResult = data;
+
+            // Check if scene is still active
+            if (!this.scene.isActive()) {
+                console.log('Scene no longer active, skipping pd_result handling');
+                return;
+            }
+
+            // Update UI to show result received, waiting for all pairs
+            if (waitingText && waitingText.active) {
+                waitingText.setText('Results received! Waiting for all players...');
+            }
+        });
+
+        // Listen for all pairs completing - this triggers the synchronized transition
+        window.socket.on('all_pairs_complete', (data) => {
+            console.log('All pairs complete, transitioning to results:', data);
+
+            // Store result for ScenePDResults (may override pd_result data with server-confirmed data)
+            if (data.resultData) {
+                window.lastPDResult = data.resultData;
+            }
+
+            // Check if scene is still active
+            if (!this.scene.isActive()) {
+                console.log('Scene no longer active, skipping all_pairs_complete handling');
+                return;
+            }
+
+            // Update UI
+            if (waitingText && waitingText.active) {
+                waitingText.setText('All players ready! Transitioning...');
+            }
+            if (instructions && instructions.active) {
+                instructions.setText('Proceeding to results...');
+            }
+
+            // NOW emit scene_complete to trigger synchronized server transition
+            window.socket.emit('scene_complete', {
+                scene: 'ScenePDChoice',
+                roundNumber: data.roundNumber || this.trial,
+                sessionId: window.sessionId,
+                roomId: window.roomId
+            });
+
+            console.log('Emitted scene_complete for ScenePDChoice (synchronized)');
+        });
     }
 
     handleTimeout() {
         console.log('Choice timeout - no selection made');
 
         // Detect experiment type and emit appropriate event
-        const isNetworkedPD = window.taskType === 'networked_pd' || indivOrGroup === 'group';
+        // Check for networked_pd taskType or group mode (indivOrGroup=1 is group)
+        const isNetworkedPD = window.taskType === 'networked_pd' || (indivOrGroup === 1 && window.taskType !== 'prisoners_dilemma');
         const eventName = isNetworkedPD ? 'networked_pd_choice' : 'choice made';
 
         const eventData = {
@@ -384,9 +437,11 @@ class ScenePDChoice extends Phaser.Scene {
             this.endingTimerEvent.remove();
         }
 
-        // Remove socket listener to prevent memory leaks
+        // Remove socket listeners to prevent memory leaks
         if (window.socket) {
             window.socket.off('all_choices_confirmed');
+            window.socket.off('pd_result');
+            window.socket.off('all_pairs_complete');
         }
     }
 }
