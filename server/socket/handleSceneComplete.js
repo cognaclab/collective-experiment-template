@@ -17,19 +17,19 @@
 const logger = require('../utils/logger');
 
 /**
- * Scene types that require player synchronization in multiplayer mode
- * Players must wait for all group members before proceeding to these scenes
- * Other scene types allow players to proceed independently at their own pace
+ * Scene types that require synchronized ENTRY in multiplayer mode.
+ * Players must wait for all group members before ENTERING these scenes.
+ * Scenes not in this list allow independent progression TO them.
+ *
+ * Key insight: Sync is based on DESTINATION, not current scene.
+ * We sync before entering choice/pairing scenes where players interact.
+ * We don't sync before entering results/ostracism where players just view info or vote independently.
  */
-const SYNCHRONIZED_SCENE_TYPES = [
-    'game',        // Main bandit task scenes (quick-test example)
-    'pd_choice',   // 2-player PD choice (prisoners-dilemma example)
-    'pd_results',  // 2-player PD results (prisoners-dilemma example)
-    'choice',      // Generic choice scenes (networked-pd)
-    'results',     // Generic results scenes (networked-pd)
-    'feedback',    // Trial feedback scenes (quick-test example)
-    'pairing'      // Networked PD: wait for all players before pairs assigned
-    // Note: 'ostracism' removed - sync handled by handleOstracismVote after voting
+const SCENES_REQUIRING_SYNCHRONIZED_ENTRY = [
+    'game',        // Bandit task - all players start together
+    'pd_choice',   // PD choice - all players decide together
+    'choice',      // Generic choice - all players decide together
+    'pairing'      // Partner assignment - all players must be present
 ];
 
 /**
@@ -233,27 +233,44 @@ async function handleSceneComplete(client, data, config, io) {
     // Get current scene config to check if synchronization is required
     const currentSceneConfig = sequence.find(s => s.scene === sceneKey);
 
-    // Determine if this scene type requires player synchronization
-    // Also check if the NEXT scene requires sync (e.g., results → pairing needs sync)
-    const requiresSync = currentSceneConfig && SYNCHRONIZED_SCENE_TYPES.includes(currentSceneConfig.type);
-    const nextRequiresSync = nextScene && SYNCHRONIZED_SCENE_TYPES.includes(nextScene.type);
+    // Determine the EFFECTIVE next scene (may differ from YAML due to runtime logic)
+    // For example, YAML says Results → Ostracism, but turn loop may redirect to Choice
+    let effectiveNextScene = nextScene;
+
+    if (nextScene?.type === 'ostracism' && room.turnsPerRound > 1) {
+        const turnsPerRound = room.turnsPerRound || 2;
+        const turnWithinRound = room.turnWithinRound || 1;
+
+        if (turnWithinRound < turnsPerRound) {
+            // Turn loop will redirect to choice, not ostracism
+            effectiveNextScene = { type: 'choice', scene: 'ScenePDChoice' };
+            logger.debug('Effective next scene adjusted for turn loop', {
+                yamlNext: nextScene?.scene,
+                effectiveNext: 'ScenePDChoice',
+                turnWithinRound,
+                turnsPerRound
+            });
+        }
+    }
+
+    // Sync is based on DESTINATION: does the next scene require synchronized entry?
+    const nextRequiresSync = effectiveNextScene && SCENES_REQUIRING_SYNCHRONIZED_ENTRY.includes(effectiveNextScene.type);
 
     // For temporary rooms (instruction phase), always allow individual progression
     // Also skip synchronization if bypassSync flag is set (server-driven transition)
-    // Also skip synchronization for non-synchronized scene types (summaries, instructions, etc.)
-    // BUT require sync if the NEXT scene requires it (e.g., results → pairing)
-    if (isTemporaryRoom || bypassSync || (!requiresSync && !nextRequiresSync)) {
+    // Also skip if the destination doesn't require synchronized entry
+    if (isTemporaryRoom || bypassSync || !nextRequiresSync) {
         logger.info(
             bypassSync ? 'Server-driven transition - skipping sync' :
             isTemporaryRoom ? 'Temporary room - allowing individual progression' :
-            'Non-synchronized scene - allowing individual progression',
+            'Destination does not require sync - allowing individual progression',
             {
                 room: client.room,
                 scene: sceneKey,
                 sceneType: currentSceneConfig?.type,
-                requiresSync: requiresSync,
+                effectiveNextScene: effectiveNextScene?.scene,
+                effectiveNextType: effectiveNextScene?.type,
                 nextRequiresSync: nextRequiresSync,
-                nextScene: nextScene?.scene,
                 player: client.subjectID,
                 bypassSync: bypassSync
             }
@@ -710,49 +727,55 @@ async function handleSceneComplete(client, data, config, io) {
                 player: client.subjectID
             });
 
-            // Find this player's index and partner (same partner as before)
-            let playerId = -1;
+            // Emit choice scene to ALL players in the room with personalized data
             for (const [idx, player] of Object.entries(room.membersID)) {
-                if (player && player.subjectId === client.subjectID) {
-                    playerId = parseInt(idx);
-                    break;
-                }
-            }
+                if (!player || !player.socketId) continue;
 
-            // Get partner from currentRoundPartner or currentPairings
-            const partnerId = room.currentRoundPartner?.[playerId] ??
-                (room.currentPairings?.find(([p1, p2]) => p1 === playerId || p2 === playerId)
-                    ?.find(p => p !== playerId));
-            const partner = partnerId !== null && partnerId !== undefined ? room.membersID[partnerId] : null;
+                const playerSocket = io.sockets.sockets.get(player.socketId);
+                if (!playerSocket) continue;
 
-            // Build choice scene data with same partner info
-            const choiceData = {
-                trial: room.trial,
-                totalTrials: turnsPerRound * (room.totalGameRounds || 3),
-                gameRound: (room.gameRound || 0) + 1,
-                turnWithinRound: room.turnWithinRound,
-                turnsPerRound: turnsPerRound,
-                totalRounds: room.totalGameRounds || 3,
-                maxChoiceTime: config.experimentLoader?.gameConfig?.max_choice_time || 20000,
-                showTimer: true,
-                showPartner: true,
-                partnerId: partnerId,
-                partnerSubjectId: partner?.subjectId || `Player ${partnerId}`
-            };
+                const playerId = parseInt(idx);
 
-            // Emit choice scene to triggering player (they proceed independently, but sync at choice submission)
-            client.emit('start_scene', {
-                scene: 'ScenePDChoice',
-                sceneConfig: {
+                // Get this player's partner from currentRoundPartner or currentPairings
+                const partnerId = room.currentRoundPartner?.[playerId] ??
+                    (room.currentPairings?.find(([p1, p2]) => p1 === playerId || p2 === playerId)
+                        ?.find(p => p !== playerId));
+                const partner = partnerId !== null && partnerId !== undefined ? room.membersID[partnerId] : null;
+
+                // Build personalized choice scene data
+                const choiceData = {
+                    trial: room.trial,
+                    totalTrials: turnsPerRound * (room.totalGameRounds || 3),
+                    gameRound: (room.gameRound || 0) + 1,
+                    turnWithinRound: room.turnWithinRound,
+                    turnsPerRound: turnsPerRound,
+                    totalRounds: room.totalGameRounds || 3,
+                    maxChoiceTime: config.experimentLoader?.gameConfig?.max_choice_time || 20000,
+                    showTimer: true,
+                    showPartner: true,
+                    partnerId: partnerId,
+                    partnerSubjectId: partner?.subjectId || `Player ${partnerId}`
+                };
+
+                playerSocket.emit('start_scene', {
                     scene: 'ScenePDChoice',
-                    type: 'choice',
-                    next: 'ScenePDResults'
-                },
-                sceneData: choiceData,
-                roomId: client.room,
-                sessionId: client.sessionId,
-                subjectId: client.subjectID
-            });
+                    sceneConfig: {
+                        scene: 'ScenePDChoice',
+                        type: 'choice',
+                        next: 'ScenePDResults'
+                    },
+                    sceneData: choiceData,
+                    roomId: client.room,
+                    sessionId: player.sessionId,
+                    subjectId: player.subjectId
+                });
+
+                logger.debug('Emitted start_scene for ScenePDChoice to player', {
+                    playerId: playerId,
+                    subjectId: player.subjectId,
+                    partnerId: partnerId
+                });
+            }
 
             // Track current scene
             if (config.roomStatus[client.room]) {
@@ -951,7 +974,7 @@ async function handleSceneComplete(client, data, config, io) {
         const isLastRound = (currentRound >= totalRounds - 1);
 
         // Determine if we should emit to all players or just the triggering player
-        const shouldEmitToAll = requiresSync || room.n === 1;
+        const shouldEmitToAll = nextRequiresSync || room.n === 1;
 
         if (shouldEmitToAll) {
             // Synchronized mode OR individual - emit to ALL players
@@ -963,7 +986,7 @@ async function handleSceneComplete(client, data, config, io) {
                 currentRound: currentRound,
                 isLastRound: isLastRound,
                 playerCount: sockets.length,
-                synchronized: requiresSync
+                synchronized: nextRequiresSync
             });
 
             // Calculate payment
@@ -1164,7 +1187,7 @@ async function handleSceneComplete(client, data, config, io) {
         const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
 
         // Determine if we should emit to all players or just the triggering player
-        const shouldEmitToAll = requiresSync || room.n === 1;
+        const shouldEmitToAll = nextRequiresSync || room.n === 1;
 
         if (shouldEmitToAll) {
             // Synchronized mode OR individual - emit to ALL players
@@ -1175,7 +1198,7 @@ async function handleSceneComplete(client, data, config, io) {
                 totalRounds: totalRounds,
                 horizon: horizon,
                 playerCount: sockets.length,
-                synchronized: requiresSync
+                synchronized: nextRequiresSync
             });
 
             const paymentCalculator = config.experimentLoader?.paymentCalculator;
