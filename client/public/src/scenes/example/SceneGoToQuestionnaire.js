@@ -1,185 +1,215 @@
-// SceneGoToQuestionnaire
+/**
+ * SceneGoToQuestionnaire - Experiment completion summary
+ * Shows round-by-round breakdown and payment summary before questionnaire
+ */
 
-import {rand
-	, goToQuestionnaire
-} from '../../functions.js';
+import { goToQuestionnaire } from '../../functions.js';
 
 class SceneGoToQuestionnaire extends Phaser.Scene {
 
-	constructor (){
-	    super({ key: 'SceneGoToQuestionnaire', active: false });
+	constructor() {
+		super({ key: 'SceneGoToQuestionnaire', active: false });
 	}
 
-	preload(){
+	preload() {
 	}
 
 	init(data) {
+		console.log('SceneGoToQuestionnaire.init() received data:', data);
 		this.totalPointsAllRounds = data.totalPointsAllRounds || 0;
 		this.roundBreakdown = data.roundBreakdown || [];
-		this.totalGameRounds = data.totalGameRounds || 1;
-		this.optionOrder = data.optionOrder || [1, 2, 3];
-		this.horizon = data.horizon || 0;
-		this.n = data.n || 1;
-		this.prob_means = data.prob_means || null;
+		this.totalRounds = data.totalRounds || data.totalGameRounds || 1;
 		this.payment = data.payment || null;
 	}
 
-	create(){
-		// background colour
+	create() {
+		const centerX = this.cameras.main.width / 2;
 		this.cameras.main.setBackgroundColor('#FFFFFF');
 
-		let yPosition = 80;
+		let yPosition = 50;
 
 		// Title
-		this.add.text(configWidth/2, yPosition, 'Round Complete!', {
-			fontSize: '48px',
-			fill: '#000',
-			fontStyle: 'bold'
-		}).setOrigin(0.5);
-
-		yPosition += 70;
-
-		// Total points
-		this.add.text(configWidth/2, yPosition, `Total Points Earned: ${this.totalPointsAllRounds}`, {
+		this.add.text(centerX, yPosition, 'Experiment Complete!', {
 			fontSize: '36px',
-			fill: '#ff6600',
+			fill: '#000',
 			fontStyle: 'bold'
 		}).setOrigin(0.5);
 
 		yPosition += 60;
 
-		// Per-round breakdown (only if multiple rounds)
-		if (this.totalGameRounds > 1) {
-			this.add.text(configWidth/2, yPosition, 'Points per Round:', {
-				fontSize: '24px',
-				fill: '#000'
-			}).setOrigin(0.5);
-			yPosition += 40;
+		// Create summary panel
+		const panelWidth = 500;
+		const panelX = centerX;
 
-			for (let i = 0; i < this.totalGameRounds; i++) {
-				const roundPoints = this.roundBreakdown[i] || 0;
-				this.add.text(configWidth/2, yPosition, `Round ${i + 1}: ${roundPoints} points`, {
+		// Round Summary Section
+		this.add.text(panelX, yPosition, 'Round Summary', {
+			fontSize: '24px',
+			fill: '#333',
+			fontStyle: 'bold'
+		}).setOrigin(0.5);
+
+		yPosition += 15;
+
+		// Divider line
+		const graphics = this.add.graphics();
+		graphics.lineStyle(2, 0xCCCCCC, 1);
+		graphics.lineBetween(centerX - panelWidth/2 + 50, yPosition, centerX + panelWidth/2 - 50, yPosition);
+
+		yPosition += 25;
+
+		// Round breakdown
+		if (this.roundBreakdown && this.roundBreakdown.length > 0) {
+			for (const roundData of this.roundBreakdown) {
+				const roundNum = roundData.round || (this.roundBreakdown.indexOf(roundData) + 1);
+				const points = roundData.points || roundData || 0;
+
+				this.add.text(panelX, yPosition, `Round ${roundNum}: ${points} points`, {
 					fontSize: '20px',
-					fill: '#666'
+					fill: '#555'
 				}).setOrigin(0.5);
-				yPosition += 35;
+				yPosition += 30;
 			}
-			yPosition += 20;
+		} else {
+			// Fallback for legacy data format
+			for (let i = 0; i < this.totalRounds; i++) {
+				const roundPoints = Array.isArray(this.roundBreakdown) ? (this.roundBreakdown[i] || 0) : 0;
+				this.add.text(panelX, yPosition, `Round ${i + 1}: ${roundPoints} points`, {
+					fontSize: '20px',
+					fill: '#555'
+				}).setOrigin(0.5);
+				yPosition += 30;
+			}
 		}
 
-		// Machine probabilities (for debugging)
-		// Display in visual order (Machine 1 = left, Machine 2 = right, etc.)
-		// Shows the actual probabilities assigned to each position via optionOrder
-		if (this.prob_means && this.prob_means.length > 0) {
-			this.add.text(configWidth/2, yPosition, 'Machine Probabilities:', {
-				fontSize: '22px',
-				fill: '#000',
-				fontStyle: 'bold'
+		yPosition += 5;
+
+		// Total points
+		this.add.text(panelX, yPosition, `Total: ${this.totalPointsAllRounds} points`, {
+			fontSize: '22px',
+			fill: '#2196F3',
+			fontStyle: 'bold'
+		}).setOrigin(0.5);
+
+		yPosition += 50;
+
+		// Payment Summary Section
+		this.add.text(panelX, yPosition, 'Payment Summary', {
+			fontSize: '24px',
+			fill: '#333',
+			fontStyle: 'bold'
+		}).setOrigin(0.5);
+
+		yPosition += 15;
+
+		// Divider line
+		graphics.lineBetween(centerX - panelWidth/2 + 50, yPosition, centerX + panelWidth/2 - 50, yPosition);
+
+		yPosition += 25;
+
+		// Get currency symbol
+		const currency = this.payment?.currency || 'GBP';
+		const symbol = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency;
+
+		// Payment breakdown
+		const breakdown = this.payment?.breakdown || {
+			flatFee: 0,
+			pointsAmount: 0,
+			waitingBonus: 0,
+			completionBonus: 0
+		};
+
+		// Base fee (if present)
+		if (breakdown.flatFee > 0) {
+			this.add.text(panelX, yPosition, `Base fee: ${symbol}${breakdown.flatFee.toFixed(2)}`, {
+				fontSize: '20px',
+				fill: '#555'
 			}).setOrigin(0.5);
-			yPosition += 35;
-
-			for (let position = 0; position < this.prob_means.length; position++) {
-				const displayMachineNumber = position + 1; // Machine 1, Machine 2, etc. (visual order)
-				const actualMachineId = this.optionOrder[position]; // Which machine ID was at this position
-				const probability = this.prob_means[actualMachineId - 1][0]; // Get that machine's probability
-
-				this.add.text(configWidth/2, yPosition, `Machine ${displayMachineNumber}: ${(probability * 100).toFixed(0)}% chance of 100 points`, {
-					fontSize: '20px',
-					fill: '#666'
-				}).setOrigin(0.5);
-				yPosition += 32;
-			}
 			yPosition += 30;
 		}
 
-		// Monetary conversion section
-		yPosition += 20;
-
-		// Use payment data from server if available, otherwise fall back to globals
-		let paymentBreakdown;
-		if (this.payment && this.payment.breakdown) {
-			paymentBreakdown = this.payment.breakdown;
-		} else {
-			// Legacy fallback using global variables
-			const totalEarning_GBP = Math.round((totalPayoff_perIndiv * cent_per_point)) / 100;
-			const waitingBonus_GBP = Math.round(waitingBonus) / 100;
-			paymentBreakdown = {
-				flatFee: 0,
-				pointsAmount: totalEarning_GBP,
-				completionBonus: 0,
-				waitingBonus: waitingBonus_GBP
-			};
-		}
-
-		this.add.text(configWidth/2, yPosition, 'Payment Summary:', {
-			fontSize: '28px',
-			fill: '#000',
-			fontStyle: 'bold'
+		// Points bonus
+		this.add.text(panelX, yPosition, `Points bonus (${this.totalPointsAllRounds} pts): ${symbol}${(breakdown.pointsAmount || 0).toFixed(2)}`, {
+			fontSize: '20px',
+			fill: '#555'
 		}).setOrigin(0.5);
-		yPosition += 45;
-
-		// Base participation fee (if present)
-		if (paymentBreakdown.flatFee > 0) {
-			const currency = this.payment?.currency || 'GBP';
-			const symbol = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency;
-			this.add.text(configWidth/2, yPosition, `Base participation fee: ${symbol}${paymentBreakdown.flatFee.toFixed(2)}`, {
-				fontSize: '22px',
-				fill: '#666'
-			}).setOrigin(0.5);
-			yPosition += 35;
-		}
-
-		// Points earned
-		const currency = this.payment?.currency || 'GBP';
-		const symbol = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency;
-		this.add.text(configWidth/2, yPosition, `Points reward (${this.totalPointsAllRounds} pts): ${symbol}${paymentBreakdown.pointsAmount.toFixed(2)}`, {
-			fontSize: '26px',
-			fill: '#ff6600'
-		}).setOrigin(0.5);
-		yPosition += 40;
+		yPosition += 30;
 
 		// Waiting bonus (if present)
-		if (paymentBreakdown.waitingBonus > 0) {
-			this.add.text(configWidth/2, yPosition, `Waiting bonus: ${symbol}${paymentBreakdown.waitingBonus.toFixed(2)}`, {
-				fontSize: '26px',
-				fill: '#ff6600'
+		if (breakdown.waitingBonus > 0) {
+			this.add.text(panelX, yPosition, `Waiting bonus: ${symbol}${breakdown.waitingBonus.toFixed(2)}`, {
+				fontSize: '20px',
+				fill: '#555'
 			}).setOrigin(0.5);
-			yPosition += 40;
+			yPosition += 30;
 		}
 
 		// Completion bonus (if present)
-		if (paymentBreakdown.completionBonus > 0) {
-			this.add.text(configWidth/2, yPosition, `Completion bonus: ${symbol}${paymentBreakdown.completionBonus.toFixed(2)}`, {
-				fontSize: '26px',
-				fill: '#ff6600'
+		if (breakdown.completionBonus > 0) {
+			this.add.text(panelX, yPosition, `Completion bonus: ${symbol}${breakdown.completionBonus.toFixed(2)}`, {
+				fontSize: '20px',
+				fill: '#555'
 			}).setOrigin(0.5);
-			yPosition += 40;
+			yPosition += 30;
 		}
 
-		// Total payment
 		yPosition += 10;
+
+		// Total payment
 		const totalPayment = this.payment?.formatted || `${symbol}0.00`;
-		this.add.text(configWidth/2, yPosition, `Total Payment: ${totalPayment}`, {
-			fontSize: '32px',
-			fill: '#008800',
+		this.add.text(panelX, yPosition, `Total Payment: ${totalPayment}`, {
+			fontSize: '26px',
+			fill: '#4CAF50',
 			fontStyle: 'bold'
 		}).setOrigin(0.5);
+
 		yPosition += 60;
 
-		// isThisGameCompleted status changes
-		isThisGameCompleted = true;
-		completed = 1;
-		$("#completed").val(1);
+		// Survey button (Phaser-based instead of DOM)
+		const buttonWidth = 280;
+		const buttonHeight = 50;
 
-		// POST button
-		let questionnaireStarts = document.getElementById('questionnaireStarts');
-		questionnaireStarts.innerHTML = "<div class='btn2'><div id='connectBtn'>START SHORT SURVEY</div></div>";
+		const button = this.add.rectangle(centerX, yPosition, buttonWidth, buttonHeight, 0x2196F3);
+		button.setInteractive({ cursor: 'pointer' });
 
-		let connectBtn = document.getElementById('connectBtn');
-		connectBtn.addEventListener('click', goToQuestionnaire, false);
+		const buttonText = this.add.text(centerX, yPosition, 'Start Short Survey', {
+			fontSize: '22px',
+			fill: '#FFF',
+			fontStyle: 'bold'
+		}).setOrigin(0.5);
+
+		button.on('pointerover', () => {
+			button.setFillStyle(0x1976D2);
+		});
+
+		button.on('pointerout', () => {
+			button.setFillStyle(0x2196F3);
+		});
+
+		button.on('pointerdown', () => {
+			// Set completion flags
+			if (typeof isThisGameCompleted !== 'undefined') {
+				isThisGameCompleted = true;
+			}
+			if (typeof completed !== 'undefined') {
+				completed = 1;
+			}
+			const completedInput = document.getElementById('completed');
+			if (completedInput) {
+				completedInput.value = '1';
+			}
+
+			// Navigate to questionnaire
+			goToQuestionnaire();
+		});
+
+		// Also set up legacy DOM button if it exists (for backwards compatibility)
+		const questionnaireStarts = document.getElementById('questionnaireStarts');
+		if (questionnaireStarts) {
+			questionnaireStarts.innerHTML = '';
+		}
 	}
 
-	update(){}
-};
+	update() {}
+}
 
 export default SceneGoToQuestionnaire;

@@ -38,6 +38,10 @@ function onConnectioncConfig({ config, client, io }) {
 	client.subjectID = client.request?._query.subjectID;
 	client.started = 0;
 
+    // Capture waiting bonus from client (accumulated during waiting room)
+    const waitingBonusParam = client.request?._query.bonus_for_waiting;
+    client.waitingBonus = waitingBonusParam ? parseInt(waitingBonusParam, 10) || 0 : 0;
+
     // check sessionName already assigned
 	const incomingSessionName = client.request?._query.sessionName;
 

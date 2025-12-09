@@ -30,7 +30,6 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
 
     create() {
         const centerX = this.cameras.main.width / 2;
-        const centerY = this.cameras.main.height / 2;
 
         this.add.text(centerX, 60, 'Network Update', {
             fontSize: '36px',
@@ -107,33 +106,10 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
             this.isolatedPlayersText
         ]);
 
-        const densityBarWidth = 400;
-        const densityBarX = centerX - densityBarWidth / 2;
-        const densityBarY = 420;
-
-        this.add.text(centerX, 395, 'Network Density:', {
-            fontSize: '16px',
-            fill: '#555'
-        }).setOrigin(0.5);
-
-        this.add.graphics()
-            .fillStyle(0xE0E0E0, 1)
-            .fillRect(densityBarX, densityBarY, densityBarWidth, 20);
-
-        this.densityBar = this.add.graphics();
-        this.densityBar.setVisible(false);
-
-        this.densityText = this.add.text(centerX, densityBarY + 10, '', {
-            fontSize: '14px',
-            fill: '#FFF',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-        this.densityText.setVisible(false);
-
-        this.continueButton = this.add.rectangle(centerX, 500, 250, 50, 0x2196F3);
+        this.continueButton = this.add.rectangle(centerX, 450, 250, 50, 0x2196F3);
         this.continueButton.setAlpha(0.5);
 
-        this.continueButtonText = this.add.text(centerX, 500, 'Continue (3)', {
+        this.continueButtonText = this.add.text(centerX, 450, 'Continue (3)', {
             fontSize: '24px',
             fill: '#FFF',
             fontStyle: 'bold'
@@ -269,21 +245,6 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
                 `${isolated} became isolated and will sit out remaining rounds`
             );
         }
-
-        this.densityBar.setVisible(true);
-        this.densityText.setVisible(true);
-
-        const densityBarWidth = 400;
-        const densityBarX = this.cameras.main.width / 2 - densityBarWidth / 2;
-        const densityBarY = 420;
-
-        const densityColor = density >= 0.7 ? 0x4CAF50 : density >= 0.4 ? 0xFF9800 : 0xF44336;
-
-        this.densityBar.clear();
-        this.densityBar.fillStyle(densityColor, 1);
-        this.densityBar.fillRect(densityBarX, densityBarY, densityBarWidth * density, 20);
-
-        this.densityText.setText(`${densityPercent}%`);
 
         this.startCountdown();
     }

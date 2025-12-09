@@ -120,6 +120,17 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
     room.cumulativePayoffs[subjectNumber] += player1Payoff;
     room.cumulativePayoffs[partnerId] += player2Payoff;
 
+    // Track per-round payoffs for questionnaire breakdown
+    const gameRoundIndex = room.gameRound || 0;
+    if (!room.payoffsByRound) {
+      room.payoffsByRound = {};
+    }
+    if (!room.payoffsByRound[gameRoundIndex]) {
+      room.payoffsByRound[gameRoundIndex] = Array(room.n).fill(0);
+    }
+    room.payoffsByRound[gameRoundIndex][subjectNumber] += player1Payoff;
+    room.payoffsByRound[gameRoundIndex][partnerId] += player2Payoff;
+
     // Save trials to database
     await saveTrialData(room, roundNumber, subjectNumber, partnerId, {
       player1Choice,

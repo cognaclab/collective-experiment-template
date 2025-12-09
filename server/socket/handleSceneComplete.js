@@ -868,96 +868,86 @@ async function handleSceneComplete(client, data, config, io) {
         // Early return - skip default broadcast for ostracism
         return;
     } else if (nextScene.type === 'network_update') {
-        // Network update scene - emit network state data to each player
-        // This runs AFTER all ostracism votes have been processed
-        const sockets = await io.in(client.room).fetchSockets();
+        // Network update scene - emit personalized network state to triggering player only
+        // Each player calls scene_complete independently after ostracism voting
 
-        logger.info('Emitting network_update scene data to all players', {
-            room: client.room,
-            playerCount: sockets.length
-        });
-
-        for (const playerSocket of sockets) {
-            // Find player ID from membersID (object keyed by player number)
-            let playerId = -1;
-            for (const [idx, player] of Object.entries(room.membersID)) {
-                if (player && player.subjectId === playerSocket.subjectID) {
-                    playerId = parseInt(idx);
-                    break;
-                }
+        // Find triggering player's ID
+        let playerId = -1;
+        for (const [idx, player] of Object.entries(room.membersID)) {
+            if (player && player.subjectId === client.subjectID) {
+                playerId = parseInt(idx);
+                break;
             }
-
-            if (playerId === -1) {
-                logger.warn('Player not found in membersID for network_update', {
-                    subjectID: playerSocket.subjectID
-                });
-                continue;
-            }
-
-            // Get network state data
-            const networkData = room.network ? room.network.serialize() : {};
-
-            // Get player-specific status
-            const playerConnections = room.network ? room.network.getDegree(playerId) : 0;
-            const availablePartners = room.network ? room.network.getValidPartners(playerId) : [];
-            const isIsolated = room.network ? room.network.isIsolated(playerId) : false;
-
-            // Get edges removed this round from lastOstracismResults
-            const lastOstracismResults = room.lastOstracismResults || {};
-            const edgesRemovedThisRound = lastOstracismResults.edgesRemoved || [];
-
-            // Find connections removed that affected this player
-            const removedConnections = edgesRemovedThisRound
-                .filter(e => e.player1 === playerId || e.player2 === playerId)
-                .map(e => ({
-                    number: e.player1 === playerId ? e.player2 : e.player1,
-                    subjectId: room.membersID[e.player1 === playerId ? e.player2 : e.player1]?.subjectId
-                }));
-
-            // Get newly isolated players
-            const newlyIsolated = lastOstracismResults.newlyIsolated || [];
-
-            const networkUpdateData = {
-                roundNumber: (room.gameRound || 0) + 1,
-                totalRounds: room.totalGameRounds || config.experimentLoader?.gameConfig?.total_game_rounds || 3,
-                edgesRemoved: edgesRemovedThisRound.length,
-                totalEdgesRemaining: networkData.totalEdges || 0,
-                networkDensity: networkData.density || 0,
-                playerStatus: {
-                    currentConnections: playerConnections,
-                    availablePartners: availablePartners.map(p => ({
-                        number: p,
-                        subjectId: room.membersID[p]?.subjectId
-                    })),
-                    isIsolated: isIsolated
-                },
-                removedConnections: removedConnections,
-                isolatedPlayers: newlyIsolated.map(p => ({
-                    number: p,
-                    subjectId: room.membersID[p]?.subjectId
-                }))
-            };
-
-            playerSocket.emit('start_scene', {
-                scene: nextScene.scene,
-                sceneConfig: nextScene,
-                sceneData: networkUpdateData,
-                roomId: client.room,
-                sessionId: playerSocket.sessionId,
-                subjectId: playerSocket.subjectID
-            });
-
-            logger.debug('Emitted network_update data to player', {
-                playerId: playerId,
-                subjectID: playerSocket.subjectID,
-                edgesRemoved: edgesRemovedThisRound.length,
-                playerConnections: playerConnections,
-                isIsolated: isIsolated
-            });
         }
 
-        // Clear lastOstracismResults after sending to all players (prevent stale data)
-        delete room.lastOstracismResults;
+        if (playerId === -1) {
+            logger.warn('Player not found in membersID for network_update', {
+                subjectID: client.subjectID
+            });
+            return;
+        }
+
+        // Get network state data
+        const networkData = room.network ? room.network.serialize() : {};
+
+        // Get player-specific status
+        const playerConnections = room.network ? room.network.getDegree(playerId) : 0;
+        const availablePartners = room.network ? room.network.getValidPartners(playerId) : [];
+        const isIsolated = room.network ? room.network.isIsolated(playerId) : false;
+
+        // Get edges removed this round from lastOstracismResults
+        const lastOstracismResults = room.lastOstracismResults || {};
+        const edgesRemovedThisRound = lastOstracismResults.edgesRemoved || [];
+
+        // Find connections removed that affected this player
+        const removedConnections = edgesRemovedThisRound
+            .filter(e => e.player1 === playerId || e.player2 === playerId)
+            .map(e => ({
+                number: e.player1 === playerId ? e.player2 : e.player1,
+                subjectId: room.membersID[e.player1 === playerId ? e.player2 : e.player1]?.subjectId
+            }));
+
+        // Get newly isolated players
+        const newlyIsolated = lastOstracismResults.newlyIsolated || [];
+
+        const networkUpdateData = {
+            roundNumber: (room.gameRound || 0) + 1,
+            totalRounds: room.totalGameRounds || config.experimentLoader?.gameConfig?.total_game_rounds || 3,
+            edgesRemoved: edgesRemovedThisRound.length,
+            totalEdgesRemaining: networkData.totalEdges || 0,
+            networkDensity: networkData.density || 0,
+            playerStatus: {
+                currentConnections: playerConnections,
+                availablePartners: availablePartners.map(p => ({
+                    number: p,
+                    subjectId: room.membersID[p]?.subjectId
+                })),
+                isIsolated: isIsolated
+            },
+            removedConnections: removedConnections,
+            isolatedPlayers: newlyIsolated.map(p => ({
+                number: p,
+                subjectId: room.membersID[p]?.subjectId
+            }))
+        };
+
+        // Emit to triggering player only
+        client.emit('start_scene', {
+            scene: nextScene.scene,
+            sceneConfig: nextScene,
+            sceneData: networkUpdateData,
+            roomId: client.room,
+            sessionId: client.sessionId,
+            subjectId: client.subjectID
+        });
+
+        logger.info('Emitted network_update to player', {
+            playerId: playerId,
+            subjectID: client.subjectID,
+            edgesRemoved: edgesRemovedThisRound.length,
+            playerConnections: playerConnections,
+            isIsolated: isIsolated
+        });
 
         // Track current scene in room state
         if (config.roomStatus[client.room]) {
@@ -1543,17 +1533,74 @@ async function handleSceneComplete(client, data, config, io) {
                         totalGameRounds: totalGameRounds
                     });
 
-                    // Emit questionnaire scene to all players
-                    io.to(client.room).emit('start_scene', {
-                        scene: questionnaireScene.scene,
-                        sceneConfig: questionnaireScene,
-                        sceneData: {
-                            gameRound: room.gameRound,
-                            totalRounds: totalGameRounds,
-                            experimentComplete: true
-                        },
-                        roomId: client.room
-                    });
+                    // Emit personalized questionnaire data to each player
+                    const sockets = await io.in(client.room).fetchSockets();
+                    const paymentCalculator = config.experimentLoader?.paymentCalculator;
+
+                    for (const playerSocket of sockets) {
+                        // Find player's index
+                        let playerIdx = -1;
+                        for (const [idx, player] of Object.entries(room.membersID)) {
+                            if (player && player.subjectId === playerSocket.subjectID) {
+                                playerIdx = parseInt(idx);
+                                break;
+                            }
+                        }
+
+                        // Get player's cumulative payoff
+                        const playerPoints = room.cumulativePayoffs?.[playerIdx] || 0;
+
+                        // Build round breakdown from payoffsByRound
+                        const roundBreakdown = [];
+                        for (let r = 0; r < totalGameRounds; r++) {
+                            roundBreakdown.push({
+                                round: r + 1,
+                                points: room.payoffsByRound?.[r]?.[playerIdx] || 0
+                            });
+                        }
+
+                        // Get waiting bonus from socket
+                        const waitingBonus = playerSocket.waitingBonus || 0;
+
+                        // Calculate payment
+                        let paymentData = null;
+                        if (paymentCalculator) {
+                            try {
+                                paymentData = paymentCalculator.calculateSessionPayment(
+                                    playerPoints,
+                                    waitingBonus,
+                                    true // completed
+                                );
+                            } catch (error) {
+                                logger.error('Failed to calculate payment', { error: error.message });
+                            }
+                        }
+
+                        logger.info('Sending questionnaire data to player', {
+                            subjectID: playerSocket.subjectID,
+                            playerIdx,
+                            points: playerPoints,
+                            roundBreakdown,
+                            waitingBonus,
+                            payment: paymentData?.formatted
+                        });
+
+                        playerSocket.emit('start_scene', {
+                            scene: questionnaireScene.scene,
+                            sceneConfig: questionnaireScene,
+                            sceneData: {
+                                gameRound: room.gameRound,
+                                totalRounds: totalGameRounds,
+                                experimentComplete: true,
+                                totalPointsAllRounds: playerPoints,
+                                roundBreakdown: roundBreakdown,
+                                payment: paymentData
+                            },
+                            roomId: client.room,
+                            sessionId: playerSocket.sessionId,
+                            subjectId: playerSocket.subjectID
+                        });
+                    }
 
                     if (config.roomStatus[client.room]) {
                         config.roomStatus[client.room].currentScene = questionnaireScene.scene;
