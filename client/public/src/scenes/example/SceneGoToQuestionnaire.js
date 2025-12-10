@@ -4,6 +4,7 @@
  */
 
 import { goToQuestionnaire } from '../../functions.js';
+import { PDTheme } from '../../ui/pdTheme.js';
 
 class SceneGoToQuestionnaire extends Phaser.Scene {
 
@@ -86,7 +87,7 @@ class SceneGoToQuestionnaire extends Phaser.Scene {
 		// Total points
 		this.add.text(panelX, yPosition, `Total: ${this.totalPointsAllRounds} points`, {
 			fontSize: '22px',
-			fill: '#2196F3',
+			fill: PDTheme.text.info,
 			fontStyle: 'bold'
 		}).setOrigin(0.5);
 
@@ -158,7 +159,7 @@ class SceneGoToQuestionnaire extends Phaser.Scene {
 		const totalPayment = this.payment?.formatted || `${symbol}0.00`;
 		this.add.text(panelX, yPosition, `Total Payment: ${totalPayment}`, {
 			fontSize: '26px',
-			fill: '#4CAF50',
+			fill: PDTheme.text.info,
 			fontStyle: 'bold'
 		}).setOrigin(0.5);
 
@@ -168,7 +169,7 @@ class SceneGoToQuestionnaire extends Phaser.Scene {
 		const buttonWidth = 280;
 		const buttonHeight = 50;
 
-		const button = this.add.rectangle(centerX, yPosition, buttonWidth, buttonHeight, 0x2196F3);
+		const button = this.add.rectangle(centerX, yPosition, buttonWidth, buttonHeight, PDTheme.buttons.action.normal);
 		button.setInteractive({ cursor: 'pointer' });
 
 		const buttonText = this.add.text(centerX, yPosition, 'Start Short Survey', {
@@ -178,11 +179,11 @@ class SceneGoToQuestionnaire extends Phaser.Scene {
 		}).setOrigin(0.5);
 
 		button.on('pointerover', () => {
-			button.setFillStyle(0x1976D2);
+			button.setFillStyle(PDTheme.buttons.action.hover);
 		});
 
 		button.on('pointerout', () => {
-			button.setFillStyle(0x2196F3);
+			button.setFillStyle(PDTheme.buttons.action.normal);
 		});
 
 		button.on('pointerdown', () => {

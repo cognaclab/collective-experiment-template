@@ -4,6 +4,8 @@
  * Part of Network-Embedded Dyadic Prisoner's Dilemma experiment
  */
 
+import { PDTheme } from '../../ui/pdTheme.js';
+
 export default class SceneNetworkUpdate extends Phaser.Scene {
     constructor() {
         super({ key: 'SceneNetworkUpdate' });
@@ -69,7 +71,7 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
 
         this.playerStatusText = this.add.text(0, -20, '', {
             fontSize: '18px',
-            fill: '#2196F3',
+            fill: PDTheme.text.info,
             fontStyle: 'bold',
             align: 'center'
         }).setOrigin(0.5);
@@ -83,14 +85,14 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
 
         this.removedConnectionsText = this.add.text(0, 85, '', {
             fontSize: '16px',
-            fill: '#F44336',
+            fill: PDTheme.status.inactive,
             align: 'center',
             wordWrap: { width: 650 }
         }).setOrigin(0.5);
 
         this.isolatedPlayersText = this.add.text(0, 125, '', {
             fontSize: '16px',
-            fill: '#FF9800',
+            fill: PDTheme.status.isolated,
             fontStyle: 'italic',
             align: 'center',
             wordWrap: { width: 650 }
@@ -106,7 +108,7 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
             this.isolatedPlayersText
         ]);
 
-        this.continueButton = this.add.rectangle(centerX, 450, 250, 50, 0x2196F3);
+        this.continueButton = this.add.rectangle(centerX, 450, 250, 50, PDTheme.buttons.action.normal);
         this.continueButton.setAlpha(0.5);
 
         this.continueButtonText = this.add.text(centerX, 450, 'Continue (3)', {
@@ -117,13 +119,13 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
 
         this.continueButton.on('pointerover', () => {
             if (this.continueButton.input && this.continueButton.input.enabled) {
-                this.continueButton.setFillStyle(0x1976D2);
+                this.continueButton.setFillStyle(PDTheme.buttons.action.hover);
             }
         });
 
         this.continueButton.on('pointerout', () => {
             if (this.continueButton.input && this.continueButton.input.enabled) {
-                this.continueButton.setFillStyle(0x2196F3);
+                this.continueButton.setFillStyle(PDTheme.buttons.action.normal);
             }
         });
 
@@ -166,15 +168,15 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
         console.log('SceneNetworkUpdate: Player became isolated');
 
         this.statusText.setText('⚠️ You have become isolated');
-        this.statusText.setStyle({ fill: '#F44336', fontStyle: 'normal', fontSize: '22px' });
+        this.statusText.setStyle({ fill: PDTheme.status.isolated, fontStyle: 'normal', fontSize: '22px' });
 
         this.summaryPanel.setVisible(true);
 
         this.changeSummaryText.setText('No remaining connections');
-        this.changeSummaryText.setStyle({ fill: '#F44336' });
+        this.changeSummaryText.setStyle({ fill: PDTheme.status.isolated });
 
         this.playerStatusText.setText('You will sit out the remaining rounds');
-        this.playerStatusText.setStyle({ fill: '#F44336' });
+        this.playerStatusText.setStyle({ fill: PDTheme.status.isolated });
 
         this.networkStatsText.setText('');
         this.availablePartnersText.setText('');
@@ -190,19 +192,19 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
         console.log('SceneNetworkUpdate: Displaying network update');
 
         this.statusText.setText('Network has been updated');
-        this.statusText.setStyle({ fill: '#4CAF50', fontStyle: 'normal' });
+        this.statusText.setStyle({ fill: PDTheme.status.active, fontStyle: 'normal' });
 
         this.summaryPanel.setVisible(true);
 
         const edgesRemoved = data.edgesRemoved || 0;
         if (edgesRemoved === 0) {
             this.changeSummaryText.setText('No connections were broken this round');
-            this.changeSummaryText.setStyle({ fill: '#4CAF50' });
+            this.changeSummaryText.setStyle({ fill: PDTheme.status.active });
         } else {
             this.changeSummaryText.setText(
                 `${edgesRemoved} connection${edgesRemoved !== 1 ? 's were' : ' was'} broken`
             );
-            this.changeSummaryText.setStyle({ fill: '#FF9800' });
+            this.changeSummaryText.setStyle({ fill: PDTheme.status.inactive });
         }
 
         const totalEdges = data.totalEdgesRemaining || 0;

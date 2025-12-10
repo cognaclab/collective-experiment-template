@@ -95,6 +95,7 @@ game:
   max_choice_time: 20000          # 20 seconds to make choice
   max_lobby_wait_time: 300000     # 5 minutes to wait for full group
   max_scene_wait_time: 10000      # 10 seconds for scene transitions
+  assign_avatars: true            # Assign unique avatar images to each player
 
 groups:
   max_group_size: 4               # 4 players per group (reduced for testing)

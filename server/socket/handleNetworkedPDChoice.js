@@ -155,6 +155,12 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
     const turnsPerRound = room.turnsPerRound || 2;
     const totalRounds = room.totalGameRounds || 3;
 
+    // Get avatar IDs for both players
+    const player1Member = room.membersID[subjectNumber];
+    const player2Member = room.membersID[partnerId];
+    const player1AvatarId = player1Member?.avatarId || null;
+    const player2AvatarId = player2Member?.avatarId || null;
+
     // Store result for player 1 (current player)
     room.pairResults[roundNumber][subjectNumber] = {
       roundNumber,
@@ -168,7 +174,9 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
       partnerPayoff: player2Payoff,
       cumulativePayoff: room.cumulativePayoffs[subjectNumber],
       partnerId,
-      cooperationOutcome: getCooperationOutcome(player1Choice, player2Choice)
+      cooperationOutcome: getCooperationOutcome(player1Choice, player2Choice),
+      avatarId: player1AvatarId,
+      partnerAvatarId: player2AvatarId
     };
 
     // Store result for player 2 (partner)
@@ -184,7 +192,9 @@ async function handleNetworkedPDChoice(data, socket, io, rooms) {
       partnerPayoff: player1Payoff,
       cumulativePayoff: room.cumulativePayoffs[partnerId],
       partnerId: subjectNumber,
-      cooperationOutcome: getCooperationOutcome(player2Choice, player1Choice)
+      cooperationOutcome: getCooperationOutcome(player2Choice, player1Choice),
+      avatarId: player2AvatarId,
+      partnerAvatarId: player1AvatarId
     };
 
     logger.info(`[NetworkedPDChoice] Pair ${subjectNumber}-${partnerId} complete. Payoffs: P${subjectNumber}=${player1Payoff}, P${partnerId}=${player2Payoff}`);

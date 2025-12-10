@@ -4,6 +4,8 @@
  * Occurs every 5 rounds in Network-Embedded Dyadic Prisoner's Dilemma
  */
 
+import { PDTheme } from '../../ui/pdTheme.js';
+
 export default class SceneOstracismVote extends Phaser.Scene {
     constructor() {
         super({ key: 'SceneOstracismVote' });
@@ -18,6 +20,10 @@ export default class SceneOstracismVote extends Phaser.Scene {
         // Partner info from server
         this.partnerId = data.partnerId;
         this.partnerSubjectId = data.partnerSubjectId || `Player ${this.partnerId}`;
+
+        // Avatar IDs from server
+        this.avatarId = data.avatarId || null;
+        this.partnerAvatarId = data.partnerAvatarId || null;
 
         // Cooperation history and stats from server
         this.cooperationHistory = data.cooperationHistory || [];
@@ -68,11 +74,19 @@ export default class SceneOstracismVote extends Phaser.Scene {
 
         // Partner info panel
         const panelY = 200;
-        const panelBg = this.add.rectangle(centerX, panelY, 700, 160, 0xF5F5F5);
+        const panelBg = this.add.rectangle(centerX, panelY, 700, 180, 0xF5F5F5);
         panelBg.setStrokeStyle(2, 0xCCCCCC);
 
+        // Display partner's avatar if available
+        let partnerLabelY = panelY - 60;
+        if (this.partnerAvatarId && this.textures.exists(`avatar_${this.partnerAvatarId}`)) {
+            const partnerAvatar = this.add.image(centerX, panelY - 55, `avatar_${this.partnerAvatarId}`);
+            partnerAvatar.setScale(0.12);
+            partnerLabelY = panelY - 5;
+        }
+
         // Partner name
-        this.add.text(centerX, panelY - 60, `Your partner: ${this.partnerSubjectId}`, {
+        this.add.text(centerX, partnerLabelY, `Your partner: ${this.partnerSubjectId}`, {
             fontSize: '24px',
             fill: '#000',
             fontStyle: 'bold'
@@ -100,7 +114,7 @@ export default class SceneOstracismVote extends Phaser.Scene {
         this.add.text(centerX, panelY + 15,
             `You earned: ${playerPayoff} points | Partner earned: ${partnerPayoff} points`, {
             fontSize: '18px',
-            fill: '#1976D2'
+            fill: PDTheme.text.info
         }).setOrigin(0.5);
 
         // Cooperation history summary
@@ -115,14 +129,8 @@ export default class SceneOstracismVote extends Phaser.Scene {
             historyText = `Over ${totalInteractions} round${totalInteractions !== 1 ? 's' : ''} together, ` +
                 `partner cooperated ${partnerCooperations}/${totalInteractions} times (${cooperationRate}%)`;
 
-            // Color based on cooperation rate
-            if (cooperationRate >= 70) {
-                historyColor = '#4CAF50'; // Green - high cooperation
-            } else if (cooperationRate >= 40) {
-                historyColor = '#FF9800'; // Orange - medium cooperation
-            } else {
-                historyColor = '#F44336'; // Red - low cooperation
-            }
+            // Use neutral grey - remove moral color coding
+            historyColor = '#555555';
         } else {
             historyText = 'This is your first interaction with this partner';
             historyColor = '#666';
@@ -143,7 +151,7 @@ export default class SceneOstracismVote extends Phaser.Scene {
         // Warning text
         this.add.text(centerX, 340, '⚠️ Breaking a connection is permanent and cannot be undone', {
             fontSize: '16px',
-            fill: '#F44336',
+            fill: PDTheme.text.error,
             fontStyle: 'bold',
             align: 'center'
         }).setOrigin(0.5);
@@ -154,15 +162,15 @@ export default class SceneOstracismVote extends Phaser.Scene {
         const buttonHeight = 70;
         const buttonSpacing = 40;
 
-        // Continue Partnership button (green)
+        // Continue Partnership button - same grey as break button (neutral)
         this.maintainButton = this.add.rectangle(
             centerX - buttonWidth / 2 - buttonSpacing / 2,
             buttonY,
             buttonWidth,
             buttonHeight,
-            0x4CAF50
+            PDTheme.buttons.choice.normal
         ).setInteractive({ cursor: 'pointer' });
-        this.maintainButton.setStrokeStyle(3, 0x45A049);
+        this.maintainButton.setStrokeStyle(3, PDTheme.buttons.choice.hover);
 
         this.maintainButtonText = this.add.text(
             centerX - buttonWidth / 2 - buttonSpacing / 2,
@@ -176,15 +184,15 @@ export default class SceneOstracismVote extends Phaser.Scene {
             }
         ).setOrigin(0.5);
 
-        // Break Connection button (red)
+        // Break Connection button - same grey as continue button (neutral)
         this.breakButton = this.add.rectangle(
             centerX + buttonWidth / 2 + buttonSpacing / 2,
             buttonY,
             buttonWidth,
             buttonHeight,
-            0xF44336
+            PDTheme.buttons.choice.normal
         ).setInteractive({ cursor: 'pointer' });
-        this.breakButton.setStrokeStyle(3, 0xD32F2F);
+        this.breakButton.setStrokeStyle(3, PDTheme.buttons.choice.hover);
 
         this.breakButtonText = this.add.text(
             centerX + buttonWidth / 2 + buttonSpacing / 2,
@@ -205,26 +213,26 @@ export default class SceneOstracismVote extends Phaser.Scene {
             fontStyle: 'italic'
         }).setOrigin(0.5);
 
-        // Button hover effects
+        // Button hover effects - same grey for both buttons
         this.maintainButton.on('pointerover', () => {
             if (!this.voteSubmitted) {
-                this.maintainButton.setFillStyle(0x45A049);
+                this.maintainButton.setFillStyle(PDTheme.buttons.choice.hover);
             }
         });
         this.maintainButton.on('pointerout', () => {
             if (!this.voteSubmitted) {
-                this.maintainButton.setFillStyle(0x4CAF50);
+                this.maintainButton.setFillStyle(PDTheme.buttons.choice.normal);
             }
         });
 
         this.breakButton.on('pointerover', () => {
             if (!this.voteSubmitted) {
-                this.breakButton.setFillStyle(0xD32F2F);
+                this.breakButton.setFillStyle(PDTheme.buttons.choice.hover);
             }
         });
         this.breakButton.on('pointerout', () => {
             if (!this.voteSubmitted) {
-                this.breakButton.setFillStyle(0xF44336);
+                this.breakButton.setFillStyle(PDTheme.buttons.choice.normal);
             }
         });
 
@@ -268,14 +276,14 @@ export default class SceneOstracismVote extends Phaser.Scene {
         const overlay = this.add.rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.7);
         overlay.setOrigin(0.5);
 
-        // Modal background
+        // Modal background - using neutral grey stroke instead of red
         const modalBg = this.add.rectangle(0, 0, 500, 280, 0xFFFFFF);
-        modalBg.setStrokeStyle(3, 0xF44336);
+        modalBg.setStrokeStyle(3, 0x607D8B);
 
         // Modal title
         const modalTitle = this.add.text(0, -100, 'Confirm Break Connection', {
             fontSize: '24px',
-            fill: '#F44336',
+            fill: PDTheme.text.error,
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
@@ -287,8 +295,8 @@ export default class SceneOstracismVote extends Phaser.Scene {
             align: 'center'
         }).setOrigin(0.5);
 
-        // Confirm button
-        const confirmButton = this.add.rectangle(-100, 80, 160, 50, 0xF44336)
+        // Confirm button - same grey as other choice buttons
+        const confirmButton = this.add.rectangle(-100, 80, 160, 50, PDTheme.buttons.choice.normal)
             .setInteractive({ cursor: 'pointer' });
         const confirmText = this.add.text(-100, 80, 'Yes, Break', {
             fontSize: '18px',
@@ -296,8 +304,8 @@ export default class SceneOstracismVote extends Phaser.Scene {
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        // Cancel button
-        const cancelButton = this.add.rectangle(100, 80, 160, 50, 0x757575)
+        // Cancel button - action button style
+        const cancelButton = this.add.rectangle(100, 80, 160, 50, PDTheme.buttons.action.normal)
             .setInteractive({ cursor: 'pointer' });
         const cancelText = this.add.text(100, 80, 'Cancel', {
             fontSize: '18px',
@@ -306,12 +314,12 @@ export default class SceneOstracismVote extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Button interactions
-        confirmButton.on('pointerover', () => confirmButton.setFillStyle(0xD32F2F));
-        confirmButton.on('pointerout', () => confirmButton.setFillStyle(0xF44336));
+        confirmButton.on('pointerover', () => confirmButton.setFillStyle(PDTheme.buttons.choice.hover));
+        confirmButton.on('pointerout', () => confirmButton.setFillStyle(PDTheme.buttons.choice.normal));
         confirmButton.on('pointerdown', () => this.confirmBreak());
 
-        cancelButton.on('pointerover', () => cancelButton.setFillStyle(0x616161));
-        cancelButton.on('pointerout', () => cancelButton.setFillStyle(0x757575));
+        cancelButton.on('pointerover', () => cancelButton.setFillStyle(PDTheme.buttons.action.hover));
+        cancelButton.on('pointerout', () => cancelButton.setFillStyle(PDTheme.buttons.action.normal));
         cancelButton.on('pointerdown', () => this.hideConfirmation());
 
         this.confirmationModal.add([
@@ -349,7 +357,7 @@ export default class SceneOstracismVote extends Phaser.Scene {
 
         // Show waiting message
         this.statusText.setText('Vote submitted. Waiting for other players...');
-        this.statusText.setStyle({ fill: '#4CAF50', fontStyle: 'italic' });
+        this.statusText.setStyle({ fill: PDTheme.text.info, fontStyle: 'italic' });
 
         // Emit vote to server
         window.socket.emit('ostracism_vote', {
@@ -366,7 +374,7 @@ export default class SceneOstracismVote extends Phaser.Scene {
         console.log('SceneOstracismVote: Ostracism complete', data);
 
         this.statusText.setText('All votes recorded. Proceeding...');
-        this.statusText.setStyle({ fill: '#1976D2' });
+        this.statusText.setStyle({ fill: PDTheme.text.info });
 
         // Short delay then emit scene_complete
         this.time.delayedCall(1000, () => {

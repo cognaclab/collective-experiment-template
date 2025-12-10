@@ -754,7 +754,9 @@ async function handleSceneComplete(client, data, config, io) {
                     showTimer: true,
                     showPartner: true,
                     partnerId: partnerId,
-                    partnerSubjectId: partner?.subjectId || `Player ${partnerId}`
+                    partnerSubjectId: partner?.subjectId || `Player ${partnerId}`,
+                    avatarId: player.avatarId || null,
+                    partnerAvatarId: partner?.avatarId || null
                 };
 
                 playerSocket.emit('start_scene', {
@@ -827,6 +829,9 @@ async function handleSceneComplete(client, data, config, io) {
         const totalInteractions = cooperationHistory.length;
         const partnerCooperations = cooperationHistory.filter(c => c === 0).length;
 
+        // Get avatarId for this player
+        const playerMember = room.membersID[playerId];
+
         const ostracismData = {
             roundNumber: (room.gameRound || 0) + 1,
             totalRounds: room.totalGameRounds || config.experimentLoader?.gameConfig?.total_game_rounds || 3,
@@ -839,7 +844,9 @@ async function handleSceneComplete(client, data, config, io) {
                 cooperationRate: totalInteractions > 0 ? Math.round((partnerCooperations / totalInteractions) * 100) : 0
             },
             cumulativePayoff: room.cumulativePayoffs?.[playerId] || 0,
-            isIsolated: room.network?.isIsolated?.(playerId) || false
+            isIsolated: room.network?.isIsolated?.(playerId) || false,
+            avatarId: playerMember?.avatarId || null,
+            partnerAvatarId: partner?.avatarId || null
         };
 
         // Emit ONLY to the triggering client (not all players)
@@ -1585,6 +1592,9 @@ async function handleSceneComplete(client, data, config, io) {
                             payment: paymentData?.formatted
                         });
 
+                        // Get player's avatarId
+                        const playerMember = playerIdx >= 0 ? room.membersID[playerIdx] : null;
+
                         playerSocket.emit('start_scene', {
                             scene: questionnaireScene.scene,
                             sceneConfig: questionnaireScene,
@@ -1594,7 +1604,8 @@ async function handleSceneComplete(client, data, config, io) {
                                 experimentComplete: true,
                                 totalPointsAllRounds: playerPoints,
                                 roundBreakdown: roundBreakdown,
-                                payment: paymentData
+                                payment: paymentData,
+                                avatarId: playerMember?.avatarId || null
                             },
                             roomId: client.room,
                             sessionId: playerSocket.sessionId,
@@ -1676,11 +1687,17 @@ async function handleSceneComplete(client, data, config, io) {
 
             // Build personalized sceneData for THIS player
             const turnsPerRound = room.turnsPerRound || config.experimentLoader?.gameConfig?.horizon || 2;
+            const playerMember = room.membersID[playerIndex];
+            const partnerIndex = playerPairingData?.partnerId;
+            const partnerMember = partnerIndex !== null && partnerIndex !== undefined ? room.membersID[partnerIndex] : null;
+
             const personalizedSceneData = {
                 roundNumber,
                 totalRounds,
                 turnsPerRound,
-                pairingData: playerPairingData
+                pairingData: playerPairingData,
+                avatarId: playerMember?.avatarId || null,
+                partnerAvatarId: partnerMember?.avatarId || null
             };
 
             // Emit to THIS player only

@@ -1,6 +1,8 @@
 // ScenePDResults - Show both players' choices and payoffs
 // Displays what each player chose and how many points they earned
 
+import { PDTheme } from '../../ui/pdTheme.js';
+
 class ScenePDResults extends Phaser.Scene {
 
     constructor() {
@@ -32,6 +34,10 @@ class ScenePDResults extends Phaser.Scene {
         this.totalPoints = data.totalPoints || result.cumulativePayoff || 0;
         this.wasMiss = data.wasMiss || false;
         this.wasTimeout = data.wasTimeout || false;
+
+        // Avatar IDs from server or stored result
+        this.avatarId = data.avatarId || result.avatarId || null;
+        this.partnerAvatarId = data.partnerAvatarId || result.partnerAvatarId || null;
 
         console.log('ScenePDResults.init() - resolved data:', {
             myChoice: this.myChoice,
@@ -82,15 +88,15 @@ class ScenePDResults extends Phaser.Scene {
             } else {
                 this.add.text(400, 85, 'Final turn with this partner - vote next', {
                     fontSize: '16px',
-                    fill: '#FF9800',
+                    fill: PDTheme.text.waiting,
                     fontStyle: 'italic'
                 }).setOrigin(0.5);
             }
         }
 
-        // Choice labels
+        // Choice labels - same grey for both choices to avoid moral color coding
         const choiceLabels = ['Cooperate', 'Defect'];
-        const choiceColors = [0x4CAF50, 0xF44336];
+        const choiceColor = PDTheme.results.choiceBox;
 
         let yPos = 150;
 
@@ -98,27 +104,43 @@ class ScenePDResults extends Phaser.Scene {
         if (this.wasMiss || this.wasTimeout) {
             const missText = this.add.text(400, 200,
                 this.wasMiss ? 'You did not make a choice in time!' : 'You took too long to decide!',
-                { fontSize: '24px', fill: '#FF5722', fontStyle: 'bold' }
+                { fontSize: '24px', fill: PDTheme.text.error, fontStyle: 'bold' }
             ).setOrigin(0.5);
 
             yPos += 60;
         }
 
-        // Display both players' choices
+        // Display both players' choices with avatars
         if (this.showBothChoices) {
             const leftX = 250;
             const rightX = 550;
-            const choiceY = yPos + 80;
+            let avatarYOffset = 0;
+
+            // Display avatars if available
+            if (this.avatarId && this.textures.exists(`avatar_${this.avatarId}`)) {
+                const myAvatar = this.add.image(leftX, yPos + 30, `avatar_${this.avatarId}`);
+                myAvatar.setScale(0.12);
+                avatarYOffset = 70;
+            }
+
+            if (this.partnerAvatarId && this.textures.exists(`avatar_${this.partnerAvatarId}`)) {
+                const partnerAvatar = this.add.image(rightX, yPos + 30, `avatar_${this.partnerAvatarId}`);
+                partnerAvatar.setScale(0.12);
+                avatarYOffset = 70;
+            }
+
+            const labelY = yPos + avatarYOffset;
+            const choiceY = labelY + 50;
 
             // You section (left)
-            this.add.text(leftX, yPos, 'You', {
+            this.add.text(leftX, labelY, 'You', {
                 fontSize: '28px',
                 fill: '#333',
                 fontStyle: 'bold'
             }).setOrigin(0.5);
 
             if (this.myChoice !== null && this.myChoice !== undefined) {
-                const myChoiceBox = this.add.rectangle(leftX, choiceY, 160, 80, choiceColors[this.myChoice]);
+                const myChoiceBox = this.add.rectangle(leftX, choiceY, 160, 80, choiceColor);
                 const myChoiceText = this.add.text(leftX, choiceY, choiceLabels[this.myChoice], {
                     fontSize: '20px',
                     fill: '#FFF',
@@ -133,14 +155,14 @@ class ScenePDResults extends Phaser.Scene {
             }
 
             // Your Partner section (right)
-            this.add.text(rightX, yPos, 'Your Partner', {
+            this.add.text(rightX, labelY, 'Your Partner', {
                 fontSize: '28px',
                 fill: '#333',
                 fontStyle: 'bold'
             }).setOrigin(0.5);
 
             if (this.partnerChoice !== null && this.partnerChoice !== undefined) {
-                const partnerChoiceBox = this.add.rectangle(rightX, choiceY, 160, 80, choiceColors[this.partnerChoice]);
+                const partnerChoiceBox = this.add.rectangle(rightX, choiceY, 160, 80, choiceColor);
                 const partnerChoiceText = this.add.text(rightX, choiceY, choiceLabels[this.partnerChoice], {
                     fontSize: '20px',
                     fill: '#FFF',
@@ -172,7 +194,7 @@ class ScenePDResults extends Phaser.Scene {
 
             this.add.text(400, payoffDetailsY, payoffText, {
                 fontSize: '22px',
-                fill: '#1976D2',
+                fill: PDTheme.text.info,
                 fontStyle: 'bold'
             }).setOrigin(0.5);
 
@@ -187,7 +209,7 @@ class ScenePDResults extends Phaser.Scene {
 
         // Continue button
         const buttonY = 500;
-        const continueButton = this.add.rectangle(400, buttonY, 200, 60, 0x2196F3)
+        const continueButton = this.add.rectangle(400, buttonY, 200, 60, PDTheme.buttons.action.normal)
             .setInteractive({ cursor: 'pointer' });
 
         const continueText = this.add.text(400, buttonY, 'Continue', {
@@ -198,11 +220,11 @@ class ScenePDResults extends Phaser.Scene {
 
         // Button hover effect
         continueButton.on('pointerover', () => {
-            continueButton.setFillStyle(0x1976D2);
+            continueButton.setFillStyle(PDTheme.buttons.action.hover);
         });
 
         continueButton.on('pointerout', () => {
-            continueButton.setFillStyle(0x2196F3);
+            continueButton.setFillStyle(PDTheme.buttons.action.normal);
         });
 
         // Button click - emit scene complete

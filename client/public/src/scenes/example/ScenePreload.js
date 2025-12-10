@@ -76,6 +76,12 @@ class ScenePreload extends Phaser.Scene {
         this.load.image('machine12_active', 'assets/machine_active_12.png');
         this.load.image('blackbox', 'assets/blackbox.png');
 
+        // Avatar images for networked experiments
+        const avatarColors = ['blue', 'green', 'orange', 'pink', 'purple', 'red', 'teal', 'yellow', 'magenta'];
+        avatarColors.forEach(color => {
+            this.load.image(`avatar_${color}`, `assets/avatars/avatar_${color}.png`);
+        });
+
         // Progress bar functions (exact copy from original)
         this.load.on('progress', function (value) {
             progressBar.clear();

@@ -4,6 +4,34 @@
 const { makeid } = require('../utils/helpers');
 const { createRoom } = require('../utils/roomFactory');
 
+// Available avatar colors for assignment (when assign_avatars is enabled)
+const AVATAR_POOL = ['blue', 'green', 'orange', 'pink', 'purple', 'red', 'teal', 'yellow', 'magenta'];
+
+/**
+ * Assign a random unique avatar to a player in a room
+ * @param {Object} room - Room object
+ * @returns {string} - Avatar color (e.g., 'blue')
+ */
+function assignAvatar(room) {
+    if (!room.assignedAvatars) {
+        room.assignedAvatars = [];
+    }
+
+    // Find unassigned avatars
+    const availableAvatars = AVATAR_POOL.filter(avatar => !room.assignedAvatars.includes(avatar));
+
+    if (availableAvatars.length === 0) {
+        console.warn('⚠️ No avatars available - all assigned. Reusing from pool.');
+        return AVATAR_POOL[Math.floor(Math.random() * AVATAR_POOL.length)];
+    }
+
+    // Pick a random available avatar
+    const selectedAvatar = availableAvatars[Math.floor(Math.random() * availableAvatars.length)];
+    room.assignedAvatars.push(selectedAvatar);
+
+    return selectedAvatar;
+}
+
 function countDown(room, config, io, countDownWaiting) {
 	const this_n = config.roomStatus[room]['n'];
 	const thisRoom = config.roomStatus[room];
@@ -172,6 +200,9 @@ function transitionToSharedRoom(client, config, io) {
     let newRoomName;
     let newRoom;
 
+    // Check if avatars should be assigned
+    const shouldAssignAvatars = config.experimentLoader?.gameConfig?.assign_avatars === true;
+
     if (availableRoomInfo) {
         newRoomName = availableRoomInfo.name;
         newRoom = availableRoomInfo.room;
@@ -180,16 +211,26 @@ function transitionToSharedRoom(client, config, io) {
         client.join(newRoomName);
 
         newRoom.n++;
+
+        // Assign avatar if enabled
+        const avatarId = shouldAssignAvatars ? assignAvatar(newRoom) : null;
+
         newRoom.membersID.push({
             socketId: client.id,
             subjectId: client.subjectID,
             sessionId: client.sessionId,
-            subjectNumber: newRoom.n
+            subjectNumber: newRoom.n,
+            avatarId: avatarId
         });
         if (!newRoom.subjectNumbers) newRoom.subjectNumbers = [];
         newRoom.subjectNumbers.push(newRoom.n);
 
         client.subjectNumber = newRoom.n;
+        client.avatarId = avatarId;
+
+        if (avatarId) {
+            console.log(`🎭 Assigned avatar '${avatarId}' to player ${client.subjectID}`);
+        }
 
         console.log(`🔄 Player ${client.subjectID} transitioned from temp room ${client.room} → shared room ${newRoomName} (${newRoom.n}/${maxGroupSize})`);
 
@@ -235,18 +276,26 @@ function transitionToSharedRoom(client, config, io) {
         client.leave(client.room);
         client.join(newRoomName);
 
+        // Assign avatar if enabled
+        const avatarId = shouldAssignAvatars ? assignAvatar(newRoom) : null;
+
         newRoom.n = 1;
         newRoom.membersID = [{
             socketId: client.id,
             subjectId: client.subjectID,
             sessionId: client.sessionId,
-            subjectNumber: 1
+            subjectNumber: 1,
+            avatarId: avatarId
         }];
         newRoom.subjectNumbers = [1];
         newRoom.starting = 0;
         newRoom.isTemporary = false;
         client.subjectNumber = 1;
+        client.avatarId = avatarId;
 
+        if (avatarId) {
+            console.log(`🎭 Assigned avatar '${avatarId}' to player ${client.subjectID}`);
+        }
         console.log(`🔄 Player ${client.subjectID} transitioned from temp room ${client.room} → new shared room ${newRoomName} (1/${maxGroupSize})`);
     }
 

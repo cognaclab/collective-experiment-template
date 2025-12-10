@@ -2,6 +2,8 @@
 // Displays two buttons: Cooperate and Defect
 // Waits for player to make choice within time limit
 
+import { PDTheme } from '../../ui/pdTheme.js';
+
 class ScenePDChoice extends Phaser.Scene {
 
     constructor() {
@@ -31,8 +33,13 @@ class ScenePDChoice extends Phaser.Scene {
         this.partnerSubjectId = data.partnerSubjectId;
         this.showPartner = data.showPartner !== undefined ? data.showPartner : true;
 
+        // Avatar IDs from server
+        this.avatarId = data.avatarId || null;
+        this.partnerAvatarId = data.partnerAvatarId || null;
+
         console.log('ScenePDChoice.init() - maxChoiceTime set to:', this.maxChoiceTime);
         console.log('ScenePDChoice.init() - Round', this.gameRound, 'Turn', this.turnWithinRound, 'of', this.turnsPerRound);
+        console.log('ScenePDChoice.init() - Avatar:', this.avatarId, 'Partner avatar:', this.partnerAvatarId);
 
         // Reset choice state
         this.choiceConfirmed = false;
@@ -60,13 +67,25 @@ class ScenePDChoice extends Phaser.Scene {
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        // Show partner info if available (only for networked PD)
+        // Show partner info with avatar if available (only for networked PD)
         if (this.turnsPerRound > 1 && this.showPartner && this.partnerSubjectId) {
-            this.add.text(400, 100, `Playing with: ${this.partnerSubjectId}`, {
-                fontSize: '20px',
-                fill: '#2196F3',
-                fontStyle: 'bold'
-            }).setOrigin(0.5);
+            // Display partner's avatar if available
+            if (this.partnerAvatarId && this.textures.exists(`avatar_${this.partnerAvatarId}`)) {
+                const partnerAvatar = this.add.image(400, 100, `avatar_${this.partnerAvatarId}`);
+                partnerAvatar.setScale(0.1);
+
+                this.add.text(400, 145, `Playing with: ${this.partnerSubjectId}`, {
+                    fontSize: '18px',
+                    fill: '#555',
+                    fontStyle: 'bold'
+                }).setOrigin(0.5);
+            } else {
+                this.add.text(400, 100, `Playing with: ${this.partnerSubjectId}`, {
+                    fontSize: '20px',
+                    fill: '#555',
+                    fontStyle: 'bold'
+                }).setOrigin(0.5);
+            }
         }
 
         // Show remaining turns info (only for networked PD with turns)
@@ -93,13 +112,13 @@ class ScenePDChoice extends Phaser.Scene {
         const buttonWidth = 180;
         const buttonHeight = 100;
 
-        // Cooperate button (left)
+        // Cooperate button (left) - neutral grey
         const cooperateButton = this.add.rectangle(
             400 - buttonSpacing / 2,
             buttonY,
             buttonWidth,
             buttonHeight,
-            0x4CAF50
+            PDTheme.buttons.choice.normal
         ).setInteractive({ cursor: 'pointer' });
 
         const cooperateText = this.add.text(
@@ -109,13 +128,13 @@ class ScenePDChoice extends Phaser.Scene {
             { fontSize: '24px', fill: '#FFF', fontStyle: 'bold' }
         ).setOrigin(0.5);
 
-        // Defect button (right)
+        // Defect button (right) - same neutral grey
         const defectButton = this.add.rectangle(
             400 + buttonSpacing / 2,
             buttonY,
             buttonWidth,
             buttonHeight,
-            0xF44336
+            PDTheme.buttons.choice.normal
         ).setInteractive({ cursor: 'pointer' });
 
         const defectText = this.add.text(
@@ -142,7 +161,7 @@ class ScenePDChoice extends Phaser.Scene {
         }
 
         // Confirmation button (shown after selection, hidden initially)
-        const confirmButton = this.add.rectangle(400, 400, 200, 60, 0x2196F3)
+        const confirmButton = this.add.rectangle(400, 400, 200, 60, PDTheme.buttons.action.normal)
             .setInteractive({ cursor: 'pointer' })
             .setVisible(false);
 
@@ -155,7 +174,7 @@ class ScenePDChoice extends Phaser.Scene {
         // Waiting message (shown after confirmation)
         const waitingText = this.add.text(400, 520, 'Waiting for other players...', {
             fontSize: '20px',
-            fill: '#FF9800',
+            fill: PDTheme.text.waiting,
             fontStyle: 'bold'
         }).setOrigin(0.5);
         waitingText.visible = false;
@@ -168,8 +187,8 @@ class ScenePDChoice extends Phaser.Scene {
         const selectChoice = (choiceId, choiceName, button, otherButton) => {
             // Allow changing selection - reset both buttons to normal state first
             if (this.selectedChoice !== null) {
-                cooperateButton.setFillStyle(0x4CAF50);
-                defectButton.setFillStyle(0xF44336);
+                cooperateButton.setFillStyle(PDTheme.buttons.choice.normal);
+                defectButton.setFillStyle(PDTheme.buttons.choice.normal);
                 cooperateButton.setAlpha(1);
                 defectButton.setAlpha(1);
             }
@@ -177,8 +196,8 @@ class ScenePDChoice extends Phaser.Scene {
             this.selectedChoice = choiceId;
             selectionTime = new Date();
 
-            // Visual feedback - highlight selected button
-            button.setFillStyle(choiceId === 0 ? 0x45a049 : 0xe53935);
+            // Visual feedback - highlight selected button (darker shade)
+            button.setFillStyle(PDTheme.buttons.choice.selected);
             otherButton.setAlpha(0.5);
 
             // Update instructions
@@ -268,27 +287,27 @@ class ScenePDChoice extends Phaser.Scene {
             confirmChoice();
         });
 
-        // Hover effects for choice buttons
+        // Hover effects for choice buttons (neutral colors)
         cooperateButton.on('pointerover', () => {
-            if (this.selectedChoice === null) cooperateButton.setFillStyle(0x45a049);
+            if (this.selectedChoice === null) cooperateButton.setFillStyle(PDTheme.buttons.choice.hover);
         });
         cooperateButton.on('pointerout', () => {
-            if (this.selectedChoice === null) cooperateButton.setFillStyle(0x4CAF50);
+            if (this.selectedChoice === null) cooperateButton.setFillStyle(PDTheme.buttons.choice.normal);
         });
 
         defectButton.on('pointerover', () => {
-            if (this.selectedChoice === null) defectButton.setFillStyle(0xe53935);
+            if (this.selectedChoice === null) defectButton.setFillStyle(PDTheme.buttons.choice.hover);
         });
         defectButton.on('pointerout', () => {
-            if (this.selectedChoice === null) defectButton.setFillStyle(0xF44336);
+            if (this.selectedChoice === null) defectButton.setFillStyle(PDTheme.buttons.choice.normal);
         });
 
         // Hover effects for confirm button
         confirmButton.on('pointerover', () => {
-            confirmButton.setFillStyle(0x1976D2);
+            confirmButton.setFillStyle(PDTheme.buttons.action.hover);
         });
         confirmButton.on('pointerout', () => {
-            confirmButton.setFillStyle(0x2196F3);
+            confirmButton.setFillStyle(PDTheme.buttons.action.normal);
         });
 
         // Timer countdown
@@ -309,7 +328,7 @@ class ScenePDChoice extends Phaser.Scene {
                     // Update progress bar
                     const progress = this.timeLeft / Math.ceil(this.maxChoiceTime / 1000);
                     timerBar.clear();
-                    timerBar.fillStyle(progress > 0.3 ? 0x00a5ff : 0xff5a00, 1);
+                    timerBar.fillStyle(progress > 0.3 ? PDTheme.bars.progress : PDTheme.bars.warning, 1);
                     timerBar.fillRect(255, 455, 290 * progress, 20);
 
                     // Timeout
@@ -349,7 +368,7 @@ class ScenePDChoice extends Phaser.Scene {
             if (this.showTimer && timerText && timerText.active) {
                 timerText.setText(`Ending in ${countdownSeconds}s`);
                 timerBar.clear();
-                timerBar.fillStyle(0x4CAF50, 1); // Green for success
+                timerBar.fillStyle(PDTheme.bars.progress, 1);
                 timerBar.fillRect(255, 455, 290, 20);
 
                 this.endingTimerEvent = this.time.addEvent({
@@ -369,7 +388,7 @@ class ScenePDChoice extends Phaser.Scene {
                             timerText.setText(`Ending in ${countdownSeconds}s`);
                             const progress = countdownSeconds / 3;
                             timerBar.clear();
-                            timerBar.fillStyle(0x4CAF50, 1);
+                            timerBar.fillStyle(PDTheme.bars.progress, 1);
                             timerBar.fillRect(255, 455, 290 * progress, 20);
                         } else {
                             timerText.setText('Transitioning...');

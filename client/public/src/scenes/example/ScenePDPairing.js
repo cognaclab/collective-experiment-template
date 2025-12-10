@@ -4,6 +4,8 @@
  * Part of Network-Embedded Dyadic Prisoner's Dilemma experiment
  */
 
+import { PDTheme } from '../../ui/pdTheme.js';
+
 export default class ScenePDPairing extends Phaser.Scene {
     constructor() {
         super({ key: 'ScenePDPairing' });
@@ -18,6 +20,10 @@ export default class ScenePDPairing extends Phaser.Scene {
 
         // Server-provided pairing data (new server-initiated flow)
         this.serverPairingData = data.pairingData || null;
+
+        // Avatar IDs from server
+        this.avatarId = data.avatarId || null;
+        this.partnerAvatarId = data.partnerAvatarId || null;
 
         this.pairingData = null;
         this.isIsolated = false;
@@ -54,7 +60,7 @@ export default class ScenePDPairing extends Phaser.Scene {
             .fillRect(centerX - progressBarWidth / 2, 170, progressBarWidth, 10);
 
         this.add.graphics()
-            .fillStyle(0x2196F3, 1)
+            .fillStyle(PDTheme.bars.progress, 1)
             .fillRect(centerX - progressBarWidth / 2, 170, progressBarWidth * progress, 10);
 
         this.statusText = this.add.text(centerX, 240, 'Waiting for partner assignment...', {
@@ -83,7 +89,7 @@ export default class ScenePDPairing extends Phaser.Scene {
 
         this.networkStatusText = this.add.text(0, 30, '', {
             fontSize: '18px',
-            fill: '#2196F3',
+            fill: PDTheme.text.info,
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
@@ -102,7 +108,7 @@ export default class ScenePDPairing extends Phaser.Scene {
             this.availablePartnersText
         ]);
 
-        this.continueButton = this.add.rectangle(centerX, centerY + 220, 200, 50, 0x4CAF50)
+        this.continueButton = this.add.rectangle(centerX, centerY + 220, 200, 50, PDTheme.buttons.action.normal)
             .setInteractive({ cursor: 'pointer' })
             .setAlpha(0.5);
 
@@ -115,11 +121,11 @@ export default class ScenePDPairing extends Phaser.Scene {
         this.continueButton.disableInteractive();
 
         this.continueButton.on('pointerover', () => {
-            this.continueButton.setFillStyle(0x45A049);
+            this.continueButton.setFillStyle(PDTheme.buttons.action.hover);
         });
 
         this.continueButton.on('pointerout', () => {
-            this.continueButton.setFillStyle(0x4CAF50);
+            this.continueButton.setFillStyle(PDTheme.buttons.action.normal);
         });
 
         this.continueButton.on('pointerdown', () => {
@@ -178,12 +184,12 @@ export default class ScenePDPairing extends Phaser.Scene {
 
         this.partnerPanel.setVisible(true);
         this.partnerNameText.setText('⚠️ Isolated');
-        this.partnerNameText.setStyle({ fill: '#F44336' });
+        this.partnerNameText.setStyle({ fill: PDTheme.status.isolated });
 
         this.historyText.setText('You will sit out this round.');
 
         this.networkStatusText.setText('No active connections remaining');
-        this.networkStatusText.setStyle({ fill: '#F44336' });
+        this.networkStatusText.setStyle({ fill: PDTheme.status.isolated });
 
         this.availablePartnersText.setText('');
 
@@ -203,7 +209,7 @@ export default class ScenePDPairing extends Phaser.Scene {
 
         this.partnerPanel.setVisible(true);
         this.partnerNameText.setText('⏸️ Waiting');
-        this.partnerNameText.setStyle({ fill: '#FF9800' });
+        this.partnerNameText.setStyle({ fill: PDTheme.text.waiting });
 
         this.historyText.setText('Odd number of connected players.\nYou will sit out this round.');
 
@@ -226,9 +232,19 @@ export default class ScenePDPairing extends Phaser.Scene {
         console.log('ScenePDPairing: Displaying partner info');
 
         this.statusText.setText('Partner assigned!');
-        this.statusText.setStyle({ fill: '#4CAF50', fontStyle: 'normal' });
+        this.statusText.setStyle({ fill: PDTheme.text.info, fontStyle: 'normal' });
 
         this.partnerPanel.setVisible(true);
+
+        // Display partner's avatar if available
+        const partnerAvatar = this.partnerAvatarId || data.partnerAvatarId;
+        if (partnerAvatar && this.textures.exists(`avatar_${partnerAvatar}`)) {
+            const avatarImage = this.add.image(0, -60, `avatar_${partnerAvatar}`);
+            avatarImage.setScale(0.15);
+            this.partnerPanel.add(avatarImage);
+            // Move partner name below avatar
+            this.partnerNameText.setY(0);
+        }
 
         const partnerLabel = data.partnerSubjectId || `Player ${data.partnerNumber || '?'}`;
         this.partnerNameText.setText(`Paired with ${partnerLabel}`);
@@ -247,7 +263,8 @@ export default class ScenePDPairing extends Phaser.Scene {
                 `Partner cooperated: ${cooperations}/${total} times (${rate}%)`
             );
 
-            const color = rate >= 70 ? '#4CAF50' : rate >= 40 ? '#FF9800' : '#F44336';
+            // Use neutral grey tones instead of green/red moral colors
+            const color = '#555555';
             this.historyText.setStyle({ fill: color });
         }
 
