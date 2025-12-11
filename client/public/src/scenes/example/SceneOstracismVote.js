@@ -72,79 +72,52 @@ export default class SceneOstracismVote extends Phaser.Scene {
             fill: '#555'
         }).setOrigin(0.5);
 
-        // Partner info panel
-        const panelY = 200;
-        const panelBg = this.add.rectangle(centerX, panelY, 700, 180, 0xF5F5F5);
-        panelBg.setStrokeStyle(2, 0xCCCCCC);
+        // Display avatars at the top
+        const avatarY = 130;
+        const avatarScale = 0.10;
+        const avatarSpacing = 80;
 
-        // Display partner's avatar if available
-        let partnerLabelY = panelY - 60;
-        if (this.partnerAvatarId && this.textures.exists(`avatar_${this.partnerAvatarId}`)) {
-            const partnerAvatar = this.add.image(centerX, panelY - 55, `avatar_${this.partnerAvatarId}`);
-            partnerAvatar.setScale(0.12);
-            partnerLabelY = panelY - 5;
+        // Player's avatar (left) - "You"
+        if (this.avatarId && this.textures.exists(`avatar_${this.avatarId}`)) {
+            const myAvatar = this.add.image(centerX - avatarSpacing, avatarY, `avatar_${this.avatarId}`);
+            myAvatar.setScale(avatarScale);
         }
 
-        // Partner name
-        this.add.text(centerX, partnerLabelY, `Your partner: ${this.partnerSubjectId}`, {
-            fontSize: '24px',
-            fill: '#000',
+        // Connector between avatars (relationship being decided)
+        this.add.text(centerX, avatarY, '?', {
+            fontSize: '28px',
+            fill: '#999',
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        // Last round outcome
-        const choiceLabels = ['Cooperate', 'Defect'];
-        const playerChoiceText = this.lastRoundOutcome.playerChoice !== undefined
-            ? choiceLabels[this.lastRoundOutcome.playerChoice]
-            : 'Unknown';
-        const partnerChoiceText = this.lastRoundOutcome.partnerChoice !== undefined
-            ? choiceLabels[this.lastRoundOutcome.partnerChoice]
-            : 'Unknown';
+        // Partner's avatar (right)
+        if (this.partnerAvatarId && this.textures.exists(`avatar_${this.partnerAvatarId}`)) {
+            const partnerAvatar = this.add.image(centerX + avatarSpacing, avatarY, `avatar_${this.partnerAvatarId}`);
+            partnerAvatar.setScale(avatarScale);
+        }
 
-        this.add.text(centerX, panelY - 20,
-            `Last round: You chose ${playerChoiceText} | Partner chose ${partnerChoiceText}`, {
-            fontSize: '18px',
-            fill: '#333'
-        }).setOrigin(0.5);
-
-        // Payoffs
-        const playerPayoff = this.lastRoundOutcome.playerPayoff !== undefined ? this.lastRoundOutcome.playerPayoff : '?';
-        const partnerPayoff = this.lastRoundOutcome.partnerPayoff !== undefined ? this.lastRoundOutcome.partnerPayoff : '?';
-
-        this.add.text(centerX, panelY + 15,
-            `You earned: ${playerPayoff} points | Partner earned: ${partnerPayoff} points`, {
-            fontSize: '18px',
-            fill: PDTheme.text.info
-        }).setOrigin(0.5);
-
-        // Cooperation history summary
+        // Cooperation history summary - the key info for this decision
         const totalInteractions = this.cooperationStats.totalInteractions;
         const partnerCooperations = this.cooperationStats.partnerCooperations;
         const cooperationRate = this.cooperationStats.cooperationRate;
 
         let historyText = '';
-        let historyColor = '#555';
-
         if (totalInteractions > 0) {
             historyText = `Over ${totalInteractions} round${totalInteractions !== 1 ? 's' : ''} together, ` +
                 `partner cooperated ${partnerCooperations}/${totalInteractions} times (${cooperationRate}%)`;
-
-            // Use neutral grey - remove moral color coding
-            historyColor = '#555555';
         } else {
             historyText = 'This is your first interaction with this partner';
-            historyColor = '#666';
         }
 
-        this.add.text(centerX, panelY + 55, historyText, {
-            fontSize: '16px',
-            fill: historyColor,
+        this.add.text(centerX, 195, historyText, {
+            fontSize: '18px',
+            fill: '#333',
             fontStyle: totalInteractions > 0 ? 'bold' : 'italic'
         }).setOrigin(0.5);
 
         // Cumulative payoff
-        this.add.text(centerX, 300, `Your total earnings: ${this.cumulativePayoff} points`, {
-            fontSize: '18px',
+        this.add.text(centerX, 240, `Your total earnings: ${this.cumulativePayoff} points`, {
+            fontSize: '20px',
             fill: '#333'
         }).setOrigin(0.5);
 

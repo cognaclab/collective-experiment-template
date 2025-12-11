@@ -93,19 +93,11 @@ export default class ScenePDPairing extends Phaser.Scene {
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        this.availablePartnersText = this.add.text(0, 70, '', {
-            fontSize: '16px',
-            fill: '#555',
-            align: 'center',
-            wordWrap: { width: 550 }
-        }).setOrigin(0.5);
-
         this.partnerPanel.add([
             panelBg,
             this.partnerNameText,
             this.historyText,
-            this.networkStatusText,
-            this.availablePartnersText
+            this.networkStatusText
         ]);
 
         this.continueButton = this.add.rectangle(centerX, centerY + 220, 200, 50, PDTheme.buttons.action.normal)
@@ -191,8 +183,6 @@ export default class ScenePDPairing extends Phaser.Scene {
         this.networkStatusText.setText('No active connections remaining');
         this.networkStatusText.setStyle({ fill: PDTheme.status.isolated });
 
-        this.availablePartnersText.setText('');
-
         this.continueButtonText.setText('Skip Round');
 
         this.time.delayedCall(2000, () => {
@@ -218,8 +208,6 @@ export default class ScenePDPairing extends Phaser.Scene {
             this.networkStatusText.setText(`You have ${connections} connection${connections !== 1 ? 's' : ''}`);
         }
 
-        this.availablePartnersText.setText('');
-
         this.continueButtonText.setText('Skip Round');
 
         this.time.delayedCall(2000, () => {
@@ -230,24 +218,65 @@ export default class ScenePDPairing extends Phaser.Scene {
 
     displayPartnerInfo(data) {
         console.log('ScenePDPairing: Displaying partner info');
+        console.log('ScenePDPairing: avatarId =', this.avatarId, ', partnerAvatarId =', this.partnerAvatarId);
+        console.log('ScenePDPairing: data.partnerAvatarId =', data?.partnerAvatarId);
 
         this.statusText.setText('Partner assigned!');
         this.statusText.setStyle({ fill: PDTheme.text.info, fontStyle: 'normal' });
 
         this.partnerPanel.setVisible(true);
 
-        // Display partner's avatar if available
-        const partnerAvatar = this.partnerAvatarId || data.partnerAvatarId;
-        if (partnerAvatar && this.textures.exists(`avatar_${partnerAvatar}`)) {
-            const avatarImage = this.add.image(0, -60, `avatar_${partnerAvatar}`);
-            avatarImage.setScale(0.15);
-            this.partnerPanel.add(avatarImage);
-            // Move partner name below avatar
-            this.partnerNameText.setY(0);
+        // Display both avatars side by side above the panel
+        // This is where players learn which avatar is THEM
+        const avatarY = -100;
+        const avatarSpacing = 120;
+        const avatarScale = 0.12;
+
+        // Player's own avatar (left side) - "You"
+        if (this.avatarId && this.textures.exists(`avatar_${this.avatarId}`)) {
+            const myAvatar = this.add.image(-avatarSpacing, avatarY, `avatar_${this.avatarId}`);
+            myAvatar.setScale(avatarScale);
+            this.partnerPanel.add(myAvatar);
+
+            const myLabel = this.add.text(-avatarSpacing, avatarY + 45, 'You', {
+                fontSize: '16px',
+                fill: '#333',
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
+            this.partnerPanel.add(myLabel);
         }
 
-        const partnerLabel = data.partnerSubjectId || `Player ${data.partnerNumber || '?'}`;
-        this.partnerNameText.setText(`Paired with ${partnerLabel}`);
+        // Partner's avatar (right side)
+        const partnerAvatar = this.partnerAvatarId || data.partnerAvatarId;
+        if (partnerAvatar && this.textures.exists(`avatar_${partnerAvatar}`)) {
+            const partnerAvatarImg = this.add.image(avatarSpacing, avatarY, `avatar_${partnerAvatar}`);
+            partnerAvatarImg.setScale(avatarScale);
+            this.partnerPanel.add(partnerAvatarImg);
+
+            const partnerLabel = this.add.text(avatarSpacing, avatarY + 45, 'Partner', {
+                fontSize: '16px',
+                fill: '#333',
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
+            this.partnerPanel.add(partnerLabel);
+        }
+
+        // Arrow or connector between avatars
+        if (this.avatarId && partnerAvatar) {
+            const connector = this.add.text(0, avatarY, '↔', {
+                fontSize: '24px',
+                fill: '#999'
+            }).setOrigin(0.5);
+            this.partnerPanel.add(connector);
+        }
+
+        // Move text elements down to make room for avatars
+        this.partnerNameText.setY(10);
+        this.historyText.setY(50);
+        this.networkStatusText.setY(100);
+
+        // Show "Your partner for this round" without revealing player names
+        this.partnerNameText.setText('Your partner for this round');
 
         if (data.timesPlayedWithPartner === 0) {
             this.historyText.setText('This is your first time playing with this partner');
@@ -273,13 +302,7 @@ export default class ScenePDPairing extends Phaser.Scene {
             this.networkStatusText.setText(
                 `You have ${connections} active connection${connections !== 1 ? 's' : ''} remaining`
             );
-
-            if (data.networkStatus.availablePartners && data.networkStatus.availablePartners.length > 0) {
-                const partners = data.networkStatus.availablePartners
-                    .map(p => p.subjectId || `Player ${p.number || '?'}`)
-                    .join(', ');
-                this.availablePartnersText.setText(`Can be paired with: ${partners}`);
-            }
+            // Don't show available partners list - keep anonymous
         }
 
         this.continueButton.setInteractive({ cursor: 'pointer' });

@@ -67,23 +67,42 @@ class ScenePDChoice extends Phaser.Scene {
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        // Show partner info with avatar if available (only for networked PD)
+        // Show both player avatars side by side (only for networked PD)
         if (this.turnsPerRound > 1 && this.showPartner && this.partnerSubjectId) {
-            // Display partner's avatar if available
-            if (this.partnerAvatarId && this.textures.exists(`avatar_${this.partnerAvatarId}`)) {
-                const partnerAvatar = this.add.image(400, 100, `avatar_${this.partnerAvatarId}`);
-                partnerAvatar.setScale(0.1);
+            const avatarY = 105;
+            const avatarScale = 0.08;
+            const avatarSpacing = 80;
 
-                this.add.text(400, 145, `Playing with: ${this.partnerSubjectId}`, {
-                    fontSize: '18px',
+            // Player's avatar (left) - "You"
+            if (this.avatarId && this.textures.exists(`avatar_${this.avatarId}`)) {
+                const myAvatar = this.add.image(400 - avatarSpacing, avatarY, `avatar_${this.avatarId}`);
+                myAvatar.setScale(avatarScale);
+
+                this.add.text(400 - avatarSpacing, avatarY + 35, 'You', {
+                    fontSize: '12px',
                     fill: '#555',
                     fontStyle: 'bold'
                 }).setOrigin(0.5);
-            } else {
-                this.add.text(400, 100, `Playing with: ${this.partnerSubjectId}`, {
-                    fontSize: '20px',
+            }
+
+            // Partner's avatar (right)
+            if (this.partnerAvatarId && this.textures.exists(`avatar_${this.partnerAvatarId}`)) {
+                const partnerAvatar = this.add.image(400 + avatarSpacing, avatarY, `avatar_${this.partnerAvatarId}`);
+                partnerAvatar.setScale(avatarScale);
+
+                this.add.text(400 + avatarSpacing, avatarY + 35, 'Partner', {
+                    fontSize: '12px',
                     fill: '#555',
                     fontStyle: 'bold'
+                }).setOrigin(0.5);
+            }
+
+            // "vs" connector between avatars
+            if (this.avatarId && this.partnerAvatarId) {
+                this.add.text(400, avatarY, 'vs', {
+                    fontSize: '16px',
+                    fill: '#999',
+                    fontStyle: 'italic'
                 }).setOrigin(0.5);
             }
         }

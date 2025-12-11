@@ -906,17 +906,11 @@ async function handleSceneComplete(client, data, config, io) {
         const lastOstracismResults = room.lastOstracismResults || {};
         const edgesRemovedThisRound = lastOstracismResults.edgesRemoved || [];
 
-        // Find connections removed that affected this player
-        const removedConnections = edgesRemovedThisRound
-            .filter(e => e.player1 === playerId || e.player2 === playerId)
-            .map(e => ({
-                number: e.player1 === playerId ? e.player2 : e.player1,
-                subjectId: room.membersID[e.player1 === playerId ? e.player2 : e.player1]?.subjectId
-            }));
-
-        // Get newly isolated players
+        // Get newly isolated players count (anonymous - no identifiable info)
         const newlyIsolated = lastOstracismResults.newlyIsolated || [];
 
+        // Build ANONYMOUS network update data
+        // Do NOT reveal which specific connections were broken or by whom
         const networkUpdateData = {
             roundNumber: (room.gameRound || 0) + 1,
             totalRounds: room.totalGameRounds || config.experimentLoader?.gameConfig?.total_game_rounds || 3,
@@ -925,17 +919,9 @@ async function handleSceneComplete(client, data, config, io) {
             networkDensity: networkData.density || 0,
             playerStatus: {
                 currentConnections: playerConnections,
-                availablePartners: availablePartners.map(p => ({
-                    number: p,
-                    subjectId: room.membersID[p]?.subjectId
-                })),
                 isIsolated: isIsolated
             },
-            removedConnections: removedConnections,
-            isolatedPlayers: newlyIsolated.map(p => ({
-                number: p,
-                subjectId: room.membersID[p]?.subjectId
-            }))
+            isolatedCount: newlyIsolated.length
         };
 
         // Emit to triggering player only

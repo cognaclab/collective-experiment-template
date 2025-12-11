@@ -315,6 +315,9 @@ class ExperimentLoader {
             network: this.config.network || null,
             pairing: this.config.pairing || null,
 
+            // Avatar system (optional - assigns unique avatar images to players)
+            assign_avatars: this.config.game.assign_avatars || false,
+
             // Payment settings
             payment: this.config.payment || {
                 flat_fee: 2.0,

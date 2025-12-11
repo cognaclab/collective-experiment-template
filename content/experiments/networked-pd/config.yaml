@@ -94,7 +94,7 @@ game:
   k_armed_bandit: 2               # Two choices: Cooperate (0) or Defect (1)
   max_choice_time: 20000          # 20 seconds to make choice
   max_lobby_wait_time: 300000     # 5 minutes to wait for full group
-  max_scene_wait_time: 10000      # 10 seconds for scene transitions
+  max_scene_wait_time: 0          # No timeout - all players must confirm before progressing
   assign_avatars: true            # Assign unique avatar images to each player
 
 groups:

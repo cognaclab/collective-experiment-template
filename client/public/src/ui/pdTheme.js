@@ -19,6 +19,10 @@ export const PDTheme = {
             hover: 0x3F51B5,       // Darker indigo
             disabled: 0x9FA8DA,    // Light indigo
         },
+        // Navigation buttons (Next, Back) in instruction scenes - uses sprite tint
+        navigation: {
+            hoverTint: 0x909090,   // Light grey tint on hover (56% grey)
+        },
     },
 
     // Text colors

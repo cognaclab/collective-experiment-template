@@ -10,6 +10,13 @@ class ScenePreload extends Phaser.Scene {
     }
 
     preload() {
+        // Set base URL for asset loading
+        // Game runs on port 8181 but static assets are served from web server (APP_URL)
+        if (window.APP_URL) {
+            this.load.setBaseURL(window.APP_URL);
+            console.log('ScenePreload: Set asset base URL to', window.APP_URL);
+        }
+
         // Progress bar
         let progressBox = this.add.graphics();
         let progressBar = this.add.graphics();

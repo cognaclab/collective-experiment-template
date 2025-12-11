@@ -3,6 +3,8 @@
  * Renders Markdown content from the content/experiments/ directory
  */
 
+import { PDTheme } from '../ui/pdTheme.js';
+
 class SceneTemplate extends Phaser.Scene {
     constructor(config) {
         super({ key: config.key, active: false });
@@ -254,7 +256,7 @@ class SceneTemplate extends Phaser.Scene {
         
         if (enabled) {
             button.on('pointerdown', onClick);
-            button.on('pointerover', () => button.setTint(0x4c4c4c));
+            button.on('pointerover', () => button.setTint(PDTheme.buttons.navigation.hoverTint));
             button.on('pointerout', () => button.clearTint());
         } else {
             button.setAlpha(0.5);

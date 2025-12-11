@@ -15,6 +15,7 @@ const mainJsRouter = require('../middleware/mainJsRouter')
 const Session = require('../database/models/Session')
 const createError = require('http-errors')
 , express = require('express')
+, cors = require('cors')
 , path = require('path')
 , cookieParser = require('cookie-parser')
 , morgan = require('morgan')
@@ -72,6 +73,16 @@ const session_opt = {
   cookie: {maxAge: 30 * 60 * 1000}
 };
 app.use(session(session_opt));
+
+// CORS middleware - allow game server (port 8181) to load assets from web server (port 8000)
+app.use(cors({
+  origin: [
+    'http://localhost:8181',
+    'http://127.0.0.1:8181',
+    process.env.GAME_SERVER_URL
+  ].filter(Boolean),
+  credentials: true
+}));
 
 // Experiment mode middleware (must be before routes)
 app.use(experimentModeHandler.middleware());

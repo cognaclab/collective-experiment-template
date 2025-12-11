@@ -76,21 +76,7 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
             align: 'center'
         }).setOrigin(0.5);
 
-        this.availablePartnersText = this.add.text(0, 30, '', {
-            fontSize: '16px',
-            fill: '#333',
-            align: 'center',
-            wordWrap: { width: 650 }
-        }).setOrigin(0.5);
-
-        this.removedConnectionsText = this.add.text(0, 85, '', {
-            fontSize: '16px',
-            fill: PDTheme.status.inactive,
-            align: 'center',
-            wordWrap: { width: 650 }
-        }).setOrigin(0.5);
-
-        this.isolatedPlayersText = this.add.text(0, 125, '', {
+        this.isolatedPlayersText = this.add.text(0, 30, '', {
             fontSize: '16px',
             fill: PDTheme.status.isolated,
             fontStyle: 'italic',
@@ -103,8 +89,6 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
             this.changeSummaryText,
             this.networkStatsText,
             this.playerStatusText,
-            this.availablePartnersText,
-            this.removedConnectionsText,
             this.isolatedPlayersText
         ]);
 
@@ -179,8 +163,6 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
         this.playerStatusText.setStyle({ fill: PDTheme.status.isolated });
 
         this.networkStatsText.setText('');
-        this.availablePartnersText.setText('');
-        this.removedConnectionsText.setText('');
         this.isolatedPlayersText.setText('');
 
         this.continueButtonText.setText('Continue');
@@ -221,30 +203,13 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
             this.playerStatusText.setText(
                 `You have ${connections} active connection${connections !== 1 ? 's' : ''}`
             );
-
-            if (data.playerStatus.availablePartners && data.playerStatus.availablePartners.length > 0) {
-                const partners = data.playerStatus.availablePartners
-                    .map(p => p.subjectId || `Player ${p.number || '?'}`)
-                    .join(', ');
-                this.availablePartnersText.setText(`Can be paired with: ${partners}`);
-            } else if (connections > 0) {
-                this.availablePartnersText.setText('Partner list available in next round');
-            }
         }
 
-        if (data.removedConnections && data.removedConnections.length > 0) {
-            const removed = data.removedConnections
-                .map(p => p.subjectId || `Player ${p.number || '?'}`)
-                .join(', ');
-            this.removedConnectionsText.setText(`Lost connection${data.removedConnections.length !== 1 ? 's' : ''} with: ${removed}`);
-        }
-
-        if (data.isolatedPlayers && data.isolatedPlayers.length > 0) {
-            const isolated = data.isolatedPlayers
-                .map(p => p.subjectId || `Player ${p.number || '?'}`)
-                .join(', ');
+        // Anonymous: show count of isolated players only, no names
+        const isolatedCount = data.isolatedCount || 0;
+        if (isolatedCount > 0) {
             this.isolatedPlayersText.setText(
-                `${isolated} became isolated and will sit out remaining rounds`
+                `${isolatedCount} player${isolatedCount !== 1 ? 's' : ''} became isolated`
             );
         }
 
