@@ -33,6 +33,9 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
     create() {
         const centerX = this.cameras.main.width / 2;
 
+        // Set white background
+        this.cameras.main.setBackgroundColor('#FFFFFF');
+
         this.add.text(centerX, 60, 'Network Update', {
             fontSize: '36px',
             fill: '#000',
@@ -56,27 +59,14 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
         const panelBg = this.add.rectangle(0, 0, 700, 300, 0xF5F5F5);
         panelBg.setStrokeStyle(2, 0xCCCCCC);
 
-        this.changeSummaryText = this.add.text(0, -120, '', {
-            fontSize: '20px',
+        this.changeSummaryText = this.add.text(0, -40, '', {
+            fontSize: '22px',
             fill: '#333',
             fontStyle: 'bold',
             align: 'center'
         }).setOrigin(0.5);
 
-        this.networkStatsText = this.add.text(0, -70, '', {
-            fontSize: '16px',
-            fill: '#555',
-            align: 'center'
-        }).setOrigin(0.5);
-
-        this.playerStatusText = this.add.text(0, -20, '', {
-            fontSize: '18px',
-            fill: PDTheme.text.info,
-            fontStyle: 'bold',
-            align: 'center'
-        }).setOrigin(0.5);
-
-        this.isolatedPlayersText = this.add.text(0, 30, '', {
+        this.isolatedPlayersText = this.add.text(0, 20, '', {
             fontSize: '16px',
             fill: PDTheme.status.isolated,
             fontStyle: 'italic',
@@ -87,8 +77,6 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
         this.summaryPanel.add([
             panelBg,
             this.changeSummaryText,
-            this.networkStatsText,
-            this.playerStatusText,
             this.isolatedPlayersText
         ]);
 
@@ -156,13 +144,9 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
 
         this.summaryPanel.setVisible(true);
 
-        this.changeSummaryText.setText('No remaining connections');
+        this.changeSummaryText.setText('You will sit out the remaining rounds');
         this.changeSummaryText.setStyle({ fill: PDTheme.status.isolated });
 
-        this.playerStatusText.setText('You will sit out the remaining rounds');
-        this.playerStatusText.setStyle({ fill: PDTheme.status.isolated });
-
-        this.networkStatsText.setText('');
         this.isolatedPlayersText.setText('');
 
         this.continueButtonText.setText('Continue');
@@ -183,29 +167,14 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
             this.changeSummaryText.setText('No connections were broken this round');
             this.changeSummaryText.setStyle({ fill: PDTheme.status.active });
         } else {
+            // Anonymous message - don't reveal who broke connections
             this.changeSummaryText.setText(
-                `${edgesRemoved} connection${edgesRemoved !== 1 ? 's were' : ' was'} broken`
+                `Somebody chose to break their connection with their partner`
             );
             this.changeSummaryText.setStyle({ fill: PDTheme.status.inactive });
         }
 
-        const totalEdges = data.totalEdgesRemaining || 0;
-        const density = data.networkDensity || 0;
-        const densityPercent = Math.round(density * 100);
-
-        this.networkStatsText.setText(
-            `${totalEdges} total connection${totalEdges !== 1 ? 's' : ''} remaining across network\n` +
-            `Network density: ${densityPercent}%`
-        );
-
-        if (data.playerStatus) {
-            const connections = data.playerStatus.currentConnections || 0;
-            this.playerStatusText.setText(
-                `You have ${connections} active connection${connections !== 1 ? 's' : ''}`
-            );
-        }
-
-        // Anonymous: show count of isolated players only, no names
+        // Show isolated player count if any (anonymous)
         const isolatedCount = data.isolatedCount || 0;
         if (isolatedCount > 0) {
             this.isolatedPlayersText.setText(

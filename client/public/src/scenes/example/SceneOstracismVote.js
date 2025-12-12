@@ -55,7 +55,6 @@ export default class SceneOstracismVote extends Phaser.Scene {
         console.log('Last round outcome:', this.lastRoundOutcome);
 
         const centerX = this.cameras.main.width / 2;
-        const centerY = this.cameras.main.height / 2;
 
         // Background
         this.cameras.main.setBackgroundColor('#FFFFFF');
@@ -72,8 +71,8 @@ export default class SceneOstracismVote extends Phaser.Scene {
             fill: '#555'
         }).setOrigin(0.5);
 
-        // Display avatars at the top
-        const avatarY = 130;
+        // Display avatars below the subtitle
+        const avatarY = 160;
         const avatarScale = 0.10;
         const avatarSpacing = 80;
 
@@ -109,20 +108,20 @@ export default class SceneOstracismVote extends Phaser.Scene {
             historyText = 'This is your first interaction with this partner';
         }
 
-        this.add.text(centerX, 195, historyText, {
+        this.add.text(centerX, 230, historyText, {
             fontSize: '18px',
             fill: '#333',
             fontStyle: totalInteractions > 0 ? 'bold' : 'italic'
         }).setOrigin(0.5);
 
         // Cumulative payoff
-        this.add.text(centerX, 240, `Your total earnings: ${this.cumulativePayoff} points`, {
+        this.add.text(centerX, 275, `Your total earnings: ${this.cumulativePayoff} points`, {
             fontSize: '20px',
             fill: '#333'
         }).setOrigin(0.5);
 
         // Warning text
-        this.add.text(centerX, 340, '⚠️ Breaking a connection is permanent and cannot be undone', {
+        this.add.text(centerX, 320, '⚠️ Breaking a connection is permanent and cannot be undone', {
             fontSize: '16px',
             fill: PDTheme.text.error,
             fontStyle: 'bold',
@@ -130,7 +129,7 @@ export default class SceneOstracismVote extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Vote buttons
-        const buttonY = 420;
+        const buttonY = 400;
         const buttonWidth = 260;
         const buttonHeight = 70;
         const buttonSpacing = 40;
@@ -180,7 +179,7 @@ export default class SceneOstracismVote extends Phaser.Scene {
         ).setOrigin(0.5);
 
         // Status text (for waiting message)
-        this.statusText = this.add.text(centerX, 510, '', {
+        this.statusText = this.add.text(centerX, 490, '', {
             fontSize: '18px',
             fill: '#666',
             fontStyle: 'italic'

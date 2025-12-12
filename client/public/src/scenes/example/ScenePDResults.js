@@ -134,7 +134,7 @@ class ScenePDResults extends Phaser.Scene {
 
             // You section (left)
             this.add.text(leftX, labelY, 'You', {
-                fontSize: '28px',
+                fontSize: '18px',
                 fill: '#333',
                 fontStyle: 'bold'
             }).setOrigin(0.5);
@@ -156,7 +156,7 @@ class ScenePDResults extends Phaser.Scene {
 
             // Your Partner section (right)
             this.add.text(rightX, labelY, 'Your Partner', {
-                fontSize: '28px',
+                fontSize: '18px',
                 fill: '#333',
                 fontStyle: 'bold'
             }).setOrigin(0.5);
