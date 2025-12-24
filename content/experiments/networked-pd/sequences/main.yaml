@@ -66,6 +66,12 @@ sequence:
     type: "network_update"
     next: "ScenePDPairing"
 
+  # Phase transition - shown between blind and transparent phases
+  # Server dynamically invokes this scene when transitioning between experiment phases
+  - scene: "ScenePhaseTransition"
+    type: "phase_transition"
+    next: "ScenePDPairing"
+
   # Questionnaire
   - scene: "SceneGoToQuestionnaire"
     type: "questionnaire"

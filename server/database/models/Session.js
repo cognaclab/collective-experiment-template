@@ -45,7 +45,48 @@ const sessionSchema = new mongoose.Schema({
     informationCosts: { type: Number },
     finalPayment: { type: Number },
     trialsCompleted: { type: Number },
-    trialsMissed: { type: Number }
+    trialsMissed: { type: Number },
+    // Per-phase performance (for two-phase experiments)
+    phasePoints: {
+      type: Map,
+      of: Number,
+      default: {}                                // { "blind": 15, "transparent": 22 }
+    }
+  },
+
+  // ==========================================
+  // TWO-PHASE EXPERIMENT DATA
+  // ==========================================
+  phaseData: {
+    enabled: { type: Boolean, default: false },
+    phasesCompleted: { type: Number, default: 0 },
+    totalPhases: { type: Number },
+    phaseOrder: [{ type: String }],              // ["blind", "transparent"]
+    currentPhase: { type: String }               // Current or last phase
+  },
+
+  // ==========================================
+  // MFQ (MORAL FOUNDATIONS QUESTIONNAIRE) SCORES
+  // ==========================================
+  mfqScores: {
+    // Raw scores from questionnaire (1-5 scale typically)
+    scores: {
+      harm: { type: Number },
+      fairness: { type: Number },
+      loyalty: { type: Number },
+      authority: { type: Number },
+      purity: { type: Number }
+    },
+    // Pre-computed levels for display
+    levels: {
+      harm: { type: String, enum: ['low', 'medium', 'high'] },
+      fairness: { type: String, enum: ['low', 'medium', 'high'] },
+      loyalty: { type: String, enum: ['low', 'medium', 'high'] },
+      authority: { type: String, enum: ['low', 'medium', 'high'] },
+      purity: { type: String, enum: ['low', 'medium', 'high'] }
+    },
+    source: { type: String },                     // "database", "random", or source study ID
+    loadedAt: { type: Date }
   },
 
   // ==========================================

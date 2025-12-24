@@ -12,9 +12,17 @@
  * - For individual (n=1): Proceeds immediately
  * - For multiplayer (n>1): Waits for all players before proceeding
  * - Server emits 'start_scene' to instruct client(s) which scene to render next
+ *
+ * Two-Phase Experiment Support:
+ * - Supports experiments with multiple phases (e.g., blind → transparent)
+ * - Tracks phase progression via room.currentPhaseIndex
+ * - Handles network reset between phases
+ * - Routes to ScenePhaseTransition between phases
  */
 
 const logger = require('../utils/logger');
+const NetworkGraph = require('../utils/NetworkGraph');
+const Session = require('../database/models/Session');
 
 /**
  * Scene types that require synchronized ENTRY in multiplayer mode.
@@ -26,10 +34,11 @@ const logger = require('../utils/logger');
  * We don't sync before entering results/ostracism where players just view info or vote independently.
  */
 const SCENES_REQUIRING_SYNCHRONIZED_ENTRY = [
-    'game',        // Bandit task - all players start together
-    'pd_choice',   // PD choice - all players decide together
-    'choice',      // Generic choice - all players decide together
-    'pairing'      // Partner assignment - all players must be present
+    'game',              // Bandit task - all players start together
+    'pd_choice',         // PD choice - all players decide together
+    'choice',            // Generic choice - all players decide together
+    'pairing',           // Partner assignment - all players must be present
+    'phase_transition'   // Phase transition - all players see instruction together
 ];
 
 /**
@@ -202,7 +211,7 @@ async function handleSceneComplete(client, data, config, io) {
             nextScene: nextScene.scene
         });
 
-        const transition = transitionToSharedRoom(client, config, io);
+        const transition = await transitionToSharedRoom(client, config, io);
 
         if (transition) {
             // Update room reference to new shared room
@@ -756,8 +765,19 @@ async function handleSceneComplete(client, data, config, io) {
                     partnerId: partnerId,
                     partnerSubjectId: partner?.subjectId || `Player ${partnerId}`,
                     avatarId: player.avatarId || null,
-                    partnerAvatarId: partner?.avatarId || null
+                    partnerAvatarId: partner?.avatarId || null,
+                    // Two-phase experiment data
+                    currentPhaseName: room.currentPhaseName || 'blind',
+                    showMFQScores: room.phaseConfig?.show_mfq_scores || false
                 };
+
+                // Add MFQ scores if in transparent phase
+                if (room.phaseConfig?.show_mfq_scores && room.mfqScores && partner?.subjectId) {
+                    if (room.mfqScores[partner.subjectId]) {
+                        choiceData.partnerMFQScores = room.mfqScores[partner.subjectId];
+                        choiceData.mfqDisplayConfig = room.mfqDisplayConfig || null;
+                    }
+                }
 
                 playerSocket.emit('start_scene', {
                     scene: 'ScenePDChoice',
@@ -1491,7 +1511,25 @@ async function handleSceneComplete(client, data, config, io) {
             maxPlayers: maxGroupSize,
             roomReady: sceneData.roomReady
         });
-    } else if (nextScene.type === 'pairing') {
+    } else if (currentSceneConfig?.type === 'phase_transition') {
+        // Phase transition scene completed - proceed to pairing for new phase
+        // Override nextScene to go to pairing (which was set in sceneConfig.next)
+        logger.info('Phase transition complete, proceeding to pairing for new phase', {
+            room: client.room,
+            currentPhaseName: room.currentPhaseName,
+            currentPhaseIndex: room.currentPhaseIndex,
+            gameRound: room.gameRound
+        });
+
+        // Find the pairing scene in sequence
+        const pairingScene = sequence.find(s => s.type === 'pairing');
+        if (pairingScene) {
+            nextScene = pairingScene;
+        }
+        // Fall through to pairing handler below
+    }
+
+    if (nextScene.type === 'pairing') {
         // Server-initiated pairing for networked experiments
         // Generate pairings ONCE here instead of each client requesting them
         const { generatePairingsForRoom } = require('./handlePairingStart');
@@ -1514,14 +1552,129 @@ async function handleSceneComplete(client, data, config, io) {
                 turnWithinRound: room.turnWithinRound
             });
 
-            // Check if all rounds are complete
+            // Check if all rounds in this PHASE are complete
             if (room.gameRound >= totalGameRounds) {
-                // All rounds complete - redirect to questionnaire instead of pairing
+                // Phase complete - check if more phases remain
+                const experimentPhasesConfig = room.experimentConfig?.experiment_phases;
+                const phases = experimentPhasesConfig?.phases || [];
+                const currentPhaseIndex = room.currentPhaseIndex || 0;
+
+                // Store phase payoffs before potentially transitioning
+                if (!room.phasePayoffs) {
+                    room.phasePayoffs = {};
+                }
+                room.phasePayoffs[currentPhaseIndex] = { ...room.cumulativePayoffs };
+
+                logger.info('Phase rounds complete, checking for more phases', {
+                    room: client.room,
+                    currentPhaseIndex,
+                    currentPhaseName: room.currentPhaseName,
+                    completedRounds: room.gameRound,
+                    totalPhasesConfigured: phases.length
+                });
+
+                // Check if there are more phases to run
+                if (experimentPhasesConfig?.enabled && currentPhaseIndex < phases.length - 1) {
+                    // Transition to next phase
+                    const nextPhaseIndex = currentPhaseIndex + 1;
+                    const nextPhase = phases[nextPhaseIndex];
+
+                    logger.info('Transitioning to next experiment phase', {
+                        room: client.room,
+                        fromPhase: room.currentPhaseName,
+                        toPhase: nextPhase.name,
+                        nextPhaseIndex,
+                        showMFQScores: nextPhase.show_mfq_scores
+                    });
+
+                    // Update room state for new phase
+                    room.currentPhaseIndex = nextPhaseIndex;
+                    room.currentPhaseName = nextPhase.name;
+                    room.phaseConfig = nextPhase;
+                    room.phaseStartTrial = room.trial || 1;
+
+                    // Reset round/turn counters for new phase
+                    room.gameRound = 0;
+                    room.turnWithinRound = 1;
+                    room.currentRoundPartner = {};
+
+                    // Reset network for new phase (full reset to complete topology)
+                    const networkConfig = room.experimentConfig?.network;
+                    const initialTopology = networkConfig?.initial_topology || 'complete';
+                    room.network = new NetworkGraph(room.n, initialTopology);
+                    room.currentPairings = [];
+                    room.lastOstracismResults = {};
+                    room.cooperationHistory = {};
+
+                    // Update totalGameRounds for new phase (may differ per phase)
+                    const phaseRounds = nextPhase.rounds || config.experimentLoader?.gameConfig?.total_game_rounds || 3;
+                    room.totalGameRounds = phaseRounds;
+
+                    logger.info('Network and game state reset for new phase', {
+                        room: client.room,
+                        newPhaseName: nextPhase.name,
+                        phaseRounds,
+                        networkTopology: initialTopology
+                    });
+
+                    // Navigate all players to phase transition scene
+                    const sockets = await io.in(client.room).fetchSockets();
+
+                    for (const playerSocket of sockets) {
+                        // Find player's index
+                        let playerIdx = -1;
+                        for (const [idx, player] of Object.entries(room.membersID)) {
+                            if (player && player.subjectId === playerSocket.subjectID) {
+                                playerIdx = parseInt(idx);
+                                break;
+                            }
+                        }
+
+                        const playerMember = playerIdx >= 0 ? room.membersID[playerIdx] : null;
+                        const playerPoints = room.phasePayoffs[currentPhaseIndex]?.[playerIdx] || 0;
+
+                        // Prepare data for phase transition scene
+                        const phaseTransitionData = {
+                            completedPhaseName: room.phasePayoffs[currentPhaseIndex] ? phases[currentPhaseIndex].display_name : 'Part 1',
+                            completedPhaseIndex: currentPhaseIndex,
+                            nextPhaseName: nextPhase.display_name || nextPhase.name,
+                            nextPhaseIndex,
+                            showMFQScoresInNextPhase: nextPhase.show_mfq_scores || false,
+                            phasePoints: playerPoints,
+                            avatarId: playerMember?.avatarId || null,
+                            mfqDisplayConfig: room.mfqDisplayConfig || null,
+                            totalPhases: phases.length
+                        };
+
+                        playerSocket.emit('start_scene', {
+                            scene: 'ScenePhaseTransition',
+                            sceneConfig: {
+                                scene: 'ScenePhaseTransition',
+                                type: 'phase_transition',
+                                next: 'ScenePDPairing'
+                            },
+                            sceneData: phaseTransitionData,
+                            roomId: client.room,
+                            sessionId: playerSocket.sessionId,
+                            subjectId: playerSocket.subjectID
+                        });
+                    }
+
+                    if (config.roomStatus[client.room]) {
+                        config.roomStatus[client.room].currentScene = 'ScenePhaseTransition';
+                    }
+
+                    return; // Skip pairing - transitioning to new phase
+                }
+
+                // No more phases - all phases complete, go to questionnaire
                 const questionnaireScene = sequence.find(s => s.type === 'questionnaire');
 
                 if (questionnaireScene) {
-                    logger.info('All rounds complete, transitioning to questionnaire', {
+                    logger.info('All phases complete, transitioning to questionnaire', {
                         room: client.room,
+                        completedPhases: currentPhaseIndex + 1,
+                        totalPhases: phases.length || 1,
                         completedRounds: room.gameRound,
                         totalGameRounds: totalGameRounds
                     });
@@ -1540,16 +1693,33 @@ async function handleSceneComplete(client, data, config, io) {
                             }
                         }
 
-                        // Get player's cumulative payoff
-                        const playerPoints = room.cumulativePayoffs?.[playerIdx] || 0;
+                        // Get player's cumulative payoff (sum across all phases)
+                        let totalPoints = room.cumulativePayoffs?.[playerIdx] || 0;
 
-                        // Build round breakdown from payoffsByRound
+                        // If we have phase payoffs, sum them for total
+                        if (room.phasePayoffs && Object.keys(room.phasePayoffs).length > 0) {
+                            totalPoints = 0;
+                            for (const phaseIdx in room.phasePayoffs) {
+                                totalPoints += room.phasePayoffs[phaseIdx]?.[playerIdx] || 0;
+                            }
+                        }
+
+                        // Build round breakdown from all phases
                         const roundBreakdown = [];
-                        for (let r = 0; r < totalGameRounds; r++) {
-                            roundBreakdown.push({
-                                round: r + 1,
-                                points: room.payoffsByRound?.[r]?.[playerIdx] || 0
-                            });
+                        const allPhaseRounds = phases.length > 0 ? phases : [{ rounds: totalGameRounds }];
+                        let roundCounter = 0;
+
+                        for (let phaseIdx = 0; phaseIdx < allPhaseRounds.length; phaseIdx++) {
+                            const phaseRoundCount = allPhaseRounds[phaseIdx].rounds || totalGameRounds;
+                            for (let r = 0; r < phaseRoundCount; r++) {
+                                roundBreakdown.push({
+                                    round: roundCounter + 1,
+                                    phase: phaseIdx,
+                                    phaseName: allPhaseRounds[phaseIdx].display_name || `Phase ${phaseIdx + 1}`,
+                                    points: room.payoffsByRound?.[roundCounter]?.[playerIdx] || 0
+                                });
+                                roundCounter++;
+                            }
                         }
 
                         // Get waiting bonus from socket
@@ -1560,7 +1730,7 @@ async function handleSceneComplete(client, data, config, io) {
                         if (paymentCalculator) {
                             try {
                                 paymentData = paymentCalculator.calculateSessionPayment(
-                                    playerPoints,
+                                    totalPoints,
                                     waitingBonus,
                                     true // completed
                                 );
@@ -1572,11 +1742,50 @@ async function handleSceneComplete(client, data, config, io) {
                         logger.info('Sending questionnaire data to player', {
                             subjectID: playerSocket.subjectID,
                             playerIdx,
-                            points: playerPoints,
+                            points: totalPoints,
                             roundBreakdown,
                             waitingBonus,
                             payment: paymentData?.formatted
                         });
+
+                        // Persist phase data and performance to Session record
+                        try {
+                            // Build phase points map from phasePayoffs
+                            const phasePointsMap = {};
+                            if (room.phasePayoffs && phases.length > 0) {
+                                for (let pIdx = 0; pIdx < phases.length; pIdx++) {
+                                    const phaseName = phases[pIdx].name;
+                                    phasePointsMap[phaseName] = room.phasePayoffs[pIdx]?.[playerIdx] || 0;
+                                }
+                            }
+
+                            await Session.findOneAndUpdate(
+                                { sessionId: playerSocket.sessionId },
+                                {
+                                    $set: {
+                                        'performance.totalPoints': totalPoints,
+                                        'performance.totalPayoff': paymentData?.amount || 0,
+                                        'performance.waitingBonus': waitingBonus,
+                                        'performance.phasePoints': phasePointsMap,
+                                        'phaseData.enabled': phases.length > 1,
+                                        'phaseData.phasesCompleted': phases.length,
+                                        'phaseData.totalPhases': phases.length,
+                                        'phaseData.phaseOrder': phases.map(p => p.name),
+                                        'phaseData.currentPhase': phases[phases.length - 1]?.name || 'unknown'
+                                    }
+                                }
+                            );
+                            logger.info('Updated Session with phase performance data', {
+                                sessionId: playerSocket.sessionId,
+                                totalPoints,
+                                phasePoints: phasePointsMap
+                            });
+                        } catch (sessionError) {
+                            logger.error('Failed to update Session with phase data', {
+                                sessionId: playerSocket.sessionId,
+                                error: sessionError.message
+                            });
+                        }
 
                         // Get player's avatarId
                         const playerMember = playerIdx >= 0 ? room.membersID[playerIdx] : null;
@@ -1588,10 +1797,11 @@ async function handleSceneComplete(client, data, config, io) {
                                 gameRound: room.gameRound,
                                 totalRounds: totalGameRounds,
                                 experimentComplete: true,
-                                totalPointsAllRounds: playerPoints,
+                                totalPointsAllRounds: totalPoints,
                                 roundBreakdown: roundBreakdown,
                                 payment: paymentData,
-                                avatarId: playerMember?.avatarId || null
+                                avatarId: playerMember?.avatarId || null,
+                                phasePayoffs: room.phasePayoffs
                             },
                             roomId: client.room,
                             sessionId: playerSocket.sessionId,
@@ -1683,8 +1893,27 @@ async function handleSceneComplete(client, data, config, io) {
                 turnsPerRound,
                 pairingData: playerPairingData,
                 avatarId: playerMember?.avatarId || null,
-                partnerAvatarId: partnerMember?.avatarId || null
+                partnerAvatarId: partnerMember?.avatarId || null,
+                // Two-phase experiment data
+                currentPhaseName: room.currentPhaseName || 'blind',
+                currentPhaseIndex: room.currentPhaseIndex || 0,
+                showMFQScores: room.phaseConfig?.show_mfq_scores || false
             };
+
+            // Add MFQ scores if in transparent phase and scores should be shown
+            if (room.phaseConfig?.show_mfq_scores && room.mfqScores) {
+                const partnerSubjectId = partnerMember?.subjectId;
+                if (partnerSubjectId && room.mfqScores[partnerSubjectId]) {
+                    personalizedSceneData.partnerMFQScores = room.mfqScores[partnerSubjectId];
+                    personalizedSceneData.mfqDisplayConfig = room.mfqDisplayConfig || null;
+
+                    logger.debug('Including MFQ scores in pairing data', {
+                        subjectID: playerSocket.subjectID,
+                        partnerSubjectId,
+                        hasScores: !!room.mfqScores[partnerSubjectId]
+                    });
+                }
+            }
 
             // Emit to THIS player only
             playerSocket.emit('start_scene', {
@@ -1711,6 +1940,92 @@ async function handleSceneComplete(client, data, config, io) {
 
         // Early return - skip default broadcast for pairing scene
         return;
+    }
+
+    // Handle pairing scene completing -> choice scene (first turn of round)
+    // This provides personalized data with avatars and MFQ scores
+    if (currentSceneConfig?.type === 'pairing' && nextScene.type === 'choice') {
+        const turnsPerRound = room.turnsPerRound || config.experimentLoader?.gameConfig?.horizon || 2;
+
+        logger.info('Pairing scene complete, transitioning to first choice of round', {
+            room: client.room,
+            gameRound: room.gameRound,
+            turnWithinRound: room.turnWithinRound || 1,
+            turnsPerRound: turnsPerRound
+        });
+
+        // Initialize turn counter if not already set
+        if (!room.turnWithinRound) {
+            room.turnWithinRound = 1;
+        }
+
+        // Emit choice scene to ALL players in the room with personalized data
+        for (const [idx, player] of Object.entries(room.membersID)) {
+            if (!player || !player.socketId) continue;
+
+            const playerSocket = io.sockets.sockets.get(player.socketId);
+            if (!playerSocket) continue;
+
+            const playerId = parseInt(idx);
+
+            // Get this player's partner from currentRoundPartner or currentPairings
+            const partnerId = room.currentRoundPartner?.[playerId] ??
+                (room.currentPairings?.find(([p1, p2]) => p1 === playerId || p2 === playerId)
+                    ?.find(p => p !== playerId));
+            const partner = partnerId !== null && partnerId !== undefined ? room.membersID[partnerId] : null;
+
+            // Build personalized choice scene data (same structure as turn loop)
+            const choiceData = {
+                trial: room.trial || 1,
+                totalTrials: turnsPerRound * (room.totalGameRounds || 3),
+                gameRound: (room.gameRound || 0) + 1,
+                turnWithinRound: room.turnWithinRound,
+                turnsPerRound: turnsPerRound,
+                totalRounds: room.totalGameRounds || 3,
+                maxChoiceTime: config.experimentLoader?.gameConfig?.max_choice_time || 20000,
+                showTimer: true,
+                showPartner: true,
+                partnerId: partnerId,
+                partnerSubjectId: partner?.subjectId || `Player ${partnerId}`,
+                avatarId: player.avatarId || null,
+                partnerAvatarId: partner?.avatarId || null,
+                // Two-phase experiment data
+                currentPhaseName: room.currentPhaseName || 'blind',
+                showMFQScores: room.phaseConfig?.show_mfq_scores || false
+            };
+
+            // Add MFQ scores if in transparent phase
+            if (room.phaseConfig?.show_mfq_scores && room.mfqScores && partner?.subjectId) {
+                if (room.mfqScores[partner.subjectId]) {
+                    choiceData.partnerMFQScores = room.mfqScores[partner.subjectId];
+                    choiceData.mfqDisplayConfig = room.mfqDisplayConfig || null;
+                }
+            }
+
+            playerSocket.emit('start_scene', {
+                scene: nextScene.scene,
+                sceneConfig: nextScene,
+                sceneData: choiceData,
+                roomId: client.room,
+                sessionId: player.sessionId,
+                subjectId: player.subjectId
+            });
+
+            logger.debug('Emitted first turn choice data to player', {
+                playerId: playerId,
+                subjectId: player.subjectId,
+                partnerId: partnerId,
+                avatarId: player.avatarId,
+                partnerAvatarId: partner?.avatarId
+            });
+        }
+
+        // Track current scene
+        if (config.roomStatus[client.room]) {
+            config.roomStatus[client.room].currentScene = nextScene.scene;
+        }
+
+        return; // Skip default broadcast
     }
 
     // Broadcast next scene to all players in room

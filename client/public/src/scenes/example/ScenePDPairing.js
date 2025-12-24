@@ -2,9 +2,12 @@
  * ScenePDPairing - Displays partner assignment before each PD round
  * Shows partner info, cooperation history, and network status
  * Part of Network-Embedded Dyadic Prisoner's Dilemma experiment
+ *
+ * Two-phase support: In transparent phase, displays partner's MFQ scores
  */
 
 import { PDTheme } from '../../ui/pdTheme.js';
+import { createMFQDisplay } from '../../ui/mfqScoreDisplay.js';
 
 export default class ScenePDPairing extends Phaser.Scene {
     constructor() {
@@ -25,12 +28,20 @@ export default class ScenePDPairing extends Phaser.Scene {
         this.avatarId = data.avatarId || null;
         this.partnerAvatarId = data.partnerAvatarId || null;
 
+        // Two-phase experiment data
+        this.currentPhaseName = data.currentPhaseName || 'blind';
+        this.showMFQScores = data.showMFQScores || false;
+        this.partnerMFQScores = data.partnerMFQScores || null;
+        this.mfqDisplayConfig = data.mfqDisplayConfig || null;
+
         this.pairingData = null;
         this.isIsolated = false;
         this.isUnpaired = false;
     }
 
     create() {
+        this.cameras.main.setBackgroundColor('#FFFFFF');
+
         const centerX = this.cameras.main.width / 2;
         const centerY = this.cameras.main.height / 2;
 
@@ -259,6 +270,21 @@ export default class ScenePDPairing extends Phaser.Scene {
                 fontStyle: 'bold'
             }).setOrigin(0.5);
             this.partnerPanel.add(partnerLabel);
+
+            // Show MFQ scores in transparent phase
+            if (this.showMFQScores && this.partnerMFQScores) {
+                console.log('ScenePDPairing: Displaying MFQ scores for partner');
+                const mfqDisplay = createMFQDisplay(
+                    this,
+                    avatarSpacing - 50, // Center below partner avatar
+                    avatarY + 70,
+                    this.partnerMFQScores,
+                    this.mfqDisplayConfig
+                );
+                if (mfqDisplay) {
+                    this.partnerPanel.add(mfqDisplay);
+                }
+            }
         }
 
         // Arrow or connector between avatars
@@ -278,33 +304,6 @@ export default class ScenePDPairing extends Phaser.Scene {
         // Show "Your partner for this round" without revealing player names
         this.partnerNameText.setText('Your partner for this round');
 
-        if (data.timesPlayedWithPartner === 0) {
-            this.historyText.setText('This is your first time playing with this partner');
-        } else {
-            const history = data.cooperationHistory || {};
-            // Server sends player2Cooperated (times the partner cooperated with viewing player)
-            const cooperations = history.player2Cooperated || 0;
-            const total = data.timesPlayedWithPartner || 1;
-            const rate = Math.round((cooperations / total) * 100);
-
-            this.historyText.setText(
-                `You've played with this partner ${total} time${total !== 1 ? 's' : ''} before\n` +
-                `Partner cooperated: ${cooperations}/${total} times (${rate}%)`
-            );
-
-            // Use neutral grey tones instead of green/red moral colors
-            const color = '#555555';
-            this.historyText.setStyle({ fill: color });
-        }
-
-        if (data.networkStatus) {
-            const connections = data.networkStatus.totalConnections || 0;
-            this.networkStatusText.setText(
-                `You have ${connections} active connection${connections !== 1 ? 's' : ''} remaining`
-            );
-            // Don't show available partners list - keep anonymous
-        }
-
         this.continueButton.setInteractive({ cursor: 'pointer' });
         this.continueButton.setAlpha(1);
     }
@@ -314,6 +313,7 @@ export default class ScenePDPairing extends Phaser.Scene {
 
         this.continueButton.disableInteractive();
         this.continueButton.setAlpha(0.5);
+        this.continueButtonText.setText('Waiting...');
 
         window.socket.emit('scene_complete', {
             scene: 'ScenePDPairing',

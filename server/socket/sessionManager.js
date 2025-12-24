@@ -3,6 +3,7 @@
 
 const { makeid } = require('../utils/helpers');
 const { createRoom } = require('../utils/roomFactory');
+const MFQScoreLoader = require('../services/MFQScoreLoader');
 
 // Available avatar colors for assignment (when assign_avatars is enabled)
 const AVATAR_POOL = ['blue', 'green', 'orange', 'pink', 'purple', 'red', 'teal', 'yellow', 'magenta'];
@@ -186,7 +187,7 @@ function findAvailableGroupRoom(config, maxGroupSize) {
     return null;
 }
 
-function transitionToSharedRoom(client, config, io) {
+async function transitionToSharedRoom(client, config, io) {
     const oldRoom = config.roomStatus[client.room];
     const maxGroupSize = client.maxGroupSize || config.maxGroupSize || 4;
     const minGroupSize = client.minGroupSize || config.minGroupSize || 2;
@@ -202,6 +203,10 @@ function transitionToSharedRoom(client, config, io) {
 
     // Check if avatars should be assigned
     const shouldAssignAvatars = config.experimentLoader?.gameConfig?.assign_avatars === true;
+
+    // Check if MFQ scores should be loaded (for two-phase experiments)
+    const mfqConfig = config.experimentLoader?.gameConfig?.mfq_scores;
+    const shouldLoadMFQ = mfqConfig && config.experimentLoader?.gameConfig?.experiment_phases?.enabled;
 
     if (availableRoomInfo) {
         newRoomName = availableRoomInfo.name;
@@ -230,6 +235,21 @@ function transitionToSharedRoom(client, config, io) {
 
         if (avatarId) {
             console.log(`🎭 Assigned avatar '${avatarId}' to player ${client.subjectID}`);
+        }
+
+        // Load MFQ scores for this player if two-phase experiment
+        if (shouldLoadMFQ) {
+            try {
+                const loader = new MFQScoreLoader(mfqConfig);
+                const scores = await loader.getScores(client.subjectID);
+                if (scores) {
+                    if (!newRoom.mfqScores) newRoom.mfqScores = {};
+                    newRoom.mfqScores[client.subjectID] = scores;
+                    console.log(`📊 Loaded MFQ scores for player ${client.subjectID}`);
+                }
+            } catch (error) {
+                console.warn(`⚠️ Failed to load MFQ scores for ${client.subjectID}:`, error.message);
+            }
         }
 
         console.log(`🔄 Player ${client.subjectID} transitioned from temp room ${client.room} → shared room ${newRoomName} (${newRoom.n}/${maxGroupSize})`);
@@ -296,6 +316,22 @@ function transitionToSharedRoom(client, config, io) {
         if (avatarId) {
             console.log(`🎭 Assigned avatar '${avatarId}' to player ${client.subjectID}`);
         }
+
+        // Load MFQ scores for this player if two-phase experiment
+        if (shouldLoadMFQ) {
+            try {
+                const loader = new MFQScoreLoader(mfqConfig);
+                const scores = await loader.getScores(client.subjectID);
+                if (scores) {
+                    if (!newRoom.mfqScores) newRoom.mfqScores = {};
+                    newRoom.mfqScores[client.subjectID] = scores;
+                    console.log(`📊 Loaded MFQ scores for player ${client.subjectID}`);
+                }
+            } catch (error) {
+                console.warn(`⚠️ Failed to load MFQ scores for ${client.subjectID}:`, error.message);
+            }
+        }
+
         console.log(`🔄 Player ${client.subjectID} transitioned from temp room ${client.room} → new shared room ${newRoomName} (1/${maxGroupSize})`);
     }
 

@@ -57,6 +57,38 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode
         pairingManager = new PairingManager(network, config.pairing || {});
     }
 
+    // Initialize two-phase experiment configuration
+    let phaseConfig = null;
+    let currentPhaseName = 'blind';
+    let currentPhaseIndex = 0;
+
+    if (config?.experiment_phases?.enabled) {
+        const phases = config.experiment_phases.phases || [];
+
+        // Handle force_single_phase override (for testing)
+        if (config.experiment_phases.force_single_phase) {
+            const forcedPhase = phases.find(p => p.name === config.experiment_phases.force_single_phase);
+            if (forcedPhase) {
+                phaseConfig = forcedPhase;
+                currentPhaseName = forcedPhase.name;
+            }
+        }
+        // Handle force_phase_order override (for testing)
+        else if (config.experiment_phases.force_phase_order === 'transparent_first') {
+            const transparentPhase = phases.find(p => p.name === 'transparent');
+            if (transparentPhase) {
+                phaseConfig = transparentPhase;
+                currentPhaseName = 'transparent';
+                currentPhaseIndex = 1; // Treat as if we've already done blind
+            }
+        }
+        // Normal: start with first phase (blind)
+        else if (phases.length > 0) {
+            phaseConfig = phases[0];
+            currentPhaseName = phases[0].name || 'blind';
+        }
+    }
+
     return {
         roomId: name, // Store room identifier for database
         experimentConfig: config, // Store full config for RewardCalculator and other uses
@@ -116,7 +148,21 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode
         turnWithinRound: 1,
         turnsPerRound: config?.game?.horizon || 2,
         totalGameRounds: config?.game?.total_game_rounds || 3,
-        currentRoundPartner: {}        // { playerId: partnerId } - persists for entire round
+        currentRoundPartner: {},       // { playerId: partnerId } - persists for entire round
+
+        // =================================================================
+        // Two-Phase Experiment State (blind vs transparent conditions)
+        // =================================================================
+        currentPhaseIndex: currentPhaseIndex,
+        currentPhaseName: currentPhaseName,
+        phaseConfig: phaseConfig,
+        phaseStartTrial: 1,            // Trial number when current phase started
+        phasePayoffs: {},              // payoffs[phaseIndex][playerIndex] = cumulative points
+
+        // MFQ (Moral Foundations Questionnaire) scores
+        // Loaded at room formation, used in transparent phase
+        mfqScores: {},                 // mfqScores[subjectId] = { scores: {...}, levels: {...} }
+        mfqDisplayConfig: config?.mfq_scores?.display_categories || null
     };
 }
 

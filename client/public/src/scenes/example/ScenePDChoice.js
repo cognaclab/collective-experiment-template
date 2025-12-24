@@ -1,8 +1,10 @@
 // ScenePDChoice - Prisoner's Dilemma Choice Scene
 // Displays two buttons: Cooperate and Defect
 // Waits for player to make choice within time limit
+// Two-phase support: In transparent phase, displays partner's MFQ scores
 
 import { PDTheme } from '../../ui/pdTheme.js';
+import { createCompactMFQDisplay } from '../../ui/mfqScoreDisplay.js';
 
 class ScenePDChoice extends Phaser.Scene {
 
@@ -37,6 +39,12 @@ class ScenePDChoice extends Phaser.Scene {
         this.avatarId = data.avatarId || null;
         this.partnerAvatarId = data.partnerAvatarId || null;
 
+        // Two-phase experiment data
+        this.currentPhaseName = data.currentPhaseName || 'blind';
+        this.showMFQScores = data.showMFQScores || false;
+        this.partnerMFQScores = data.partnerMFQScores || null;
+        this.mfqDisplayConfig = data.mfqDisplayConfig || null;
+
         console.log('ScenePDChoice.init() - maxChoiceTime set to:', this.maxChoiceTime);
         console.log('ScenePDChoice.init() - Round', this.gameRound, 'Turn', this.turnWithinRound, 'of', this.turnsPerRound);
         console.log('ScenePDChoice.init() - Avatar:', this.avatarId, 'Partner avatar:', this.partnerAvatarId);
@@ -69,17 +77,17 @@ class ScenePDChoice extends Phaser.Scene {
 
         // Show both player avatars side by side (only for networked PD)
         if (this.turnsPerRound > 1 && this.showPartner && this.partnerSubjectId) {
-            const avatarY = 105;
-            const avatarScale = 0.08;
-            const avatarSpacing = 80;
+            const avatarY = 150;
+            const avatarScale = 0.12;
+            const avatarSpacing = 100;
 
             // Player's avatar (left) - "You"
             if (this.avatarId && this.textures.exists(`avatar_${this.avatarId}`)) {
                 const myAvatar = this.add.image(400 - avatarSpacing, avatarY, `avatar_${this.avatarId}`);
                 myAvatar.setScale(avatarScale);
 
-                this.add.text(400 - avatarSpacing, avatarY + 35, 'You', {
-                    fontSize: '12px',
+                this.add.text(400 - avatarSpacing, avatarY + 50, 'You', {
+                    fontSize: '14px',
                     fill: '#555',
                     fontStyle: 'bold'
                 }).setOrigin(0.5);
@@ -90,43 +98,43 @@ class ScenePDChoice extends Phaser.Scene {
                 const partnerAvatar = this.add.image(400 + avatarSpacing, avatarY, `avatar_${this.partnerAvatarId}`);
                 partnerAvatar.setScale(avatarScale);
 
-                this.add.text(400 + avatarSpacing, avatarY + 35, 'Partner', {
-                    fontSize: '12px',
+                this.add.text(400 + avatarSpacing, avatarY + 50, 'Partner', {
+                    fontSize: '14px',
                     fill: '#555',
                     fontStyle: 'bold'
                 }).setOrigin(0.5);
+
+                // Show MFQ scores in transparent phase (compact display)
+                if (this.showMFQScores && this.partnerMFQScores) {
+                    console.log('ScenePDChoice: Displaying MFQ scores for partner');
+                    createCompactMFQDisplay(
+                        this,
+                        400 + avatarSpacing + 60, // To the right of partner avatar
+                        avatarY - 25,
+                        this.partnerMFQScores,
+                        this.mfqDisplayConfig
+                    );
+                }
             }
 
             // "vs" connector between avatars
             if (this.avatarId && this.partnerAvatarId) {
                 this.add.text(400, avatarY, 'vs', {
-                    fontSize: '16px',
+                    fontSize: '18px',
                     fill: '#999',
                     fontStyle: 'italic'
                 }).setOrigin(0.5);
             }
         }
 
-        // Show remaining turns info (only for networked PD with turns)
-        if (this.turnsPerRound > 1) {
-            const turnsRemaining = this.turnsPerRound - this.turnWithinRound;
-            if (turnsRemaining > 0) {
-                this.add.text(400, 130, `${turnsRemaining} turn${turnsRemaining !== 1 ? 's' : ''} remaining with this partner`, {
-                    fontSize: '16px',
-                    fill: '#666',
-                    fontStyle: 'italic'
-                }).setOrigin(0.5);
-            }
-        }
-
         // Instructions
-        const instructions = this.add.text(400, 170, 'Make your choice:', {
+        const instructions = this.add.text(400, 240, 'Make your choice:', {
             fontSize: '24px',
             fill: '#333'
         }).setOrigin(0.5);
 
         // Choice buttons
-        const buttonY = 300;
+        const buttonY = 330;
         const buttonSpacing = 220;
         const buttonWidth = 180;
         const buttonHeight = 100;
@@ -168,30 +176,30 @@ class ScenePDChoice extends Phaser.Scene {
         if (this.showTimer) {
             timerBox = this.add.graphics();
             timerBox.fillStyle(0x000000, 0.3);
-            timerBox.fillRect(250, 450, 300, 30);
+            timerBox.fillRect(250, 530, 300, 30);
 
             timerBar = this.add.graphics();
 
             const initialSeconds = Math.ceil(this.maxChoiceTime / 1000);
-            timerText = this.add.text(400, 500, `Time remaining: ${initialSeconds}s`, {
+            timerText = this.add.text(400, 580, `Time remaining: ${initialSeconds}s`, {
                 fontSize: '18px',
                 fill: '#666'
             }).setOrigin(0.5);
         }
 
         // Confirmation button (shown after selection, hidden initially)
-        const confirmButton = this.add.rectangle(400, 400, 200, 60, PDTheme.buttons.action.normal)
+        const confirmButton = this.add.rectangle(400, 500, 200, 60, PDTheme.buttons.action.normal)
             .setInteractive({ cursor: 'pointer' })
             .setVisible(false);
 
-        const confirmText = this.add.text(400, 400, 'Click to Confirm', {
+        const confirmText = this.add.text(400, 500, 'Click to Confirm', {
             fontSize: '20px',
             fill: '#FFF',
             fontStyle: 'bold'
         }).setOrigin(0.5).setVisible(false);
 
         // Waiting message (shown after confirmation)
-        const waitingText = this.add.text(400, 520, 'Waiting for other players...', {
+        const waitingText = this.add.text(400, 440, 'Waiting for other players...', {
             fontSize: '20px',
             fill: PDTheme.text.waiting,
             fontStyle: 'bold'
@@ -348,7 +356,7 @@ class ScenePDChoice extends Phaser.Scene {
                     const progress = this.timeLeft / Math.ceil(this.maxChoiceTime / 1000);
                     timerBar.clear();
                     timerBar.fillStyle(progress > 0.3 ? PDTheme.bars.progress : PDTheme.bars.warning, 1);
-                    timerBar.fillRect(255, 455, 290 * progress, 20);
+                    timerBar.fillRect(255, 535, 290 * progress, 20);
 
                     // Timeout
                     if (this.timeLeft <= 0 && !this.choiceConfirmed) {
@@ -388,7 +396,7 @@ class ScenePDChoice extends Phaser.Scene {
                 timerText.setText(`Ending in ${countdownSeconds}s`);
                 timerBar.clear();
                 timerBar.fillStyle(PDTheme.bars.progress, 1);
-                timerBar.fillRect(255, 455, 290, 20);
+                timerBar.fillRect(255, 535, 290, 20);
 
                 this.endingTimerEvent = this.time.addEvent({
                     delay: 1000,
@@ -408,7 +416,7 @@ class ScenePDChoice extends Phaser.Scene {
                             const progress = countdownSeconds / 3;
                             timerBar.clear();
                             timerBar.fillStyle(PDTheme.bars.progress, 1);
-                            timerBar.fillRect(255, 455, 290 * progress, 20);
+                            timerBar.fillRect(255, 535, 290 * progress, 20);
                         } else {
                             timerText.setText('Transitioning...');
                             timerBar.clear();

@@ -106,6 +106,58 @@ conditions:
   taskType: "networked_pd"        # Task type identifier
   exp_condition: "baseline"       # Experimental condition label
 
+# =============================================================================
+# TWO-PHASE EXPERIMENT STRUCTURE
+# =============================================================================
+# Run the game twice: first without MFQ info (blind), then with MFQ info (transparent)
+experiment_phases:
+  enabled: true
+  phases:
+    - name: "blind"
+      display_name: "Part 1"
+      rounds: 3                     # Rounds for this phase (use game.total_game_rounds if not set)
+      show_mfq_scores: false
+
+    - name: "transparent"
+      display_name: "Part 2"
+      rounds: 3
+      show_mfq_scores: true
+
+  # Testing overrides
+  force_single_phase: null          # null = run both, "blind" or "transparent" = run only that one
+  force_phase_order: null           # null = blind first (production), "transparent_first" for testing
+
+# =============================================================================
+# MFQ (MORAL FOUNDATIONS QUESTIONNAIRE) SCORE CONFIGURATION
+# =============================================================================
+mfq_scores:
+  source: "database"                # "database" = load from MongoDB, "random" = generate fake scores
+  fallback_to_random: true          # If subjectId not found in DB, generate random scores for testing
+
+  # Which MFQ categories to display (all 5 available)
+  display_categories:
+    - id: "harm"
+      label: "Care"
+      enabled: true
+    - id: "fairness"
+      label: "Fairness"
+      enabled: true
+    - id: "loyalty"
+      label: "Loyalty"
+      enabled: true
+    - id: "authority"
+      label: "Authority"
+      enabled: false
+    - id: "purity"
+      label: "Purity"
+      enabled: false
+
+  # Thresholds for converting raw scores (1-5) to display levels
+  thresholds:
+    low: [1, 2.5]                   # Score < 2.5 = low
+    medium: [2.5, 3.5]              # 2.5 <= score < 3.5 = medium
+    high: [3.5, 5]                  # Score >= 3.5 = high
+
 # Network dynamics configuration
 network:
   initial_topology: "complete"    # Start with all players connected

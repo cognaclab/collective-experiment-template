@@ -76,24 +76,6 @@ class ScenePDResults extends Phaser.Scene {
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        // Show remaining turns info (only for networked PD with turns)
-        if (this.turnsPerRound > 1) {
-            const turnsRemaining = this.turnsPerRound - this.turnWithinRound;
-            if (turnsRemaining > 0) {
-                this.add.text(400, 85, `${turnsRemaining} turn${turnsRemaining !== 1 ? 's' : ''} remaining with this partner`, {
-                    fontSize: '16px',
-                    fill: '#666',
-                    fontStyle: 'italic'
-                }).setOrigin(0.5);
-            } else {
-                this.add.text(400, 85, 'Final turn with this partner - vote next', {
-                    fontSize: '16px',
-                    fill: PDTheme.text.waiting,
-                    fontStyle: 'italic'
-                }).setOrigin(0.5);
-            }
-        }
-
         // Choice labels - same grey for both choices to avoid moral color coding
         const choiceLabels = ['Cooperate', 'Defect'];
         const choiceColor = PDTheme.results.choiceBox;

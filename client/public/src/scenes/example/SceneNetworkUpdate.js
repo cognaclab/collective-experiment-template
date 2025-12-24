@@ -167,10 +167,7 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
             this.changeSummaryText.setText('No connections were broken this round');
             this.changeSummaryText.setStyle({ fill: PDTheme.status.active });
         } else {
-            // Anonymous message - don't reveal who broke connections
-            this.changeSummaryText.setText(
-                `Somebody chose to break their connection with their partner`
-            );
+            this.changeSummaryText.setText('Someone broke their connection');
             this.changeSummaryText.setStyle({ fill: PDTheme.status.inactive });
         }
 
@@ -219,6 +216,7 @@ export default class SceneNetworkUpdate extends Phaser.Scene {
 
         this.continueButton.disableInteractive();
         this.continueButton.setAlpha(0.5);
+        this.continueButtonText.setText('Waiting...');
 
         if (this.countdownTimer) {
             this.countdownTimer.remove();
