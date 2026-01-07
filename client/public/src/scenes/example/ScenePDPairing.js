@@ -56,25 +56,7 @@ export default class ScenePDPairing extends Phaser.Scene {
             fill: '#555'
         }).setOrigin(0.5);
 
-        // Show turns per round info
-        this.turnsText = this.add.text(centerX, 158, `You will play ${this.turnsPerRound} turns with your partner`, {
-            fontSize: '18px',
-            fill: '#666',
-            fontStyle: 'italic'
-        }).setOrigin(0.5);
-
-        const progressBarWidth = 400;
-        const progress = this.roundNumber / this.totalRounds;
-
-        this.add.graphics()
-            .fillStyle(0xE0E0E0, 1)
-            .fillRect(centerX - progressBarWidth / 2, 170, progressBarWidth, 10);
-
-        this.add.graphics()
-            .fillStyle(PDTheme.bars.progress, 1)
-            .fillRect(centerX - progressBarWidth / 2, 170, progressBarWidth * progress, 10);
-
-        this.statusText = this.add.text(centerX, 240, 'Waiting for partner assignment...', {
+        this.statusText = this.add.text(centerX, 180, 'Waiting for partner assignment...', {
             fontSize: '20px',
             fill: '#666',
             fontStyle: 'italic'
@@ -83,7 +65,7 @@ export default class ScenePDPairing extends Phaser.Scene {
         this.partnerPanel = this.add.container(centerX, centerY);
         this.partnerPanel.setVisible(false);
 
-        const panelBg = this.add.rectangle(0, 0, 600, 300, 0xF5F5F5);
+        const panelBg = this.add.rectangle(0, 20, 600, 250, 0xF5F5F5);
         panelBg.setStrokeStyle(2, 0xCCCCCC);
 
         this.partnerNameText = this.add.text(0, -110, '', {
@@ -237,10 +219,9 @@ export default class ScenePDPairing extends Phaser.Scene {
 
         this.partnerPanel.setVisible(true);
 
-        // Display both avatars side by side above the panel
-        // This is where players learn which avatar is THEM
-        const avatarY = -100;
-        const avatarSpacing = 120;
+        // Display both avatars side by side inside the panel
+        const avatarY = -30;
+        const avatarSpacing = 100;
         const avatarScale = 0.12;
 
         // Player's own avatar (left side) - "You"
@@ -249,7 +230,7 @@ export default class ScenePDPairing extends Phaser.Scene {
             myAvatar.setScale(avatarScale);
             this.partnerPanel.add(myAvatar);
 
-            const myLabel = this.add.text(-avatarSpacing, avatarY + 45, 'You', {
+            const myLabel = this.add.text(-avatarSpacing, avatarY + 50, 'You', {
                 fontSize: '16px',
                 fill: '#333',
                 fontStyle: 'bold'
@@ -264,7 +245,7 @@ export default class ScenePDPairing extends Phaser.Scene {
             partnerAvatarImg.setScale(avatarScale);
             this.partnerPanel.add(partnerAvatarImg);
 
-            const partnerLabel = this.add.text(avatarSpacing, avatarY + 45, 'Partner', {
+            const partnerLabel = this.add.text(avatarSpacing, avatarY + 50, 'Partner', {
                 fontSize: '16px',
                 fill: '#333',
                 fontStyle: 'bold'
@@ -276,8 +257,8 @@ export default class ScenePDPairing extends Phaser.Scene {
                 console.log('ScenePDPairing: Displaying MFQ scores for partner');
                 const mfqDisplay = createMFQDisplay(
                     this,
-                    avatarSpacing - 50, // Center below partner avatar
-                    avatarY + 70,
+                    avatarSpacing - 50,
+                    avatarY + 75,
                     this.partnerMFQScores,
                     this.mfqDisplayConfig
                 );
@@ -296,10 +277,8 @@ export default class ScenePDPairing extends Phaser.Scene {
             this.partnerPanel.add(connector);
         }
 
-        // Move text elements down to make room for avatars
-        this.partnerNameText.setY(10);
-        this.historyText.setY(50);
-        this.networkStatusText.setY(100);
+        // Position text below avatars
+        this.partnerNameText.setY(90);
 
         // Show "Your partner for this round" without revealing player names
         this.partnerNameText.setText('Your partner for this round');

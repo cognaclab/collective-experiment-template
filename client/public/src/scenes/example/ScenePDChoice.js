@@ -188,11 +188,11 @@ class ScenePDChoice extends Phaser.Scene {
         }
 
         // Confirmation button (shown after selection, hidden initially)
-        const confirmButton = this.add.rectangle(400, 500, 200, 60, PDTheme.buttons.action.normal)
+        const confirmButton = this.add.rectangle(400, 460, 200, 60, PDTheme.buttons.action.normal)
             .setInteractive({ cursor: 'pointer' })
             .setVisible(false);
 
-        const confirmText = this.add.text(400, 500, 'Click to Confirm', {
+        const confirmText = this.add.text(400, 460, 'Click to Confirm', {
             fontSize: '20px',
             fill: '#FFF',
             fontStyle: 'bold'
