@@ -6,16 +6,17 @@ const { buildTrialData } = require('../utils/dataBuilders');
 const Trial = require('../database/models/Trial');
 const Session = require('../database/models/Session');
 const logger = require('../utils/logger');
+const { debug, playerEvent, gameEvent } = require('../utils/debug');
 
 module.exports = function handleChoiceMade(client, data, config, io, firstTrialStartingTimeRef) {
-	const room   = config.roomStatus[client.room];
+	const room = config.roomStatus[client.room];
 	const number = client.subjectNumber;
 	const session = client.session;
 
 	if (!room || number == null) return;
 
-	const p      = room.pointer - 1;
-	const round  = room.gameRound;
+	const p = room.pointer - 1;
+	const round = room.gameRound;
 	const choice = data.num_choice;
 
 	room.doneId[p].push(number);
@@ -39,7 +40,7 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 		this_indiv_payoff = 0; // Will be calculated after all required players choose
 	}
 
-	room.socialInfo[p][doneNum - 1]  = choice;
+	room.socialInfo[p][doneNum - 1] = choice;
 	room.choiceOrder[p][doneNum - 1] = number;
 
 	// Only update payoffs immediately if NOT using reward_system (will be updated later in calculateRewards)
@@ -49,9 +50,9 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 	}
 
 	if (choice > -1) {
-		console.log(` - ${session} in ${client.room} (No. ${number}) chose ${choice} and got ${this_indiv_payoff} at t = ${this_trial} (${gameType}).`);
+		playerEvent('chose', { player: session, room: client.room, choice, payoff: this_indiv_payoff, trial: this_trial });
 	} else {
-		console.log(` - ${session} in ${client.room} (No. ${number}) missed at t = ${this_trial} (${gameType}).`);
+		playerEvent('missed', { player: session, room: client.room, trial: this_trial });
 	}
 
 	if (room.trial <= room.horizon) {
@@ -70,8 +71,8 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 	const hadClickedBeforeTimeout = data.hadClickedBeforeTimeout || false;
 	const timedOut = data.timedOut || false;
 
-	console.log(`[SERVER RECEIVE] choice=${choice}, timedOut=${timedOut}, hadClickedBeforeTimeout=${hadClickedBeforeTimeout}, data.miss=${data.miss}`);
-	console.log(`[SERVER RECEIVE] Full data:`, data);
+	debug(`[SERVER RECEIVE] choice=${choice}, timedOut=${timedOut}, hadClickedBeforeTimeout=${hadClickedBeforeTimeout}, data.miss=${data.miss}`);
+	debug(`[SERVER RECEIVE] Full data:`, data);
 
 	const choiceData = {
 		thisChoice: choice,
@@ -93,13 +94,13 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 	if (!room.missFlags[p]) room.missFlags[p] = [];
 
 	if (timedOut) {
-		console.log(`[SERVER FLAGS] Setting timeout/miss flag. doneNum=${doneNum}, p=${p}, hadClickedBeforeTimeout=${hadClickedBeforeTimeout}`);
+		debug(`[SERVER FLAGS] Setting timeout/miss flag. doneNum=${doneNum}, p=${p}, hadClickedBeforeTimeout=${hadClickedBeforeTimeout}`);
 		if (hadClickedBeforeTimeout) {
 			room.timeoutFlags[p][doneNum - 1] = true;
-			console.log(`[SERVER FLAGS] Set timeoutFlags[${p}][${doneNum - 1}] = true`);
+			debug(`[SERVER FLAGS] Set timeoutFlags[${p}][${doneNum - 1}] = true`);
 		} else {
 			room.missFlags[p][doneNum - 1] = true;
-			console.log(`[SERVER FLAGS] Set missFlags[${p}][${doneNum - 1}] = true`);
+			debug(`[SERVER FLAGS] Set missFlags[${p}][${doneNum - 1}] = true`);
 		}
 	}
 
@@ -147,13 +148,13 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 	});
 
 	room.doneNo[p] = (room.doneNo[p] ?? 0) + 1;
-	console.log(` - ${session} (${client.room}) is done (doneNo: ${room.doneNo[p]}) at ${room.trial} (room.n: ${room.n}, p: ${p})`);
+	debug(` - ${session} (${client.room}) is done (doneNo: ${room.doneNo[p]}) at ${room.trial} (room.n: ${room.n}, p: ${p})`);
 
 	if (room.doneNo[p] < room.n) {
-		console.log(` - Waiting for others: ${room.doneNo[p]}/${room.n} done`);
+		debug(` - Waiting for others: ${room.doneNo[p]}/${room.n} done`);
 		io.to(client.room).emit('these are done subjects', { doneSubject: room.doneId[p] });
 	} else {
-		console.log(` - All done (${room.doneNo[p]}/${room.n}), proceeding to result`);
+		gameEvent('all players done', { room: client.room, trial: room.trial, players: room.n });
 
 		// Calculate rewards using RewardCalculator if applicable (must wait for all players)
 		if (config.experimentLoader && config.experimentLoader.rewardCalculator) {

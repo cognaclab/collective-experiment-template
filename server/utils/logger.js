@@ -20,6 +20,21 @@ const logFormat = winston.format.combine(
   winston.format.json()
 );
 
+// Custom format for important console messages
+const importantConsoleFormat = winston.format.combine(
+  winston.format.timestamp({
+    format: 'HH:mm:ss'
+  }),
+  winston.format.printf(({ level, message, timestamp, ...meta }) => {
+    // Clean format for important events
+    const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : '✅';
+    const metaStr = Object.keys(meta).length > 0 && meta.service === undefined
+      ? ` ${JSON.stringify(meta)}`
+      : '';
+    return `${timestamp} ${prefix} ${message}${metaStr}`;
+  })
+);
+
 // Create the logger
 const logger = winston.createLogger({
   level: logLevel,
@@ -27,31 +42,39 @@ const logger = winston.createLogger({
   defaultMeta: { service: 'collective-experiment' },
   transports: [
     // Write all logs with level 'error' and below to 'error.log'
-    new winston.transports.File({ 
-      filename: path.join(logDir, 'error.log'), 
-      level: 'error' 
+    new winston.transports.File({
+      filename: path.join(logDir, 'error.log'),
+      level: 'error'
     }),
     // Write all logs to 'combined.log'
-    new winston.transports.File({ 
-      filename: path.join(logDir, 'combined.log') 
+    new winston.transports.File({
+      filename: path.join(logDir, 'combined.log')
     }),
     // Write debug logs to separate file
-    new winston.transports.File({ 
-      filename: path.join(logDir, 'debug.log'), 
-      level: 'debug' 
+    new winston.transports.File({
+      filename: path.join(logDir, 'debug.log'),
+      level: 'debug'
     })
   ]
 });
 
-// In development, also log to console with simple format
+// In development, add console transport for important messages only
 if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple()
-    )
+    level: 'warn',  // Only show warnings and errors by default
+    format: importantConsoleFormat
   }));
 }
+
+// Special method for important events that should always show on console
+logger.important = (message, meta = {}) => {
+  // Log to file as info
+  logger.info(message, meta);
+  // Also print to console directly for visibility
+  const timestamp = new Date().toLocaleTimeString();
+  const metaStr = Object.keys(meta).length > 0 ? ` | ${JSON.stringify(meta)}` : '';
+  console.log(`${timestamp} ✅ ${message}${metaStr}`);
+};
 
 // Helper functions for common logging patterns
 logger.logConnection = (event, data) => {
