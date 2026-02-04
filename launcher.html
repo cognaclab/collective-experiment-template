@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RIKEN Survey — Launcher / Control Panel</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!--
+    LAUNCHER / CONTROL PANEL (researcher/admin)
+    ------------------------------------------
+    Purpose:
+      - Start Production or Trial versions
+      - Edit survey settings (saved on server at /api/config)
+      - Export group data (admin-only endpoints)
+      - Clear/export browser local autosave (for troubleshooting)
+
+    Participants should NOT be sent here.
+    Participants should only get the Production link.
+  -->
+
+  <header class="topbar">
+    <div class="topbar__inner">
+      <div class="topbar__left">
+        <div class="topbar__title">RIKEN Survey — Launcher</div>
+        <div class="topbar__meta">Researcher / admin control panel (not for participants)</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="paper launcher">
+    <h2 style="margin-top:0;">Control panel</h2>
+
+    <div class="note">
+      <strong>Do not share this page with participants.</strong>
+      <div class="small" style="margin-top:6px;">
+        For final data collection you can share only the production link (below).
+        The launcher remains available for administrators to change settings and export data.
+      </div>
+    </div>
+
+    <!-- =========================
+         START / LINKS
+         ========================= -->
+    <section class="launcherSection">
+      <h3>Start / links</h3>
+
+      <div class="launcherRow">
+        <div class="launcherRow__label">Production link (participants)</div>
+        <div class="launcherRow__value">
+          <code id="prodLink"></code>
+          <button id="btnCopyProd" type="button" class="btn btn--secondary">Copy</button>
+        </div>
+      </div>
+
+      <div class="launcherRow">
+        <div class="launcherRow__label">Trial link (verification)</div>
+        <div class="launcherRow__value">
+          <code id="trialLink"></code>
+          <button id="btnCopyTrial" type="button" class="btn btn--secondary">Copy</button>
+        </div>
+      </div>
+
+      <div class="launcherButtons" style="margin-top:14px;">
+        <button id="btnStartProd" type="button" class="btn btn--primary">Open production</button>
+        <button id="btnStartTrial" type="button" class="btn btn--secondary">Open trial</button>
+        <button id="btnAutoRun" type="button" class="btn btn--secondary" title="Admin-only: opens production with ?admin=1&autofill=1">
+          Automated production test run
+        </button>
+        <a class="btn btn--secondary" href="./smoke_test.html">Troubleshooting: server save test</a>
+      </div>
+
+      <div class="small" style="margin-top:10px;">
+        Automated run notes: this opens production in a special <code>?admin=1</code> mode that can
+        clear local autosave and auto-fill responses so you can quickly inspect the output files.
+      </div>
+    </section>
+
+    <!-- =========================
+         ADMIN TOKEN
+         ========================= -->
+    <section class="launcherSection">
+      <h3>Admin token (optional but recommended)</h3>
+      <div class="small">
+        Exporting data and changing runtime settings can be protected by setting the server environment variable
+        <code>RIKEN_ADMIN_TOKEN</code>. If set, enter the same token here.
+      </div>
+
+      <div class="launcherRow" style="margin-top:10px;">
+        <div class="launcherRow__label">Admin token</div>
+        <div class="launcherRow__value">
+          <input id="adminToken" class="input" type="password" placeholder="(optional)" style="max-width:360px;" />
+          <button id="btnRememberToken" type="button" class="btn btn--secondary">Remember</button>
+          <button id="btnForgetToken" type="button" class="btn btn--danger">Forget</button>
+        </div>
+      </div>
+
+      <div id="tokenMsg" class="small" style="margin-top:8px;"></div>
+    </section>
+
+    <!-- =========================
+         SERVER STATUS
+         ========================= -->
+    <section class="launcherSection">
+      <h3>Server status</h3>
+      <div class="small">
+        Shows whether the server can write to <code>output/</code> and <code>output_backup/</code>, plus the most recent save.
+      </div>
+
+      <div class="launcherButtons" style="margin-top:10px;">
+        <button id="btnRefreshStatus" type="button" class="btn btn--secondary">Refresh status</button>
+      </div>
+
+      <pre id="statusBox" class="launcherPre" style="margin-top:12px;">Loading…</pre>
+    </section>
+
+    <!-- =========================
+         RUNTIME SETTINGS
+         ========================= -->
+    <section class="launcherSection">
+      <h3>Runtime settings (applies to production + trial)</h3>
+      <div class="small">
+        These settings are stored on the server and automatically loaded by both production and trial.
+        You can change them here without editing code.
+      </div>
+
+      <div class="launcherButtons" style="margin-top:10px;">
+        <button id="btnLoadConfig" type="button" class="btn btn--secondary">Load from server</button>
+        <button id="btnSaveConfig" type="button" class="btn btn--primary">Save to server</button>
+        <button id="btnResetConfig" type="button" class="btn btn--danger">Reset server config to defaults</button>
+      </div>
+
+      <div id="configMsg" class="small" style="margin-top:8px;"></div>
+
+      <div class="launcherGrid2" style="margin-top:14px;">
+        <!-- Flow/order -->
+        <div class="launcherCardPanel">
+          <h4>Questionnaire order</h4>
+          <div class="small">Consent/Age is always first. Demographics is always last.</div>
+          <div id="orderList" class="launcherOrder" style="margin-top:10px;"></div>
+
+          <div class="launcherRow" style="margin-top:12px;">
+            <div class="launcherRow__label">Math checks between questionnaires</div>
+            <div class="launcherRow__value">
+              <select id="cfgMath" class="input">
+                <option value="1">Enabled</option>
+                <option value="0">Disabled</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="launcherRow" style="margin-top:10px;">
+            <div class="launcherRow__label">Allow URL order override (<code>?order=...</code>)</div>
+            <div class="launcherRow__value">
+              <select id="cfgAllowUrlOrder" class="input">
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Randomization -->
+        <div class="launcherCardPanel">
+          <h4>IPIP randomization (constant across all subjects)</h4>
+          <div class="small">
+            IPIP is presented in a deterministic randomized order. In <code>global</code> mode, everyone gets the same order.
+          </div>
+
+          <div class="launcherRow" style="margin-top:12px;">
+            <div class="launcherRow__label">Enable randomization</div>
+            <div class="launcherRow__value">
+              <select id="cfgIpipEnabled" class="input">
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="launcherRow" style="margin-top:10px;">
+            <div class="launcherRow__label">Order mode</div>
+            <div class="launcherRow__value">
+              <select id="cfgIpipMode" class="input">
+                <option value="global">Global (same for everyone)</option>
+              </select>
+              <div class="help" style="margin-top:6px; max-width:520px;">
+                v16 enforces a single global IPIP item order for all participants.
+              </div>
+            </div>
+          </div>
+
+          <div class="launcherRow" style="margin-top:10px;">
+            <div class="launcherRow__label">Global seed</div>
+            <div class="launcherRow__value">
+              <input id="cfgIpipGlobalSeed" class="input" type="text" />
+            </div>
+          </div>
+
+          <div class="launcherRow" style="margin-top:10px;">
+            <div class="launcherRow__label">Renumber displayed items 1..N</div>
+            <div class="launcherRow__value">
+              <select id="cfgIpipRenumber" class="input">
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="small" style="margin-top:10px;">
+            After the first save, the server writes a deterministic order file:
+            <code>output/group/ipip120_order.tsv</code>
+          </div>
+        </div>
+
+        <!-- SVO -->
+        <div class="launcherCardPanel">
+          <h4>SVO strict matching (slider ↔ written)</h4>
+          <div class="small">
+            If enabled, participants must type values that match the selected slider column.
+            (Always enabled in trial.)
+          </div>
+
+          <div class="launcherRow" style="margin-top:12px;">
+            <div class="launcherRow__label">Trial: enforce written match</div>
+            <div class="launcherRow__value">
+              <select id="cfgSvoTrial" class="input">
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="launcherRow" style="margin-top:10px;">
+            <div class="launcherRow__label">Production: enforce written match</div>
+            <div class="launcherRow__value">
+              <select id="cfgSvoProd" class="input">
+                <option value="0">No (record mismatch only)</option>
+                <option value="1">Yes (block on mismatch)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Saving -->
+        <div class="launcherCardPanel">
+          <h4>Autosave (server)</h4>
+          <div class="small">
+            Participants never download anything. Data is POSTed in the background to the server.
+          </div>
+
+          <div class="launcherRow" style="margin-top:12px;">
+            <div class="launcherRow__label">Enable server autosave</div>
+            <div class="launcherRow__value">
+              <select id="cfgSaveEnabled" class="input">
+                <option value="1">Enabled</option>
+                <option value="0">Disabled</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="launcherRow" style="margin-top:10px;">
+            <div class="launcherRow__label">Debounce (ms)</div>
+            <div class="launcherRow__value">
+              <input id="cfgSaveDebounce" class="input" type="number" min="0" step="100" />
+            </div>
+          </div>
+
+          <div class="launcherRow" style="margin-top:10px;">
+            <div class="launcherRow__label">Endpoint</div>
+            <div class="launcherRow__value">
+              <input id="cfgSaveEndpoint" class="input" type="text" />
+            </div>
+          </div>
+
+          <div class="launcherRow" style="margin-top:10px;">
+            <div class="launcherRow__label">Save on unload (sendBeacon)</div>
+            <div class="launcherRow__value">
+              <select id="cfgSaveBeacon" class="input">
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <details style="margin-top:14px;">
+        <summary class="small" style="cursor:pointer;">Advanced: view/edit raw runtime config JSON</summary>
+        <div class="small" style="margin-top:8px;">
+          This is the JSON that will be saved on the server. Edit only if you know what you are doing.
+        </div>
+        <textarea id="cfgRaw" class="input" style="width:100%; height:220px; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; margin-top:8px;"></textarea>
+      </details>
+    </section>
+
+    <!-- =========================
+         EXPORT
+         ========================= -->
+    <section class="launcherSection">
+      <h3>Export study data (admin only)</h3>
+      <div class="small">
+        Participants never see download buttons. This section is for administrators.
+      </div>
+
+      <div class="launcherButtons" style="margin-top:10px;">
+        <button id="btnRefreshExports" type="button" class="btn btn--secondary">Refresh export file list</button>
+        <button id="btnDownloadGroupZip" type="button" class="btn btn--secondary">Download group outputs (.zip)</button>
+        <button id="btnDownloadAllZip" type="button" class="btn btn--secondary">Download ALL outputs (.zip)</button>
+      </div>
+
+      <div id="exportMsg" class="small" style="margin-top:8px;"></div>
+
+      <div id="exportList" class="launcherExportList" style="margin-top:12px;"></div>
+    </section>
+
+    <!-- =========================
+         LOCAL AUTOSAVE TOOLS
+         ========================= -->
+    <section class="launcherSection">
+      <h3>Local autosave tools (this browser)</h3>
+      <div class="small">
+        The survey stores a backup of the current session in this browser via <code>localStorage</code>.
+        This is useful for resilience, but during troubleshooting you may want to clear it or export it.
+      </div>
+
+      <div class="launcherButtons" style="margin-top:10px;">
+        <button id="btnExportLocal" type="button" class="btn btn--secondary">Export local autosave (JSON)</button>
+        <button id="btnClearLocal" type="button" class="btn btn--danger">Clear local autosave</button>
+      </div>
+
+      <pre id="localBox" class="launcherPre" style="margin-top:12px;">Loading…</pre>
+    </section>
+
+    <div class="small" style="margin-top:18px; opacity:0.9;">
+      Easy removal for final deployment: you may simply stop linking to <code>launcher.html</code>.
+      (Production participants can still be sent directly to <code>/</code>.)
+    </div>
+  </main>
+
+  <script src="./launcher.js" defer></script>
+</body>
+</html>

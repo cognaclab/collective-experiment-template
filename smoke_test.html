@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RIKEN Survey — Server Save Smoke Test</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .smoke {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+    .smoke h1 {
+      margin: 10px 0 6px;
+      font-size: 1.4rem;
+      font-weight: 800;
+    }
+    .smoke p { margin: 8px 0; }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #fee2e2;
+      color: #991b1b;
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: .2px;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 14px 0;
+    }
+    pre {
+      background: #0b1220;
+      color: #e5e7eb;
+      padding: 12px;
+      border-radius: 12px;
+      overflow: auto;
+      max-height: 460px;
+    }
+    .small {
+      color: #6b7280;
+      font-size: .92rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__inner">
+      <div class="topbar__left">
+        <div class="topbar__title">RIKEN Survey</div>
+        <div class="topbar__meta"><span class="badge">TROUBLESHOOTING PAGE</span></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="paper">
+    <div class="smoke">
+      <h1>Server autosave smoke test</h1>
+      <p class="small">
+        This page helps you verify that the backend endpoint <code>/api/save</code> is working and that
+        the server can write files to disk. It does not expose any study data.
+      </p>
+
+      <div class="row">
+        <button id="btnStatus" class="btn btn--secondary" type="button">Check /api/status</button>
+        <button id="btnSave" class="btn btn--primary" type="button">Send a test save to /api/save</button>
+        <button id="btnClear" class="btn btn--danger" type="button">Clear log</button>
+      </div>
+
+      <pre id="log">Loading…</pre>
+
+      <p class="small">
+        If this fails, confirm you started the included server:
+        <code>node server/server.js</code>
+        and that you opened the survey from <code>http://...</code> (not <code>file://</code>).
+      </p>
+    </div>
+  </main>
+
+  <script src="./smoke_test.js" defer></script>
+</body>
+</html>
