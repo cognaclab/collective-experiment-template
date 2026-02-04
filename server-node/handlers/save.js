@@ -36,9 +36,10 @@ const PARTICIPANT_INDEX_HEADERS = ['sessionKey', 'mode', 'participantIndex', 'as
 
 // Manifest headers
 const MANIFEST_HEADERS = [
-    'serverReceivedAt', 'sessionKey', 'participantIndex', 'sessionId', 'mode',
-    'status', 'final', 'autosaveSeq', 'lastAutosaveAt', 'startedAt',
-    'completedAt', 'terminatedReason', 'flow_order', 'flow_source',
+    'serverReceivedAt', 'sessionKey', 'fileKey', 'prolificId', 'participantIndex',
+    'sessionId', 'mode', 'status', 'final', 'autosaveSeq', 'lastAutosaveAt',
+    'startedAt', 'completedAt', 'terminatedReason', 'flow_order', 'flow_source',
+    'rawJson', 'rawResponsesTsv', 'rawScoresTsv',
     'sessionDir', 'latestJson', 'latestResponsesTsv', 'latestScoresTsv',
     'latestParticipantTsv', 'latestScoresWideTsv', 'error'
 ];
@@ -163,33 +164,51 @@ function handleSave(req, res, body, config) {
     ensureDir(outDir);
     ensureDir(bakDir);
 
-    // Per-session snapshot directories
-    const sessDir = path.join(outDir, 'sessions', sessionKey);
-    const sessBakDir = path.join(bakDir, 'sessions', sessionKey);
-    ensureDir(sessDir);
-    ensureDir(sessBakDir);
-
-    // Group directories
+    // Group directories (needed early for participant index)
     const groupDir = path.join(outDir, 'group');
     const groupBakDir = path.join(bakDir, 'group');
     ensureDir(groupDir);
     ensureDir(groupBakDir);
 
-    // Assign participant index
+    // Assign participant index (needed before prolificId fallback)
     const participantIndex = getOrAssignParticipantIndex(
         groupDir, groupBakDir, sessionKey, mode, serverReceivedAt
     );
 
+    // Extract prolificId (used for cross-session syncing + file naming)
+    let prolificRaw = '';
+    for (const k of ['prolificId', 'prolificID', 'prolific_id', 'PROLIFIC_PID']) {
+        if (meta[k]) {
+            prolificRaw = String(meta[k]);
+            break;
+        }
+    }
+    const prolificSanitized = prolificRaw ? safeId(prolificRaw) : '';
+    const prolificId = prolificSanitized || `NO_PROLIFIC_ID_p${participantIndex}`;
+
+    // Store back into meta
+    meta.prolificId = prolificRaw || prolificId;
     meta.participantIndex = participantIndex;
     meta.sessionKey = sessionKey;
 
-    // Write latest snapshot JSON
-    try {
-        const jsonBytes = JSON.stringify(output, null, 2);
-        atomicWrite(path.join(sessDir, 'latest.json'), jsonBytes);
-        atomicWrite(path.join(sessBakDir, 'latest.json'), jsonBytes);
-    } catch (e) {
-        return { status: 500, body: { ok: false, error: `json write failed: ${e.message}` } };
+    // File key: prolificId first, then sessionKey
+    const fileKey = `${prolificId}__${sessionKey}`;
+
+    // Raw sessions directory (always used)
+    const rawDir = path.join(outDir, 'raw_sessions');
+    const rawBakDir = path.join(bakDir, 'raw_sessions');
+    ensureDir(rawDir);
+    ensureDir(rawBakDir);
+
+    // Optional per-session snapshot dirs (dev/debug only)
+    const writeSessionDir = process.env.RIKEN_WRITE_SESSION_DIR === '1';
+    let sessDir = null;
+    let sessBakDir = null;
+    if (writeSessionDir) {
+        sessDir = path.join(outDir, 'sessions', sessionKey);
+        sessBakDir = path.join(bakDir, 'sessions', sessionKey);
+        ensureDir(sessDir);
+        ensureDir(sessBakDir);
     }
 
     // Get TSV data from payload
@@ -205,24 +224,83 @@ function handleSave(req, res, body, config) {
         scoresTsv = injectTsvColumns(scoresTsv, { participantIndex, sessionKey });
     }
 
-    // Write latest TSV snapshots
+    // Write per-session raw JSON snapshot (OVERWRITTEN on every autosave)
+    let jsonBytes;
+    try {
+        jsonBytes = JSON.stringify(output, null, 2);
+        atomicWrite(path.join(rawDir, `${fileKey}.json`), jsonBytes);
+        atomicWrite(path.join(rawBakDir, `${fileKey}.json`), jsonBytes);
+    } catch (e) {
+        return { status: 500, body: { ok: false, error: `json write failed: ${e.message}` } };
+    }
+
+    // Write per-session TSV snapshots to raw_sessions
     try {
         if (responsesTsv) {
-            atomicWrite(path.join(sessDir, 'latest_responses.tsv'), responsesTsv);
-            atomicWrite(path.join(sessBakDir, 'latest_responses.tsv'), responsesTsv);
+            atomicWrite(path.join(rawDir, `${fileKey}_responses.tsv`), responsesTsv);
+            atomicWrite(path.join(rawBakDir, `${fileKey}_responses.tsv`), responsesTsv);
         }
         if (scoresTsv) {
-            atomicWrite(path.join(sessDir, 'latest_scores.tsv'), scoresTsv);
-            atomicWrite(path.join(sessBakDir, 'latest_scores.tsv'), scoresTsv);
+            atomicWrite(path.join(rawDir, `${fileKey}_scores.tsv`), scoresTsv);
+            atomicWrite(path.join(rawBakDir, `${fileKey}_scores.tsv`), scoresTsv);
         }
     } catch (e) {
         // Non-fatal
+    }
+
+    // Write immutable FINAL copies for completed sessions only
+    const completedAt = meta.completedAt || '';
+    const terminatedReason = meta.terminatedReason || '';
+    if (completedAt && !terminatedReason) {
+        const rawFinalDir = path.join(outDir, 'raw_final');
+        const rawFinalBakDir = path.join(bakDir, 'raw_final');
+        ensureDir(rawFinalDir);
+        ensureDir(rawFinalBakDir);
+
+        const ts = serverReceivedAt.replace(/:/g, '-').replace(/\./g, '-');
+        const finalKey = `${fileKey}__final__${ts}`;
+
+        try {
+            atomicWrite(path.join(rawFinalDir, `${finalKey}.json`), jsonBytes);
+            atomicWrite(path.join(rawFinalBakDir, `${finalKey}.json`), jsonBytes);
+
+            if (responsesTsv) {
+                atomicWrite(path.join(rawFinalDir, `${finalKey}_responses.tsv`), responsesTsv);
+                atomicWrite(path.join(rawFinalBakDir, `${finalKey}_responses.tsv`), responsesTsv);
+            }
+            if (scoresTsv) {
+                atomicWrite(path.join(rawFinalDir, `${finalKey}_scores.tsv`), scoresTsv);
+                atomicWrite(path.join(rawFinalBakDir, `${finalKey}_scores.tsv`), scoresTsv);
+            }
+        } catch (e) {
+            // Non-fatal - raw_sessions is still available
+        }
+    }
+
+    // Optional dev/debug per-session directory snapshots
+    if (writeSessionDir && sessDir && sessBakDir) {
+        try {
+            atomicWrite(path.join(sessDir, 'latest.json'), jsonBytes);
+            atomicWrite(path.join(sessBakDir, 'latest.json'), jsonBytes);
+            if (responsesTsv) {
+                atomicWrite(path.join(sessDir, 'latest_responses.tsv'), responsesTsv);
+                atomicWrite(path.join(sessBakDir, 'latest_responses.tsv'), responsesTsv);
+            }
+            if (scoresTsv) {
+                atomicWrite(path.join(sessDir, 'latest_scores.tsv'), scoresTsv);
+                atomicWrite(path.join(sessBakDir, 'latest_scores.tsv'), scoresTsv);
+            }
+        } catch (e) {
+            // Non-fatal
+        }
     }
 
     // Build manifest row
     const manifestRow = {
         serverReceivedAt,
         sessionKey,
+        fileKey,
+        prolificId,
         participantIndex: meta.participantIndex,
         sessionId: meta.sessionId,
         mode: meta.mode,
@@ -235,12 +313,15 @@ function handleSave(req, res, body, config) {
         terminatedReason: meta.terminatedReason,
         flow_order: Array.isArray(meta.flow?.order) ? meta.flow.order.join(',') : null,
         flow_source: meta.flow?.source,
-        sessionDir: `sessions/${sessionKey}`,
-        latestJson: `sessions/${sessionKey}/latest.json`,
-        latestResponsesTsv: `sessions/${sessionKey}/latest_responses.tsv`,
-        latestScoresTsv: `sessions/${sessionKey}/latest_scores.tsv`,
-        latestParticipantTsv: `sessions/${sessionKey}/latest_participant.tsv`,
-        latestScoresWideTsv: `sessions/${sessionKey}/latest_scores_wide.tsv`,
+        rawJson: `raw_sessions/${fileKey}.json`,
+        rawResponsesTsv: `raw_sessions/${fileKey}_responses.tsv`,
+        rawScoresTsv: `raw_sessions/${fileKey}_scores.tsv`,
+        sessionDir: writeSessionDir ? `sessions/${sessionKey}` : '',
+        latestJson: writeSessionDir ? `sessions/${sessionKey}/latest.json` : '',
+        latestResponsesTsv: writeSessionDir ? `sessions/${sessionKey}/latest_responses.tsv` : '',
+        latestScoresTsv: writeSessionDir ? `sessions/${sessionKey}/latest_scores.tsv` : '',
+        latestParticipantTsv: writeSessionDir ? `sessions/${sessionKey}/latest_participant.tsv` : '',
+        latestScoresWideTsv: writeSessionDir ? `sessions/${sessionKey}/latest_scores_wide.tsv` : '',
         error: null
     };
 
@@ -261,12 +342,14 @@ function handleSave(req, res, body, config) {
         readTsvTable, writeTsvTable
     );
 
-    // Write per-session participant snapshot
-    try {
-        writeTsvTable(path.join(sessDir, 'latest_participant.tsv'), pHeaders, [pRow]);
-        writeTsvTable(path.join(sessBakDir, 'latest_participant.tsv'), pHeaders, [pRow]);
-    } catch (e) {
-        // Non-fatal
+    // Write per-session participant snapshot (optional)
+    if (writeSessionDir && sessDir && sessBakDir) {
+        try {
+            writeTsvTable(path.join(sessDir, 'latest_participant.tsv'), pHeaders, [pRow]);
+            writeTsvTable(path.join(sessBakDir, 'latest_participant.tsv'), pHeaders, [pRow]);
+        } catch (e) {
+            // Non-fatal
+        }
     }
 
     // Scores wide table
@@ -278,12 +361,14 @@ function handleSave(req, res, body, config) {
         readTsvTable, writeTsvTable
     );
 
-    // Write per-session scores wide snapshot
-    try {
-        writeTsvTable(path.join(sessDir, 'latest_scores_wide.tsv'), wHeaders, [wRow]);
-        writeTsvTable(path.join(sessBakDir, 'latest_scores_wide.tsv'), wHeaders, [wRow]);
-    } catch (e) {
-        // Non-fatal
+    // Write per-session scores wide snapshot (optional)
+    if (writeSessionDir && sessDir && sessBakDir) {
+        try {
+            writeTsvTable(path.join(sessDir, 'latest_scores_wide.tsv'), wHeaders, [wRow]);
+            writeTsvTable(path.join(sessBakDir, 'latest_scores_wide.tsv'), wHeaders, [wRow]);
+        } catch (e) {
+            // Non-fatal
+        }
     }
 
     // Write IPIP-120 order if applicable
@@ -395,8 +480,10 @@ function handleSave(req, res, body, config) {
             sessionId,
             mode,
             sessionKey,
+            fileKey,
+            prolificId,
             participantIndex: meta.participantIndex,
-            receivedAt: serverReceivedAt,
+            serverReceivedAt,
             appendedFinal: appended
         }
     };
