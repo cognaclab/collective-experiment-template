@@ -11,6 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 const {
     nowIso,
     safeId,
@@ -43,6 +44,32 @@ const MANIFEST_HEADERS = [
     'sessionDir', 'latestJson', 'latestResponsesTsv', 'latestScoresTsv',
     'latestParticipantTsv', 'latestScoresWideTsv', 'error'
 ];
+
+/**
+ * Kick off tidy regeneration in the background (non-blocking; best-effort)
+ * This generates analysis-ready outputs: responses_wide, scores_wide, etc.
+ */
+function runAutogenTidy(outDir) {
+    try {
+        const pythonCmd = process.env.RIKEN_PYTHON || 'python3';
+        const scriptPath = path.resolve(__dirname, '..', '..', 'tools', 'autogen_tidy.py');
+
+        // Only run if the script exists
+        if (!fs.existsSync(scriptPath)) {
+            return;
+        }
+
+        const child = spawn(pythonCmd, [scriptPath], {
+            cwd: path.resolve(__dirname, '..', '..'),
+            detached: true,
+            stdio: 'ignore',
+            env: { ...process.env, RIKEN_OUTPUT_DIR: outDir }
+        });
+        child.unref();
+    } catch (e) {
+        // Non-fatal: tidy outputs are convenience files, not critical
+    }
+}
 
 /**
  * Get or assign a participant index for a session
@@ -472,6 +499,9 @@ function handleSave(req, res, body, config) {
             lockedAppend(wideBakPath, toTsvLine(wHeaders, wRow));
         }
     }
+
+    // Kick off tidy regeneration (non-blocking; best-effort)
+    runAutogenTidy(outDir);
 
     return {
         status: 200,
