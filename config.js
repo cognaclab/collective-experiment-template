@@ -34,6 +34,13 @@ window.RIKEN_APP_CONFIG = {
   // NOTE: trial.html sets window.__RIKEN_FORCE_MODE = 'trial' before loading this file.
   forceMode: window.__RIKEN_FORCE_MODE || null,
 
+  // Prolific integration
+  // --------------------
+  // Return URL shown on the survey completion page.
+  // Participants click this to return to Prolific and confirm submission.
+  // Set to null or '' to disable (shows "You can close this tab" instead).
+  prolificReturnUrl: 'https://app.prolific.com/submissions/complete?cc=CEH0Y610',
+
   // Validation behavior
   allowSkipInTrial: true,
 

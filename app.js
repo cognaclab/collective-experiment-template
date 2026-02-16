@@ -66,8 +66,10 @@
 
   // Prolific integration
   // -------------------
-  // Prolific commonly passes participant IDs as PROLIFIC_PID.
-  // We also accept a few common aliases for convenience.
+  // Prolific passes three IDs via URL params:
+  //   PROLIFIC_PID  — participant ID
+  //   STUDY_ID      — study ID
+  //   SESSION_ID    — Prolific session ID (not our internal sessionId)
   const URL_PROLIFIC_ID = (() => {
     const keys = ["PROLIFIC_PID", "prolific_pid", "prolificId", "prolific_id", "pid"];
     for (const k of keys) {
@@ -76,6 +78,8 @@
     }
     return "";
   })();
+  const URL_STUDY_ID = String(URL_PARAMS.get("STUDY_ID") || URL_PARAMS.get("study_id") || "").trim();
+  const URL_SESSION_ID = String(URL_PARAMS.get("SESSION_ID") || URL_PARAMS.get("session_id") || "").trim();
 
   // Admin-only URL toggles (used from launcher.html; not shown to respondents)
   // Examples:
@@ -587,6 +591,8 @@
         // Stored both in meta (for easy joining) and as a demographic response item.
         prolificId: URL_PROLIFIC_ID || null,
         prolificIdSource: URL_PROLIFIC_ID ? "url" : null,
+        prolificStudyId: URL_STUDY_ID || null,
+        prolificSessionId: URL_SESSION_ID || null,
 
         // Assigned by the server on first save (for convenient indexing)
         participantIndex: null,
@@ -1523,7 +1529,7 @@
     return (nonFree && nonFree.value !== undefined) ? String(nonFree.value) : (opts[0] ? String(opts[0].value) : "");
   }
 
-  
+
   /* =========================
      ADMIN / DEBUG AUTOFILL HELPERS
      ========================= */
@@ -1668,7 +1674,7 @@
     }
   }
 
-function debugAutofillPage(page) {
+  function debugAutofillPage(page) {
     if (!DEBUG_MODE) return;
     if (!page) return;
 
@@ -2230,7 +2236,7 @@ function debugAutofillPage(page) {
           inp.addEventListener("change", () => {
             if (inp.checked) {
               recordGenericInteraction(item.id, "likert_choice", Number(inp.value));
-            setResponse(item.id, Number(inp.value));
+              setResponse(item.id, Number(inp.value));
               persistState("autosave");
               setPageMeta(PAGES[state.pageIndex]);
             }
@@ -2372,7 +2378,7 @@ function debugAutofillPage(page) {
       persistState("autosave");
 
       // Force blur so next attempt must start with a focus
-      try { input.blur(); } catch {}
+      try { input.blur(); } catch { }
 
       render();
     });
@@ -2763,9 +2769,37 @@ function debugAutofillPage(page) {
       "Thank you. Your responses have been saved automatically.";
     elApp.appendChild(note);
 
-    const p = document.createElement("p");
-    p.textContent = "You can close this tab/window now.";
-    elApp.appendChild(p);
+    // Prolific return link (configurable via config.js → prolificReturnUrl)
+    const prolificReturnUrl = (USER_CFG.prolificReturnUrl)
+      ? String(USER_CFG.prolificReturnUrl).trim()
+      : "";
+
+    if (prolificReturnUrl) {
+      const wrap = document.createElement("div");
+      wrap.style.margin = "24px 0";
+      wrap.style.textAlign = "center";
+
+      const msg = document.createElement("p");
+      msg.style.marginBottom = "12px";
+      msg.textContent = "Please click the button below to return to Prolific and confirm your submission:";
+      wrap.appendChild(msg);
+
+      const link = document.createElement("a");
+      link.href = prolificReturnUrl;
+      link.textContent = "Return to Prolific";
+      link.className = "btn btn--primary";
+      link.style.display = "inline-block";
+      link.style.padding = "12px 32px";
+      link.style.fontSize = "1.1em";
+      link.style.textDecoration = "none";
+      wrap.appendChild(link);
+
+      elApp.appendChild(wrap);
+    } else {
+      const p = document.createElement("p");
+      p.textContent = "You can close this tab/window now.";
+      elApp.appendChild(p);
+    }
 
     if (IS_TRIAL) {
       const p2 = document.createElement("p");
@@ -3463,7 +3497,7 @@ function debugAutofillPage(page) {
     };
   }
 
-  
+
   function computeSvoScores() {
     const items = (DATA.svo && Array.isArray(DATA.svo.items)) ? DATA.svo.items : [];
 
@@ -4353,7 +4387,7 @@ function debugAutofillPage(page) {
   // NOTE: There is intentionally NO "reset" button in the UI.
   // This reduces the chance of accidental data loss during real data collection.
 
-  
+
   /* =========================
      ADMIN AUTOMATED WALKTHROUGH
      ========================= */
@@ -4399,9 +4433,9 @@ function debugAutofillPage(page) {
     }
   }
 
-/* =========================
-     INIT
-     ========================= */
+  /* =========================
+       INIT
+       ========================= */
 
   // Admin convenience: start a fresh session by ignoring any existing local autosave.
   // Used by the launcher for rapid end-to-end testing.
