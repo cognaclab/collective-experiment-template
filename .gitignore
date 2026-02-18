@@ -64,3 +64,32 @@ docs/
 # Server output (session data, logs, etc.)
 output/
 output_backup/
+
+# Questionnaire system (lives in ../moral-foundations-questionnaire/)
+app.js
+config.js
+index.html
+trial.html
+launcher.html
+launcher.js
+smoke_test.html
+smoke_test.js
+styles.css
+README.txt
+autogen_tidy.js
+save.js
+server/server.py
+server/server.js
+server/README.md
+server/__pycache__/
+server-node/
+notebooks/
+notebooks_py/
+tools/autogen_tidy.*
+data/d70.js
+data/demographics.js
+data/hexaco100.js
+data/ipip120.js
+data/math_checks.js
+data/mfq30.js
+data/svo.js

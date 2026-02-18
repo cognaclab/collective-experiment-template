@@ -1,126 +1,82 @@
-# RIKEN Survey (paper–pencil style, HTML/CSS/JS) — v19
+# Collective Experiment Platform
 
-This package implements the provided questionnaires in a **paper/pencil-like** web interface with:
+[![Node.js](https://img.shields.io/badge/Node.js-v22.15.0-blue.svg)](https://nodejs.org)
+[![MongoDB](https://img.shields.io/badge/MongoDB-8.0.9-green.svg)](https://www.mongodb.com/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
-- **Participant ID (Prolific ID) field at the very start** (`prolificId`)
-  - used to sync the same person across Session 1 ↔ Session 2 (and across browser sessions)
-  - supports Prolific’s standard URL parameter: `PROLIFIC_PID`
-- **Consent + age gate** (immediate termination on NO consent)
-- **Demographics at the end** (except Prolific ID + age + consent)
-- **One page per questionnaire** (each instrument is a single page)
-- **Timed arithmetic checks between questionnaires** (focus-in → Enter; no feedback)
-- **Progress bar**
-- **Background autosave**
-  - localStorage backup in the browser
-  - server-side saving via `POST /api/save`
-- **Transparent scoring outputs**
-  - per-item raw value + label
-  - reverse-keyed flag + reverse formula (where applicable)
-  - per-item scored value + label
-  - scale totals (means and sums) with explicit item lists
-  - SVO scoring (angle + category) + QC metrics
-- **Per-item response timing** (saved, never shown to participants)
+Create online collective behavior experiments using simple **Markdown** and **YAML** files. No coding required! The system generates interactive web-based experiments with real-time multiplayer functionality.
 
----
+## ✨ Key Features
 
-## Questionnaire order (default)
+- **Easy to Get Started** - Write experiments in Markdown and YAML
+- **Real-Time Multiplayer** - Automatic group formation and coordination
+- **Conditional Content** - Dynamic text based on experimental conditions
+- **Auto-Generation** - From content files to running experiments
+- **Phaser Integration** - Combines simple content with complex game mechanics
 
-Participant-facing default order is:
-
-1) **MFQ-30**
-2) **HEXACO-100**
-3) **SVO slider measure**
-4) Others (currently: **IPIP-NEO-120**, **D70**)
-
-This default can still be changed from `launcher.html` (runtime config).
-
----
-
-## No `.py` files
-
-This iteration removes Python scripts from the package.
-
-- The web server is implemented in **Node.js** (`server/server.js`).
-- Data processing and clustering are implemented in **modular Jupyter notebooks** (`notebooks/*.ipynb`).
-
----
-
-## Quick start (Ubuntu/Linux/macOS)
-
-### 1) Run the server
+## 🚀 Quick Start
 
 ```bash
-cd riken_survey_v19
-node server/server.js
+# 1. Clone and setup (5 minutes)
+git clone https://github.com/cognaclab/collective-experiment-template.git
+cd collective-experiment-template
+npm install
+cp .env.example .env
+npm run docker:up
+
+# 2. Try the working example
+npm run example
+# Visit: http://localhost:8000/?subjectID=test1
+
+# 3. Generate and run a quick test
+npm run generate examples/quick-test
+npm run experiment
+# Visit: http://localhost:8000/?subjectID=test2
 ```
 
-Open:
+## 📚 Documentation
 
-- **Launcher / Control Panel (researcher/admin):** `http://127.0.0.1:8000/launcher.html`
-- **Production (participants):** `http://127.0.0.1:8000/` (or `/index.html`)
-- **Trial / verification:** `http://127.0.0.1:8000/trial.html`
+| Guide | Purpose |
+|-------|---------|
+| **[Getting Started](./GETTING-STARTED.md)** | First-time setup and basic usage |
+| **[Experiment Creation Guide](./EXPERIMENT-CREATION-GUIDE.md)** | Build custom experiments |
+| **[Examples](./content/experiments/examples/)** | Ready-to-use experiment templates |
+| **[Troubleshooting](./TROUBLESHOOTING.md)** | Common issues and solutions |
+| **[Deployment](./DEPLOYMENT.md)** | Deploy for real data collection |
 
-### 2) Generate tidy outputs + MFQ clusters
-
-After you have collected data (or at any time during collection):
-
-1. Run `notebooks/01_extract_tidy_outputs.ipynb`
-2. Run `notebooks/02_mfq_clustering.ipynb`
-
-Outputs are written to `output/tidy/` (and can be downloaded from the launcher via the export endpoints).
-
----
-
-## Prolific integration
-
-If you recruit using Prolific, the recommended participant URL is:
-
-- `http://YOUR_SERVER/?PROLIFIC_PID={{PROLIFIC_PID}}`
-
-The survey will prefill and lock the Prolific ID field to prevent accidental edits.
-
----
-
-## Output files
-
-See:
-
-- `output/README.md` (folder + file overview)
-- `output/tidy/README.md` (tidy tables)
-- `output/raw_sessions/README.md` (raw per-session snapshots)
-
----
-
-## MFQ clustering requirements (Session 2)
-
-The MFQ clustering notebook implements:
-
-- **Quartile-based 3-way profile** (`binding` / `mixed` / `individualizing`)
-- **K-means clustering** (k=3) on:
-  - raw MFQ foundations (5D)
-  - factor composites (2D: binding_mean + individualizing_mean)
-- **Algorithmic diagnostics** for candidate k values (silhouette, Calinski–Harabasz, Davies–Bouldin), while still producing the required **k=3** solution.
-
-The Session 2 import convenience file is:
-
-- `output/tidy/mfq_session2_prod_completed.csv`
-
-This file is restricted to **production + completed** sessions only.
-
----
-
-## Admin token (recommended)
-
-The launcher uses privileged endpoints:
-
-- writing runtime config: `POST /api/config`
-- exporting files: `GET /api/export/*`
-
-Set a stable token:
+## 🎮 Core Commands
 
 ```bash
-export RIKEN_ADMIN_TOKEN='your-long-random-token'
-node server/server.js
+# Running experiments
+npm run example                      # Run the default collective reward experiment
+npm run generate examples/quick-test # Generate scenes from YAML/Markdown
+npm run experiment                   # Run last generated experiment (with auto-reload)
+
+# Content management
+npm run generate:clean               # Clear all generated files
+npm run generate:watch [name]        # Auto-regenerate when content files change
+
+# Database
+npm run docker:up                    # Start MongoDB
+npm run docker:down                  # Stop MongoDB
+npm run docker:shell                 # Access MongoDB shell
 ```
 
-If you do not set a token, the server auto-generates one and prints it on startup.
+## 🧪 What's Included
+
+- **Default Experiment**: Multi-armed bandit task with group coordination
+- **Example Experiments**:
+  - Quick test (3 trials, individual task)
+  - Prisoner's Dilemma (strategic game, 2 players)
+  - Individual bandit task (50 trials)
+  - Simple group task (3 players)
+- **Template System**: Markdown → Interactive experiment
+- **Real-time Backend**: Node.js + Socket.IO + MongoDB
+- **Complete Deployment**: Production-ready with PM2 and Docker
+
+---
+
+**Contributors**: Wataru Toyokawa, \[...\], Michael Crosscombe
+**License**: [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+
+
