@@ -31,6 +31,7 @@ const { handleSave } = require('./handlers/save');
 // Utils
 const { nowIso, ensureDir, atomicWrite, dirWritable } = require('./utils/file');
 const { getAdminToken, isTokenAuto } = require('./utils/auth');
+const { writeDataDictionary } = require('./utils/dataDictionary');
 
 // MIME type mapping
 const MIME_TYPES = {
@@ -345,6 +346,13 @@ function main() {
     try {
         atomicWrite(path.join(config.outputDir, '_SERVER_STARTED.txt'), `startedAt\t${nowIso()}\n`);
         atomicWrite(path.join(config.backupDir, '_SERVER_STARTED.txt'), `startedAt\t${nowIso()}\n`);
+    } catch (e) {
+        // ignore
+    }
+
+    // Write data dictionary (schema documentation for all output files)
+    try {
+        writeDataDictionary(config.outputDir, config.backupDir, atomicWrite, ensureDir);
     } catch (e) {
         // ignore
     }

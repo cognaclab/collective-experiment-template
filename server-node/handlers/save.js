@@ -29,7 +29,13 @@ const {
     isFinalOutput,
     buildParticipantsRow,
     flattenScoresWide,
-    updateLatestTable
+    flattenMathChecksMetrics,
+    flattenMfqSession2,
+    appendResponsesCompact,
+    flattenAllDataWide,
+    maybeWriteItemDictionary,
+    updateLatestTable,
+    toCsvLine
 } = require('../utils/tsv');
 
 // Participant index table headers
@@ -398,6 +404,19 @@ function handleSave(req, res, body, config) {
         }
     }
 
+    // Math checks metrics latest table
+    try {
+        const { headers: mHeaders, row: mRow } = flattenMathChecksMetrics(output, serverReceivedAt, sessionKey);
+        updateLatestTable(
+            path.join(groupDir, 'math_checks_metrics_latest.tsv'),
+            path.join(groupBakDir, 'math_checks_metrics_latest.tsv'),
+            'sessionKey', mRow, mHeaders, 'serverReceivedAt',
+            readTsvTable, writeTsvTable
+        );
+    } catch (e) {
+        // Non-fatal
+    }
+
     // Write IPIP-120 order if applicable
     try {
         maybeWriteIpip120Order(output, groupDir, groupBakDir);
@@ -443,6 +462,19 @@ function handleSave(req, res, body, config) {
             lockedAppend(participantsPath, toTsvLine(pHeaders, pRow));
             lockedAppend(participantsBakPath, toTsvLine(pHeaders, pRow));
 
+            // 1b) participants.csv (CSV mirror)
+            try {
+                const pCsvPath = path.join(outDir, 'participants.csv');
+                const pCsvBakPath = path.join(bakDir, 'participants.csv');
+                const pCsvHeader = pHeaders.join(',') + '\n';
+                if (!fs.existsSync(pCsvPath)) lockedAppend(pCsvPath, pCsvHeader);
+                if (!fs.existsSync(pCsvBakPath)) lockedAppend(pCsvBakPath, pCsvHeader);
+                lockedAppend(pCsvPath, toCsvLine(pHeaders, pRow));
+                lockedAppend(pCsvBakPath, toCsvLine(pHeaders, pRow));
+            } catch (e) {
+                // Non-fatal
+            }
+
             // 2) responses_long.tsv
             if (responsesTsv) {
                 const rLines = responsesTsv.split('\n').filter(ln => ln.trim());
@@ -462,6 +494,13 @@ function handleSave(req, res, body, config) {
                     lockedAppend(responsesPath, rBody + '\n');
                     lockedAppend(responsesBakPath, rBody + '\n');
                 }
+            }
+
+            // 2b) responses_compact.tsv
+            try {
+                appendResponsesCompact(responsesTsv, outDir, bakDir, fs, path, lockedAppend);
+            } catch (e) {
+                // Non-fatal
             }
 
             // 3) scores_long.tsv
@@ -497,6 +536,60 @@ function handleSave(req, res, body, config) {
             }
             lockedAppend(widePath, toTsvLine(wHeaders, wRow));
             lockedAppend(wideBakPath, toTsvLine(wHeaders, wRow));
+
+            // 5) math_checks_metrics.tsv
+            try {
+                const { headers: mcHeaders, row: mcRow } = flattenMathChecksMetrics(output, serverReceivedAt, sessionKey);
+                const mcPath = path.join(outDir, 'math_checks_metrics.tsv');
+                const mcBakPath = path.join(bakDir, 'math_checks_metrics.tsv');
+                if (!fs.existsSync(mcPath)) lockedAppend(mcPath, mcHeaders.join('\t') + '\n');
+                if (!fs.existsSync(mcBakPath)) lockedAppend(mcBakPath, mcHeaders.join('\t') + '\n');
+                lockedAppend(mcPath, toTsvLine(mcHeaders, mcRow));
+                lockedAppend(mcBakPath, toTsvLine(mcHeaders, mcRow));
+            } catch (e) {
+                // Non-fatal
+            }
+
+            // 6) mfq_session2.tsv + mfq_session2.csv
+            try {
+                const { headers: mfq2Headers, row: mfq2Row } = flattenMfqSession2(output, serverReceivedAt, sessionKey);
+                const mfq2TsvPath = path.join(outDir, 'mfq_session2.tsv');
+                const mfq2TsvBakPath = path.join(bakDir, 'mfq_session2.tsv');
+                if (!fs.existsSync(mfq2TsvPath)) lockedAppend(mfq2TsvPath, mfq2Headers.join('\t') + '\n');
+                if (!fs.existsSync(mfq2TsvBakPath)) lockedAppend(mfq2TsvBakPath, mfq2Headers.join('\t') + '\n');
+                lockedAppend(mfq2TsvPath, toTsvLine(mfq2Headers, mfq2Row));
+                lockedAppend(mfq2TsvBakPath, toTsvLine(mfq2Headers, mfq2Row));
+
+                const mfq2CsvPath = path.join(outDir, 'mfq_session2.csv');
+                const mfq2CsvBakPath = path.join(bakDir, 'mfq_session2.csv');
+                const csvHeader = mfq2Headers.join(',') + '\n';
+                if (!fs.existsSync(mfq2CsvPath)) lockedAppend(mfq2CsvPath, csvHeader);
+                if (!fs.existsSync(mfq2CsvBakPath)) lockedAppend(mfq2CsvBakPath, csvHeader);
+                lockedAppend(mfq2CsvPath, toCsvLine(mfq2Headers, mfq2Row));
+                lockedAppend(mfq2CsvBakPath, toCsvLine(mfq2Headers, mfq2Row));
+            } catch (e) {
+                // Non-fatal
+            }
+
+            // 7) all_data_wide.tsv
+            try {
+                const { headers: adwHeaders, row: adwRow } = flattenAllDataWide(output, serverReceivedAt, sessionKey);
+                const adwPath = path.join(outDir, 'all_data_wide.tsv');
+                const adwBakPath = path.join(bakDir, 'all_data_wide.tsv');
+                if (!fs.existsSync(adwPath)) lockedAppend(adwPath, adwHeaders.join('\t') + '\n');
+                if (!fs.existsSync(adwBakPath)) lockedAppend(adwBakPath, adwHeaders.join('\t') + '\n');
+                lockedAppend(adwPath, toTsvLine(adwHeaders, adwRow));
+                lockedAppend(adwBakPath, toTsvLine(adwHeaders, adwRow));
+            } catch (e) {
+                // Non-fatal
+            }
+
+            // 8) item_dictionary.tsv (write once)
+            try {
+                maybeWriteItemDictionary(output, outDir, bakDir, fs, path, atomicWrite, toTsvLine);
+            } catch (e) {
+                // Non-fatal
+            }
         }
     }
 
