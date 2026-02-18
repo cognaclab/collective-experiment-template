@@ -60,3 +60,7 @@ client/public/src/main-generated.js
 
 # Document files related to specific experiments
 docs/
+
+# Server output (session data, logs, etc.)
+output/
+output_backup/

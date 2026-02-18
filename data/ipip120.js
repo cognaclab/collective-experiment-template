@@ -6,7 +6,7 @@ window.RIKEN_SURVEY_DATA = window.RIKEN_SURVEY_DATA || {};
 window.RIKEN_SURVEY_DATA["ipip120"] = {
   "id": "ipip_neo_120",
   "title": "IPIP-NEO-120 (Johnson, 2014)",
-  "intro": "Here is how to score IPIP scales:\n\nFor + keyed items, the response \"Very Inaccurate\" is assigned a value of 1, \"Moderately Inaccurate\" a value of 2, \"Neither Inaccurate nor Accurate\" a 3, \"Moderately Accurate\" a 4, and \"Very Accurate\" a value of 5.\n\nFor - keyed items, the response \"Very Inaccurate\" is assigned a value of 5, \"Moderately Inaccurate\" a value of 4, \"Neither Inaccurate nor Accurate\" a 3, \"Moderately Accurate\" a 2, and \"Very Accurate\" a value of 1.\n\nOnce numbers are assigned for all of the items in the scale, just sum all the values to obtain a total scale score.",
+  "intro": "Describe yourself as you generally are now, not as you wish to be in the future. Describe yourself as you honestly see yourself, in relation to other people you know of the same sex as you are, and roughly your same age. So that you can describe yourself in an honest manner, your responses will be kept in absolute confidence. Indicate for each statement whether it is 1. Very Inaccurate, 2. Moderately Inaccurate, 3. Neither Accurate Nor Inaccurate, 4. Moderately Accurate, or 5. Very Accurate as a description of you.",
   "scale": {
     "id": "ipip_accuracy_1_5",
     "reverseFormula": "6 - value",
