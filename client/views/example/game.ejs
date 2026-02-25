@@ -20,11 +20,11 @@
 	    <script type="module" src="/src/CircleSpin.js"></script>
 	    <script type="text/javascript">
 			const subjectID = <%- JSON.stringify(subjectID) %>;
+			const studyID = <%- JSON.stringify(typeof studyID !== 'undefined' ? studyID : '') %>;
+			const prolificSessionID = <%- JSON.stringify(typeof prolificSessionID !== 'undefined' ? prolificSessionID : '') %>;
 			const portnum = 8181; //8181 = indiv
 			// Set APP_URL for asset loading (Phaser needs to know where static assets are served)
 			window.APP_URL = '<%= APP_URL %>';
-			//$("#subjectID").val(subjectID);
-			//console.log('my subjectID is ' + subjectID + '!! - by game.ejs');
 		</script>
 		<script type="text/javascript" src="/src/global_values.js"></script>
 		<script type="module" src="/src/functions.js"></script>

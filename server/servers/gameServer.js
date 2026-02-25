@@ -208,7 +208,7 @@ app.use((err, req, res, next) => {
 		url: req.originalUrl,
 		method: req.method
 	});
-	res.status(500).send('A technical issue happened in the server...😫')
+	res.status(500).send('A technical issue happened in the server.')
 });
 
 // Create a lightweight config for room creation (before gameConfig is fully built)
@@ -237,48 +237,6 @@ const roomCreationConfig = {
 
 // this 'decoyRoom' is where reconnected subjects are sent
 roomStatus['decoyRoom'] = createRoom({ isDecoy: true, name: 'decoyRoom', config: roomCreationConfig });
-/*
-// OLD MANUAL CREATION - NOW USING createRoom()
-roomStatus['decoyRoom'] = {
-	exp_condition: 'decoyRoom', // 
-	riskDistributionId: getRandomIntInclusive(max = 13, min = 13), // max = 2, min = 0
-	// isLeftRisky: isLeftRisky_list[getRandomIntInclusive(max = 1, min = 0)],
-	optionOrder: shuffle(options),
-	taskOrder: shuffle(task_order),
-	indivOrGroup: -1,
-	horizon: horizon,
-	n: 0,
-	membersID: [],
-	subjectNumbers: [],
-	disconnectedList: [],
-	testPassed: 0,
-	newGameRoundReady: 0,
-	starting: 0,
-	stage: 'firstWaiting',
-	maxChoiceStageTime: maxChoiceStageTime,
-	choiceTime: [],
-	gameRound: 0,
-	trial: 1,
-	pointer: 1,
-	doneId: createArray(horizon * totalGameRound, 0),
-	doneNo: createArray(horizon * totalGameRound),
-	readyNo: createArray(horizon * totalGameRound),
-	socialFreq: createArray(horizon * totalGameRound, K),
-	socialInfo: createArray(horizon * totalGameRound, maxGroupSize),
-	publicInfo: createArray(horizon * totalGameRound, maxGroupSize),
-	share_or_not: createArray(horizon * totalGameRound, maxGroupSize),
-	choiceOrder: createArray(horizon * totalGameRound, maxGroupSize),
-	saveDataThisRound: [],
-	restTime:maxWaitingTime,
-	groupTotalPayoff: createArray(horizon * totalGameRound, 0) ,
-	groupCumulativePayoff: [0, 0],
-	totalPayoff_perIndiv: [0],
-	totalPayoff_perIndiv_perGame: new Array(totalGameRound).fill(0),
-	groupTotalCost: [0],
-	currentEnv: 0,
-	envChangeTracker: 0
-};
-*/
 // The following is the first room
 // Therefore, Object.keys(roomStatus).length = 2 right now
 // A new room will be open once this room becomes full
@@ -337,6 +295,96 @@ const gameConfig = {
 	// Add experiment name for database tracking
 	experimentName: experimentLoader ? experimentLoader.getMetadata().name : 'unknown'
 };
+
+// ==========================================
+// Initialize GroupFormationService (if live mode configured)
+// ==========================================
+if (loadedConfig?.group_formation?.mode === 'live') {
+	const GroupFormationService = require('../services/GroupFormationService');
+	const MFQScoreLoader = require('../services/MFQScoreLoader');
+	const { assignAvatar } = require('../socket/sessionManager');
+
+	const gfConfig = loadedConfig.group_formation;
+	const compositionTargets = (gfConfig.composition_targets || []).map(t => ({
+		type: t.type,
+		b: t.binding,
+		i: t.individualizing
+	}));
+
+	const gfs = new GroupFormationService({
+		groupSize: gfConfig.group_size || 8,
+		allowIntermediates: gfConfig.allow_intermediates || false,
+		timeout: gfConfig.timeout || 300000,
+		experimentName: gameConfig.experimentName,
+		compositionTargets: compositionTargets.length > 0 ? compositionTargets : undefined
+	});
+
+	gfs.onGroupFormed = async (compositionType, members) => {
+		const roomName = makeid(8) + '_' + compositionType;
+
+		const room = createRoom({
+			name: roomName,
+			mode: 'group',
+			expCondition: loadedConfig.exp_condition || 'baseline',
+			config: roomCreationConfig
+		});
+
+		roomStatus[roomName] = room;
+		room.n = members.length;
+		room.membersID = members.map(m => m.subjectId);
+		room.compositionType = compositionType;
+
+		// Load MFQ scores for all members
+		const subjectIds = members.map(m => m.subjectId);
+		const mfqScoreLoader = new MFQScoreLoader(
+			loadedConfig?.mfq_scores || {}
+		);
+		const mfqScores = await mfqScoreLoader.loadScoresForSubjects(subjectIds);
+		room.mfqScores = mfqScores;
+
+		// Move all members into the room
+		members.forEach((member, idx) => {
+			const socket = member.socket;
+			socket.leave(socket.room);
+			socket.join(roomName);
+			socket.room = roomName;
+			socket.subjectNumber = idx + 1;
+			room.subjectNumbers = room.subjectNumbers || [];
+			room.subjectNumbers.push(idx + 1);
+
+			assignAvatar(socket, room);
+		});
+
+		logger.important('Group formed via GroupFormationService', {
+			roomName,
+			compositionType,
+			members: subjectIds
+		});
+
+		// Notify all members
+		members.forEach(member => {
+			member.socket.emit('group_formed', {
+				roomId: roomName,
+				compositionType,
+				groupSize: members.length,
+				subjectNumber: member.socket.subjectNumber,
+				avatarId: member.socket.avatarId
+			});
+		});
+
+		// Start the session countdown
+		countDown(roomName, gameConfig, io, countDownWaiting);
+	};
+
+	gameConfig.groupFormationService = gfs;
+
+	logger.important('GroupFormationService initialized', {
+		mode: 'live',
+		groupSize: gfs.groupSize,
+		allowIntermediates: gfs.allowIntermediates,
+		compositionTargets: gfs.compositionTargets.map(t => t.type)
+	});
+}
 
 /**
  * Socket.IO Connection Handlers

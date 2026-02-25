@@ -17,7 +17,7 @@ const { parse } = require('csv-parse/sync');
 
 // Database connection
 require('dotenv').config();
-const { mongoose, connectDB } = require('../server/database/connection');
+const { mongoose, connect } = require('../server/database/connection');
 const MFQScore = require('../server/database/models/MFQScore');
 
 // Color codes for terminal output
@@ -52,35 +52,65 @@ function scoreToLevel(score, thresholds = DEFAULT_THRESHOLDS) {
 }
 
 /**
- * Parse CSV file and return array of score objects
+ * Parse a delimited file (CSV or TSV) and return array of score objects
+ * @param {string} filePath - Path to the file
+ * @param {string} delimiter - Column delimiter (',' for CSV, '\t' for TSV)
+ * @param {Object} participantsMap - Optional map of sessionId → prolificId for cross-referencing
  */
-function parseCSV(filePath) {
+function parseDelimited(filePath, delimiter, participantsMap) {
     const content = fs.readFileSync(filePath, 'utf-8');
     const records = parse(content, {
         columns: true,
         skip_empty_lines: true,
-        trim: true
+        trim: true,
+        delimiter: delimiter
     });
 
     return records.map(row => {
         // Support various column naming conventions
-        const subjectId = row.subjectId || row.subject_id || row.prolificId || row.prolific_id || row.participantId || row.participant_id;
+        // Prefer prolificId (cross-session key), fall back to subjectId
+        let subjectId = row.prolificId || row.prolific_id
+            || row.subjectId || row.subject_id
+            || row.participantId || row.participant_id;
+
+        // If no prolificId found and we have a participants cross-reference map,
+        // try to look up the prolificId using the sessionId/sessionKey
+        if (participantsMap && (!subjectId || subjectId === row.subjectId)) {
+            const sessionKey = row.subjectId || row.sessionKey;
+            if (sessionKey && participantsMap[sessionKey]) {
+                subjectId = participantsMap[sessionKey];
+            }
+        }
 
         if (!subjectId) {
             throw new Error(`Row missing subject ID: ${JSON.stringify(row)}`);
         }
 
-        // Extract scores (support different column names)
+        // Extract scores (support questionnaire output column names)
+        // The questionnaire server uses 'care' for harm/care foundation
         const scores = {
-            harm: parseFloat(row.harm || row.Harm || row.harm_care || row.HarmCare || 0),
+            harm: parseFloat(row.harm || row.Harm || row.care || row.Care || row.harm_care || row.HarmCare || 0),
             fairness: parseFloat(row.fairness || row.Fairness || row.fairness_reciprocity || row.FairnessReciprocity || 0),
             loyalty: parseFloat(row.loyalty || row.Loyalty || row.ingroup_loyalty || row.IngroupLoyalty || 0),
             authority: parseFloat(row.authority || row.Authority || row.authority_respect || row.AuthorityRespect || 0),
             purity: parseFloat(row.purity || row.Purity || row.purity_sanctity || row.PuritySanctity || 0)
         };
 
-        return { subjectId, scores };
+        // Extract pre-computed composites if available (from questionnaire server)
+        const composites = {};
+        if (row.binding_mean) composites.bindingMean = parseFloat(row.binding_mean);
+        if (row.individualizing_mean) composites.individualizingMean = parseFloat(row.individualizing_mean);
+        if (row.binding_minus_individualizing) composites.bindingMinusIndividualizing = parseFloat(row.binding_minus_individualizing);
+
+        return { subjectId, scores, composites };
     });
+}
+
+/**
+ * Parse CSV file and return array of score objects
+ */
+function parseCSV(filePath, participantsMap) {
+    return parseDelimited(filePath, ',', participantsMap);
 }
 
 /**
@@ -165,27 +195,55 @@ async function importScores(records, sourceFile, thresholds) {
     return results;
 }
 
+/**
+ * Parse a participants manifest file to build a sessionId → prolificId map
+ * Used to cross-reference mfq_session2.tsv (which uses sessionId as subjectId)
+ * with the actual prolificId needed for game server matching.
+ */
+function loadParticipantsMap(filePath) {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const delimiter = filePath.endsWith('.tsv') ? '\t' : ',';
+    const records = parse(content, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        delimiter: delimiter
+    });
+
+    const map = {};
+    for (const row of records) {
+        const sessionKey = row.sessionKey || row.sessionId || row.subjectId;
+        const prolificId = row.prolificId || row.prolific_id || row.PROLIFIC_PID;
+        if (sessionKey && prolificId && prolificId !== '' && !prolificId.startsWith('NO_PROLIFIC_ID')) {
+            map[sessionKey] = prolificId;
+        }
+    }
+    return map;
+}
+
 function showUsage() {
-    log('\n📊 MFQ Score Import Script', 'blue');
+    log('\nMFQ Score Import Script', 'blue');
     log('='.repeat(50), 'blue');
     log('\nImports Moral Foundations Questionnaire scores into MongoDB.', 'cyan');
     log('\nUsage:', 'yellow');
     log('  node scripts/import-mfq-scores.js --file <path> [options]');
     log('\nRequired:', 'yellow');
-    log('  --file, -f <path>       Path to CSV or JSON file with MFQ scores');
+    log('  --file, -f <path>       Path to CSV, TSV, or JSON file with MFQ scores');
     log('\nOptional:', 'yellow');
+    log('  --participants-file <path>  Cross-reference file (participants.tsv) to map sessionId to prolificId');
     log('  --thresholds <low,high> Custom thresholds for low/medium/high (default: 2.5,3.5)');
     log('  --dry-run               Parse file but don\'t import to database');
     log('  --help, -h              Show this help message');
-    log('\nCSV Format:', 'yellow');
+    log('\nCSV/TSV Format:', 'yellow');
     log('  subjectId,harm,fairness,loyalty,authority,purity');
     log('  player1,4.2,3.8,2.1,3.5,2.9');
-    log('  player2,3.1,4.5,3.9,2.8,3.2');
     log('\nJSON Format:', 'yellow');
     log('  [');
     log('    { "subjectId": "player1", "scores": { "harm": 4.2, ... } },');
     log('    { "subjectId": "player2", "harm": 3.1, "fairness": 4.5, ... }');
     log('  ]');
+    log('\nCross-referencing (for questionnaire mfq_session2.tsv):', 'yellow');
+    log('  node scripts/import-mfq-scores.js --file mfq_session2.tsv --participants-file participants.tsv');
     log('');
 }
 
@@ -194,6 +252,7 @@ async function main() {
 
     // Parse arguments
     let filePath = null;
+    let participantsFile = null;
     let dryRun = false;
     let thresholds = DEFAULT_THRESHOLDS;
 
@@ -205,6 +264,8 @@ async function main() {
             process.exit(0);
         } else if (arg === '--file' || arg === '-f') {
             filePath = args[++i];
+        } else if (arg === '--participants-file') {
+            participantsFile = args[++i];
         } else if (arg === '--dry-run') {
             dryRun = true;
         } else if (arg === '--thresholds') {
@@ -232,12 +293,25 @@ async function main() {
         process.exit(1);
     }
 
-    log('\n📊 MFQ Score Import', 'blue');
+    log('\nMFQ Score Import', 'blue');
     log('='.repeat(50), 'blue');
     log(`File: ${resolvedPath}`, 'cyan');
+    if (participantsFile) log(`Participants file: ${path.resolve(participantsFile)}`, 'cyan');
     log(`Thresholds: low < ${thresholds.medium.min}, medium < ${thresholds.high.min}, high >= ${thresholds.high.min}`, 'cyan');
     log(`Mode: ${dryRun ? 'DRY RUN (no changes will be made)' : 'LIVE IMPORT'}`, dryRun ? 'yellow' : 'green');
     log('');
+
+    // Load participants cross-reference map if provided
+    let participantsMap = null;
+    if (participantsFile) {
+        const resolvedParticipants = path.resolve(participantsFile);
+        if (!fs.existsSync(resolvedParticipants)) {
+            log(`Error: Participants file not found: ${resolvedParticipants}`, 'red');
+            process.exit(1);
+        }
+        participantsMap = loadParticipantsMap(resolvedParticipants);
+        log(`Loaded ${Object.keys(participantsMap).length} session-to-prolificId mappings`, 'green');
+    }
 
     // Parse file based on extension
     let records;
@@ -245,11 +319,13 @@ async function main() {
 
     try {
         if (ext === '.csv') {
-            records = parseCSV(resolvedPath);
+            records = parseCSV(resolvedPath, participantsMap);
+        } else if (ext === '.tsv') {
+            records = parseDelimited(resolvedPath, '\t', participantsMap);
         } else if (ext === '.json') {
             records = parseJSON(resolvedPath);
         } else {
-            log(`Error: Unsupported file format: ${ext}. Use .csv or .json`, 'red');
+            log(`Error: Unsupported file format: ${ext}. Use .csv, .tsv, or .json`, 'red');
             process.exit(1);
         }
 
@@ -271,20 +347,20 @@ async function main() {
 
     // If dry run, stop here
     if (dryRun) {
-        log('\n✅ Dry run complete. No changes made to database.', 'green');
+        log('\nDry run complete. No changes made to database.', 'green');
         process.exit(0);
     }
 
     // Connect to database and import
     try {
         log('\nConnecting to database...', 'cyan');
-        await connectDB();
+        await connect();
         log('Connected to MongoDB', 'green');
 
         log('\nImporting scores...', 'cyan');
         const results = await importScores(records, resolvedPath, thresholds);
 
-        log('\n📊 Import Results:', 'blue');
+        log('\nImport Results:', 'blue');
         log(`  Created: ${results.created}`, 'green');
         log(`  Updated: ${results.updated}`, 'yellow');
         log(`  Errors:  ${results.errors.length}`, results.errors.length > 0 ? 'red' : 'green');
@@ -296,7 +372,7 @@ async function main() {
             });
         }
 
-        log('\n✅ Import complete!', 'green');
+        log('\nImport complete!', 'green');
 
     } catch (error) {
         log(`\nDatabase error: ${error.message}`, 'red');

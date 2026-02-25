@@ -324,6 +324,15 @@ class ExperimentLoader {
                 completion_fee: 0
             },
 
+            // Group formation (live dynamic sorting by moral type)
+            group_formation: this.config.group_formation || null,
+
+            // MFQ scores configuration (for two-phase experiments with moral foundations data)
+            mfq_scores: this.config.mfq_scores || null,
+
+            // Experiment phases (e.g., blind then transparent)
+            experiment_phases: this.config.experiment_phases || null,
+
             // Debug settings
             debug_exceptions: this.config.debug?.subject_exceptions || []
         };

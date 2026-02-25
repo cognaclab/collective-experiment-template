@@ -16,6 +16,14 @@ const sessionSchema = new mongoose.Schema({
   roomId: { type: String, index: true },
 
   // ==========================================
+  // PROLIFIC INTEGRATION
+  // ==========================================
+  prolific: {
+    studyId: { type: String },
+    sessionId: { type: String }
+  },
+
+  // ==========================================
   // TIMING
   // ==========================================
   startTime: { type: Date, required: true },

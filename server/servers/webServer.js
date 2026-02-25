@@ -26,27 +26,17 @@ const createError = require('http-errors')
   , app = express()
   ;
 
-// Start csv recording
-let myD = new Date()
-  , myYear = myD.getFullYear()
-  , myMonth = myD.getMonth() + 1
-  , myDate = myD.getUTCDate()
-  , myHour = myD.getUTCHours()
-  , myMin = myD.getUTCMinutes()
-  ;
-if (myMonth < 10) { myMonth = '0' + myMonth; }
-if (myDate < 10) { myDate = '0' + myDate; }
-if (myHour < 10) { myHour = '0' + myHour; }
-if (myMin < 10) { myMin = '0' + myMin; }
+// CSV recording: append to a stable file instead of creating a new one per restart
+const csvDir = path.resolve(process.env.CSV_OUTPUT_DIR || './data/csv/');
+const csvFilePath = path.join(csvDir, 'sessions_summary.csv');
 
-var csvStream
-  , dataName = "collective_reward_exp" + '_' + myYear + myMonth + myDate + '_' + myHour + myMin
-  ;
+if (!fs.existsSync(csvDir)) {
+  fs.mkdirSync(csvDir, { recursive: true });
+}
 
-csvStream = csv.format({ headers: true, quoteColumns: true });
-csvStream
-  .pipe(fs.createWriteStream(path.resolve(process.env.CSV_OUTPUT_DIR || "./data/csv/", dataName + '.csv')))
-  .on("end", process.exit);
+const fileExists = fs.existsSync(csvFilePath);
+var csvStream = csv.format({ headers: !fileExists, quoteColumns: true });
+csvStream.pipe(fs.createWriteStream(csvFilePath, { flags: 'a' }));
 
 // Routings
 const indexRouter = require('../api/index')
@@ -143,7 +133,7 @@ app.post('/endPage', function (req, res) {
     completionFee = flatFeeValue + completionFeeValue;
   }
   let save_data = new Object();
-  save_data.date = '' + myYear + myMonth + myDate + '_' + myHour + myMin;
+  save_data.date = new Date().toISOString();
   save_data.exp_condition = req.body.exp_condition;
   save_data.indivOrGroup = req.body.indivOrGroup;
   save_data.info_share_cost = req.body.info_share_cost;

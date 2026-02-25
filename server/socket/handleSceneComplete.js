@@ -202,6 +202,23 @@ async function handleSceneComplete(client, data, config, io) {
 
     // Handle room transition from temporary to shared room
     if (isTemporaryRoom && isTransitioningToWaitingRoom) {
+        const formationMode = config.experimentLoader?.gameConfig?.group_formation?.mode;
+
+        if (formationMode === 'live') {
+            const { transitionToFormationQueue } = require('./sessionManager');
+
+            logger.info('Routing player to live formation queue', {
+                oldRoom: client.room,
+                player: client.subjectID,
+                scene: sceneKey,
+                nextScene: nextScene.scene
+            });
+
+            await transitionToFormationQueue(client, config, io);
+            delete config.roomStatus[client.room];
+            return;
+        }
+
         const { transitionToSharedRoom } = require('./sessionManager');
 
         logger.info('Transitioning player from temporary room to shared waiting room', {

@@ -28,23 +28,30 @@ if (window.performance && window.performance.navigation) {
 	// navigation.type == 1 means reload
 	if (window.performance.navigation.type === 1) {
 		window.wasPageReloaded = true;
-		console.warn('⚠️ Page reload detected - experiment session invalidated');
+		console.warn('Page reload detected - experiment session invalidated');
 	}
 } else if (window.performance && window.performance.getEntriesByType) {
 	// Modern browsers use PerformanceNavigationTiming
 	const navEntries = window.performance.getEntriesByType('navigation');
 	if (navEntries.length > 0 && navEntries[0].type === 'reload') {
 		window.wasPageReloaded = true;
-		console.warn('⚠️ Page reload detected - experiment session invalidated');
+		console.warn('Page reload detected - experiment session invalidated');
 	}
 }
 
+// Build socket query string with all Prolific params (subjectID, studyID, prolificSessionID come from game.ejs)
+const socketQuery = 'subjectID=' + subjectID
+	+ (typeof studyID !== 'undefined' && studyID ? '&studyID=' + studyID : '')
+	+ (typeof prolificSessionID !== 'undefined' && prolificSessionID ? '&prolificSessionID=' + prolificSessionID : '');
+
 // Create socket connection and expose to window for ES6 module access
-window.socket = io.connect(htmlServer+portnum, { query: 'subjectID='+subjectID }); // portnum is defined in game.ejs
+window.socket = io.connect(htmlServer+portnum, { query: socketQuery });
 const socket = window.socket; // Local reference for backward compatibility
 
-// Expose subjectID to window for ES6 module access (subjectID comes from EJS template)
+// Expose Prolific params to window for ES6 module access
 window.subjectId = subjectID;
+window.studyId = (typeof studyID !== 'undefined') ? studyID : '';
+window.prolificSessionId = (typeof prolificSessionID !== 'undefined') ? prolificSessionID : '';
 
 const flatBonus = 1.6; // pounds sterling (GBP)
 

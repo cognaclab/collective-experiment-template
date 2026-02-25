@@ -7,6 +7,7 @@ const Trial = require('../database/models/Trial');
 const Session = require('../database/models/Session');
 const logger = require('../utils/logger');
 const { debug, playerEvent, gameEvent } = require('../utils/debug');
+const csvExporter = require('../utils/csvExporter');
 
 module.exports = function handleChoiceMade(client, data, config, io, firstTrialStartingTimeRef) {
 	const room = config.roomStatus[client.room];
@@ -107,8 +108,9 @@ module.exports = function handleChoiceMade(client, data, config, io, firstTrialS
 	// Use new flexible data structure
 	const trialData = buildTrialData(client, room, choiceData, config);
 
-	// Save trial data immediately to database (new approach)
+	// Save trial data immediately to database and CSV
 	saveTrialData(trialData);
+	csvExporter.appendTrialRow(trialData);
 
 	// Also keep legacy format for backward compatibility during migration
 	room.saveDataThisRound.push({

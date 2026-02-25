@@ -77,6 +77,52 @@ class SceneWaitingRoom extends Phaser.Scene {
 		this.titleText = title;
 		this.note1Text = note1;
 
+		// Formation queue listeners (for live group formation mode)
+		this.formationQueueListener = (data) => {
+			console.log('Formation queue update:', data);
+
+			if (!this.scene.isActive()) return;
+
+			const { totalWaiting, groupSize } = data;
+
+			if (this.titleText) {
+				this.titleText.setText('Finding Your Group...');
+			}
+			if (this.note1Text) {
+				this.note1Text.setText(
+					`${totalWaiting} participant${totalWaiting !== 1 ? 's' : ''} waiting (need ${groupSize} per group)`
+				);
+			}
+		};
+
+		this.formationTimeoutListener = (data) => {
+			console.log('Formation timeout:', data);
+
+			if (!this.scene.isActive()) return;
+
+			if (this.titleText) {
+				this.titleText.setText('Session Timed Out');
+			}
+			if (this.note1Text) {
+				this.note1Text.setText(data.message || 'Not enough participants joined in time.');
+			}
+
+			// Stop the countdown timer
+			if (waitingCountdown) {
+				waitingCountdown.remove();
+			}
+		};
+
+		window.socket.off('formation_queue_update', this.formationQueueListener);
+		window.socket.on('formation_queue_update', this.formationQueueListener);
+		window.socket.off('formation_timeout', this.formationTimeoutListener);
+		window.socket.on('formation_timeout', this.formationTimeoutListener);
+
+		// Apply initial queue status if provided in scene data
+		if (data?.queueStatus) {
+			this.formationQueueListener(data.queueStatus);
+		}
+
 		// Create bound listener function so we can remove it later
 		this.waitingRoomUpdateListener = (data) => {
 			console.log('Waiting room update received:', data);
@@ -169,6 +215,18 @@ class SceneWaitingRoom extends Phaser.Scene {
 		// Proper currency formatting
 		const bonusPounds = (waitingBonus / 100).toFixed(2);
 		bonusText.setText(`Your waiting bonus: £${bonusPounds}`);
+	}
+
+	shutdown() {
+		if (this.waitingRoomUpdateListener) {
+			window.socket.off('waiting_room_update', this.waitingRoomUpdateListener);
+		}
+		if (this.formationQueueListener) {
+			window.socket.off('formation_queue_update', this.formationQueueListener);
+		}
+		if (this.formationTimeoutListener) {
+			window.socket.off('formation_timeout', this.formationTimeoutListener);
+		}
 	}
 
 };

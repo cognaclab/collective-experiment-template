@@ -242,8 +242,6 @@ function buildInformationSharing(room, client, pointer) {
  * Build synchronization data (completion order, wait times)
  */
 function buildSynchronizationData(room, client) {
-    // TODO: Implement when we add synchronization tracking
-    // This would track who finished first, who waited, etc.
     return {
         completionOrder: null,
         waitedForSubjects: [],
@@ -311,6 +309,11 @@ function buildSessionData(client, room, config) {
         subjectId: client.subjectID || client.subjectId, // Try uppercase first (actual property name)
         subjectNumber: client.subjectNumber,
         roomId: room.roomId, // Now set by roomFactory
+
+        prolific: {
+            studyId: client.studyID || null,
+            sessionId: client.prolificSessionID || null
+        },
 
         startTime: client.startTime || now,
         endTime: null, // Set when session completes

@@ -1,46 +1,58 @@
 'use strict';
 
 /**
- * Handle 'core is ready'
- * @param {Object} config - game env parameters
- * @param {Object} client - the Socket.IO client socket
- * @param {Object} io
+ * Handle new Socket.IO client connections.
+ * Assigns subject IDs, creates rooms, loads participant classifications,
+ * and initializes session records in the database.
  */
 
 const { buildSessionData } = require('../utils/dataBuilders');
 const Session = require('../database/models/Session');
+const ParticipantClassification = require('../database/models/ParticipantClassification');
 const logger = require('../utils/logger');
-
-/**
- * Find an available room that can accept new players for group experiments
- * @param {Object} config - Game configuration
- * @param {number} maxGroupSize - Maximum players per group
- * @returns {Object|null} - { name: roomName, room: roomObject } or null
- */
-function findAvailableGroupRoom(config, maxGroupSize) {
-    for (const roomName in config.roomStatus) {
-        const room = config.roomStatus[roomName];
-
-        // Room is available if: not started, has space, is group mode, not temporary
-        if (room.starting === 0 &&           // Not started yet
-            room.n < maxGroupSize &&          // Has space for more players
-            room.indivOrGroup === 1 &&        // Is group mode
-            !room.isTemporary) {              // Not a temporary room
-            return { name: roomName, room: room };
-        }
-    }
-    return null;
-}
 
 function onConnectioncConfig({ config, client, io }) {
 
-  // Assign client's unique identifier
+  // Assign client's unique identifier (Prolific PID)
 	client.subjectID = client.request?._query.subjectID;
 	client.started = 0;
+
+    // Capture Prolific study and session IDs
+    client.studyID = client.request?._query.studyID || null;
+    client.prolificSessionID = client.request?._query.prolificSessionID || null;
 
     // Capture waiting bonus from client (accumulated during waiting room)
     const waitingBonusParam = client.request?._query.bonus_for_waiting;
     client.waitingBonus = waitingBonusParam ? parseInt(waitingBonusParam, 10) || 0 : 0;
+
+    // Async lookup of participant classification (non-blocking)
+    if (client.subjectID && config.groupFormationService) {
+        ParticipantClassification.findOne({ subjectId: client.subjectID })
+            .then(classification => {
+                if (classification) {
+                    client.classification = {
+                        moralType: classification.moralType,
+                        bindingIndex: classification.bindingIndex,
+                        bindingScore: classification.bindingScore,
+                        individualizingScore: classification.individualizingScore
+                    };
+                    logger.info('Classification loaded for participant', {
+                        subjectId: client.subjectID,
+                        moralType: classification.moralType
+                    });
+                } else {
+                    logger.warn('No classification found for participant', {
+                        subjectId: client.subjectID
+                    });
+                }
+            })
+            .catch(err => {
+                logger.error('Failed to load classification', {
+                    subjectId: client.subjectID,
+                    error: err.message
+                });
+            });
+    }
 
     // check sessionName already assigned
 	const incomingSessionName = client.request?._query.sessionName;
@@ -142,7 +154,7 @@ function onConnectioncConfig({ config, client, io }) {
                 client.maxGroupSize = maxGroupSize;
                 client.minGroupSize = config.experimentLoader?.gameConfig?.min_group_size || config.minGroupSize || 2;
 
-                console.log(`📝 Created temporary instruction room ${tempRoomName} for player ${client.subjectID} (will join shared room at waiting room)`);
+                console.log(`Created temporary instruction room ${tempRoomName} for player ${client.subjectID} (will join shared room at waiting room)`);
 
                 // Create session record in database
                 createSessionRecord(client, config.roomStatus[client.room], config);
