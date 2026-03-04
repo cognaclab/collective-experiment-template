@@ -302,13 +302,17 @@
             // Store consent in session/local storage
             sessionStorage.setItem('consent', JSON.stringify(consentData));
 
-            // Get subjectID from URL parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            const subjectID = urlParams.get('subjectID');
+            // Escaped EJS tags: survive generation pass, processed by Express at request time
+            const subjectID = '<%%= typeof subjectID !== "undefined" ? subjectID : "" %>';
+            const studyID = '<%%= typeof studyID !== "undefined" ? studyID : "" %>';
+            const prolificSessionID = '<%%= typeof prolificSessionID !== "undefined" ? prolificSessionID : "" %>';
+            const gameServerUrl = '<%%= typeof gameServerUrl !== "undefined" ? gameServerUrl : "http://localhost:8181" %>';
 
-            // Redirect to game server with subjectID
-            const gameServerUrl = '<%= typeof gameServerUrl !== "undefined" ? gameServerUrl : "http://localhost:8181" %>';
-            window.location.href = `${gameServerUrl}/?subjectID=${subjectID}`;
+            const params = new URLSearchParams();
+            if (subjectID) params.set('subjectID', subjectID);
+            if (studyID) params.set('studyID', studyID);
+            if (prolificSessionID) params.set('prolificSessionID', prolificSessionID);
+            window.location.href = `${gameServerUrl}/?${params.toString()}`;
         }
     </script>
 </body>
