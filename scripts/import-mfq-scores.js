@@ -89,11 +89,11 @@ function parseDelimited(filePath, delimiter, participantsMap) {
         // Extract scores (support questionnaire output column names)
         // The questionnaire server uses 'care' for harm/care foundation
         const scores = {
-            harm: parseFloat(row.harm || row.Harm || row.care || row.Care || row.harm_care || row.HarmCare || 0),
-            fairness: parseFloat(row.fairness || row.Fairness || row.fairness_reciprocity || row.FairnessReciprocity || 0),
-            loyalty: parseFloat(row.loyalty || row.Loyalty || row.ingroup_loyalty || row.IngroupLoyalty || 0),
-            authority: parseFloat(row.authority || row.Authority || row.authority_respect || row.AuthorityRespect || 0),
-            purity: parseFloat(row.purity || row.Purity || row.purity_sanctity || row.PuritySanctity || 0)
+            harm: parseFloat(row.harm || row.Harm || row.care || row.Care || row.harm_care || row.HarmCare || row.mfq_foundation_mean_Harm || 0),
+            fairness: parseFloat(row.fairness || row.Fairness || row.fairness_reciprocity || row.FairnessReciprocity || row.mfq_foundation_mean_Fairness || 0),
+            loyalty: parseFloat(row.loyalty || row.Loyalty || row.ingroup_loyalty || row.IngroupLoyalty || row.Ingroup || row.mfq_foundation_mean_Ingroup || 0),
+            authority: parseFloat(row.authority || row.Authority || row.authority_respect || row.AuthorityRespect || row.mfq_foundation_mean_Authority || 0),
+            purity: parseFloat(row.purity || row.Purity || row.purity_sanctity || row.PuritySanctity || row.mfq_foundation_mean_Purity || 0)
         };
 
         // Extract pre-computed composites if available (from questionnaire server)

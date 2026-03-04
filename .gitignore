@@ -2,6 +2,7 @@
 data/csv/*.csv
 data/csv/*.txt
 data/logs/*.log
+data/mfq/questionnaire-output/
 logs/
 .cache/
 

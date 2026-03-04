@@ -209,11 +209,11 @@ function parseAndComputeClassifications(records, participantsMap) {
             individualizingScore = parseFloat(row.individualizing_mean);
         } else {
             const scores = {
-                harm: parseFloat(row.harm || row.Harm || row.care || row.Care || row.harm_care || 0),
-                fairness: parseFloat(row.fairness || row.Fairness || row.fairness_reciprocity || 0),
-                loyalty: parseFloat(row.loyalty || row.Loyalty || row.ingroup_loyalty || 0),
-                authority: parseFloat(row.authority || row.Authority || row.authority_respect || 0),
-                purity: parseFloat(row.purity || row.Purity || row.purity_sanctity || 0)
+                harm: parseFloat(row.harm || row.Harm || row.care || row.Care || row.harm_care || row.mfq_foundation_mean_Harm || 0),
+                fairness: parseFloat(row.fairness || row.Fairness || row.fairness_reciprocity || row.mfq_foundation_mean_Fairness || 0),
+                loyalty: parseFloat(row.loyalty || row.Loyalty || row.ingroup_loyalty || row.Ingroup || row.mfq_foundation_mean_Ingroup || 0),
+                authority: parseFloat(row.authority || row.Authority || row.authority_respect || row.mfq_foundation_mean_Authority || 0),
+                purity: parseFloat(row.purity || row.Purity || row.purity_sanctity || row.mfq_foundation_mean_Purity || 0)
             };
             bindingScore = computeBindingScore(scores);
             individualizingScore = computeIndividualizingScore(scores);

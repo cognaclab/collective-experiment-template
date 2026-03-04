@@ -98,33 +98,21 @@ game:
   assign_avatars: true            # Assign unique avatar images to each player
 
 groups:
-  max_group_size: 8               # 8 players per group
-  min_group_size: 8               # Require full group to start
+  max_group_size: 4               # 4 players per group (testing; production: 8)
+  min_group_size: 4               # Require full group to start (testing; production: 8)
 
 # =============================================================================
 # GROUP FORMATION (Live dynamic sorting by MFQ moral type)
 # =============================================================================
 group_formation:
   mode: "live"                      # "live" = queue-based dynamic sorting, "fifo" = default first-come grouping
-  group_size: 8
+  group_size: 4                     # Testing: 4 (production: 8)
   allow_intermediates: false        # Whether to queue participants classified as 'intermediate'
   timeout: 300000                   # 5 minutes — max time a participant waits in queue
   composition_targets:
-    - type: "homogeneous_binding"
-      binding: 8
-      individualizing: 0
-    - type: "homogeneous_individualizing"
-      binding: 0
-      individualizing: 8
     - type: "even_mix"
-      binding: 4
-      individualizing: 4
-    - type: "uneven_binding_majority"
-      binding: 6
-      individualizing: 2
-    - type: "uneven_individualizing_majority"
       binding: 2
-      individualizing: 6
+      individualizing: 2
 
 conditions:
   indivOrGroup: "group"           # Group experiment (multiplayer)

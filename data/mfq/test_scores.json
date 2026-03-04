@@ -1,0 +1,18 @@
+[
+  {
+    "subjectId": "test_player_1",
+    "scores": { "harm": 4.5, "fairness": 4.2, "loyalty": 1.5, "authority": 1.8, "purity": 1.2 }
+  },
+  {
+    "subjectId": "test_player_2",
+    "scores": { "harm": 4.0, "fairness": 4.5, "loyalty": 2.0, "authority": 1.5, "purity": 1.8 }
+  },
+  {
+    "subjectId": "test_player_3",
+    "scores": { "harm": 1.5, "fairness": 2.0, "loyalty": 4.5, "authority": 4.2, "purity": 4.8 }
+  },
+  {
+    "subjectId": "test_player_4",
+    "scores": { "harm": 2.0, "fairness": 1.8, "loyalty": 4.0, "authority": 4.5, "purity": 4.2 }
+  }
+]
