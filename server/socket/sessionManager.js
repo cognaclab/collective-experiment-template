@@ -380,9 +380,10 @@ async function transitionToFormationQueue(client, config, io) {
     }
 
     // Emit waiting room scene to client with queue status
-    client.emit('load_scene', {
+    client.emit('start_scene', {
         scene: 'SceneWaitingRoom',
-        data: {
+        sceneConfig: { scene: 'SceneWaitingRoom', type: 'waiting' },
+        sceneData: {
             mode: 'formation_queue',
             queueStatus: gfs.getQueueStatus()
         }

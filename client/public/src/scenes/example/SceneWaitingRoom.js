@@ -113,10 +113,39 @@ class SceneWaitingRoom extends Phaser.Scene {
 			}
 		};
 
+		this.groupFormedListener = (data) => {
+			console.log('Group formed:', data);
+
+			if (!this.scene.isActive()) return;
+
+			if (this.titleText) {
+				this.titleText.setText('Group Found!');
+			}
+			if (this.note1Text) {
+				this.note1Text.setText(`Starting game with ${data.groupSize} players...`);
+			}
+
+			// Stop the countdown timer
+			if (waitingCountdown) {
+				waitingCountdown.remove();
+			}
+
+			// Emit scene_complete to trigger transition to next scene (ScenePDPairing)
+			if (window.socket) {
+				const sequence = window.experimentFlow?.sequence || [];
+				window.socket.emit('scene_complete', {
+					scene: 'SceneWaitingRoom',
+					sequence: sequence
+				});
+			}
+		};
+
 		window.socket.off('formation_queue_update', this.formationQueueListener);
 		window.socket.on('formation_queue_update', this.formationQueueListener);
 		window.socket.off('formation_timeout', this.formationTimeoutListener);
 		window.socket.on('formation_timeout', this.formationTimeoutListener);
+		window.socket.off('group_formed', this.groupFormedListener);
+		window.socket.on('group_formed', this.groupFormedListener);
 
 		// Apply initial queue status if provided in scene data
 		if (data?.queueStatus) {
@@ -226,6 +255,9 @@ class SceneWaitingRoom extends Phaser.Scene {
 		}
 		if (this.formationTimeoutListener) {
 			window.socket.off('formation_timeout', this.formationTimeoutListener);
+		}
+		if (this.groupFormedListener) {
+			window.socket.off('group_formed', this.groupFormedListener);
 		}
 	}
 

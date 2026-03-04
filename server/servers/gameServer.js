@@ -361,7 +361,8 @@ if (loadedConfig?.group_formation?.mode === 'live') {
 			members: subjectIds
 		});
 
-		// Notify all members
+		// Notify all members — clients will emit scene_complete to trigger
+		// server-driven transition to the next scene (e.g., ScenePDPairing)
 		members.forEach(member => {
 			member.socket.emit('group_formed', {
 				roomId: roomName,
@@ -371,9 +372,6 @@ if (loadedConfig?.group_formation?.mode === 'live') {
 				avatarId: member.socket.avatarId
 			});
 		});
-
-		// Start the session countdown
-		countDown(roomName, gameConfig, io, countDownWaiting);
 	};
 
 	gameConfig.groupFormationService = gfs;
