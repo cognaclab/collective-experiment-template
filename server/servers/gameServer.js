@@ -232,7 +232,11 @@ const roomCreationConfig = {
 	network: loadedConfig?.network,
 	pairing: loadedConfig?.pairing,
 	// Reward system config for payoff calculation (PD matrix, probabilistic, etc.)
-	reward_system: loadedConfig?.reward_system
+	reward_system: loadedConfig?.reward_system,
+	// Two-phase experiment structure (blind → transparent)
+	experiment_phases: loadedConfig?.experiment_phases,
+	// Game settings needed by roomFactory for round/turn structure
+	game: loadedConfig?.game
 };
 
 // this 'decoyRoom' is where reconnected subjects are sent
@@ -331,7 +335,6 @@ if (loadedConfig?.group_formation?.mode === 'live') {
 
 		roomStatus[roomName] = room;
 		room.n = members.length;
-		room.membersID = members.map(m => m.subjectId);
 		room.compositionType = compositionType;
 
 		// Load MFQ scores for all members
@@ -342,7 +345,7 @@ if (loadedConfig?.group_formation?.mode === 'live') {
 		const mfqScores = await mfqScoreLoader.loadScoresForSubjects(subjectIds);
 		room.mfqScores = mfqScores;
 
-		// Move all members into the room
+		// Move all members into the room and build membersID with full metadata
 		members.forEach((member, idx) => {
 			const socket = member.socket;
 			socket.leave(socket.room);
@@ -352,7 +355,15 @@ if (loadedConfig?.group_formation?.mode === 'live') {
 			room.subjectNumbers = room.subjectNumbers || [];
 			room.subjectNumbers.push(idx + 1);
 
-			assignAvatar(socket, room);
+			const avatarId = assignAvatar(socket, room);
+
+			room.membersID.push({
+				socketId: socket.id,
+				subjectId: member.subjectId,
+				sessionId: socket.sessionId,
+				subjectNumber: idx + 1,
+				avatarId: avatarId
+			});
 		});
 
 		logger.important('Group formed via GroupFormationService', {
