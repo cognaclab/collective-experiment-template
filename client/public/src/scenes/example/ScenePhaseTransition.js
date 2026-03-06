@@ -77,12 +77,12 @@ export default class ScenePhaseTransition extends Phaser.Scene {
                 lineSpacing: 8
             }).setOrigin(0.5);
 
-            yPosition += 70;
+            yPosition += 100;
 
             // Visual example of MFQ bars
             this.createMFQExample(centerX, yPosition);
 
-            yPosition += 120;
+            yPosition += 100;
 
             // Additional note
             this.add.text(centerX, yPosition, 'These values are based on a questionnaire\nyour partner completed earlier.', {
@@ -141,14 +141,6 @@ export default class ScenePhaseTransition extends Phaser.Scene {
         const panelBg = this.add.rectangle(0, 0, 350, 100, 0xF5F5F5);
         panelBg.setStrokeStyle(1, 0xCCCCCC);
         examplePanel.add(panelBg);
-
-        // Label
-        const exampleLabel = this.add.text(0, -55, 'Example: Partner\'s Values', {
-            fontSize: '14px',
-            fill: '#666',
-            fontStyle: 'italic'
-        }).setOrigin(0.5);
-        examplePanel.add(exampleLabel);
 
         // Get enabled categories from config, or use defaults
         let categories = [

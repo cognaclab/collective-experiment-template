@@ -137,8 +137,8 @@ experiment_phases:
       show_mfq_scores: true
 
   # Testing overrides
-  force_single_phase: null          # null = run both, "blind" or "transparent" = run only that one
-  force_phase_order: null           # null = blind first (production), "transparent_first" for testing
+  force_single_phase: null    # null = run both, "blind" or "transparent" = run only that one
+  force_phase_order: null     # null = blind first (production), "transparent_first" for testing
 
 # =============================================================================
 # MFQ (MORAL FOUNDATIONS QUESTIONNAIRE) SCORE CONFIGURATION

@@ -7,7 +7,7 @@
  */
 
 import { PDTheme } from '../../ui/pdTheme.js';
-import { createMFQDisplay } from '../../ui/mfqScoreDisplay.js';
+import { createCompactMFQDisplay } from '../../ui/mfqScoreDisplay.js';
 
 export default class ScenePDPairing extends Phaser.Scene {
     constructor() {
@@ -221,16 +221,20 @@ export default class ScenePDPairing extends Phaser.Scene {
 
         // Display both avatars side by side inside the panel
         const avatarY = -30;
-        const avatarSpacing = 100;
         const avatarScale = 0.12;
+        const showMFQ = this.showMFQScores && this.partnerMFQScores;
+
+        // Shift avatars left when showing MFQ to make room for bars on the right
+        const avatarSpacing = showMFQ ? 80 : 100;
+        const avatarOffset = showMFQ ? -40 : 0;
 
         // Player's own avatar (left side) - "You"
         if (this.avatarId && this.textures.exists(`avatar_${this.avatarId}`)) {
-            const myAvatar = this.add.image(-avatarSpacing, avatarY, `avatar_${this.avatarId}`);
+            const myAvatar = this.add.image(avatarOffset - avatarSpacing, avatarY, `avatar_${this.avatarId}`);
             myAvatar.setScale(avatarScale);
             this.partnerPanel.add(myAvatar);
 
-            const myLabel = this.add.text(-avatarSpacing, avatarY + 50, 'You', {
+            const myLabel = this.add.text(avatarOffset - avatarSpacing, avatarY + 50, 'You', {
                 fontSize: '16px',
                 fill: '#333',
                 fontStyle: 'bold'
@@ -241,40 +245,46 @@ export default class ScenePDPairing extends Phaser.Scene {
         // Partner's avatar (right side)
         const partnerAvatar = this.partnerAvatarId || data.partnerAvatarId;
         if (partnerAvatar && this.textures.exists(`avatar_${partnerAvatar}`)) {
-            const partnerAvatarImg = this.add.image(avatarSpacing, avatarY, `avatar_${partnerAvatar}`);
+            const partnerAvatarImg = this.add.image(avatarOffset + avatarSpacing, avatarY, `avatar_${partnerAvatar}`);
             partnerAvatarImg.setScale(avatarScale);
             this.partnerPanel.add(partnerAvatarImg);
 
-            const partnerLabel = this.add.text(avatarSpacing, avatarY + 50, 'Partner', {
+            const partnerLabel = this.add.text(avatarOffset + avatarSpacing, avatarY + 50, 'Partner', {
                 fontSize: '16px',
                 fill: '#333',
                 fontStyle: 'bold'
             }).setOrigin(0.5);
             this.partnerPanel.add(partnerLabel);
-
-            // Show MFQ scores in transparent phase
-            if (this.showMFQScores && this.partnerMFQScores) {
-                console.log('ScenePDPairing: Displaying MFQ scores for partner');
-                const mfqDisplay = createMFQDisplay(
-                    this,
-                    avatarSpacing - 50,
-                    avatarY + 75,
-                    this.partnerMFQScores,
-                    this.mfqDisplayConfig
-                );
-                if (mfqDisplay) {
-                    this.partnerPanel.add(mfqDisplay);
-                }
-            }
         }
 
         // Arrow or connector between avatars
         if (this.avatarId && partnerAvatar) {
-            const connector = this.add.text(0, avatarY, '↔', {
+            const connector = this.add.text(avatarOffset, avatarY, '↔', {
                 fontSize: '24px',
                 fill: '#999'
             }).setOrigin(0.5);
             this.partnerPanel.add(connector);
+        }
+
+        // Show MFQ scores to the right of the partner avatar in transparent phase
+        if (showMFQ) {
+            const enabledCategories = this.mfqDisplayConfig
+                ? this.mfqDisplayConfig.filter(c => c.enabled)
+                : [{ id: 'harm' }, { id: 'fairness' }, { id: 'loyalty' }];
+            const mfqHeight = enabledCategories.length * 18;
+            const mfqX = avatarOffset + avatarSpacing + 60;
+            const mfqY = avatarY - mfqHeight / 2;
+
+            const mfqDisplay = createCompactMFQDisplay(
+                this,
+                mfqX,
+                mfqY,
+                this.partnerMFQScores,
+                this.mfqDisplayConfig
+            );
+            if (mfqDisplay) {
+                this.partnerPanel.add(mfqDisplay);
+            }
         }
 
         // Position text below avatars

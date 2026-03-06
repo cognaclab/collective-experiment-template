@@ -105,9 +105,9 @@ export function createCompactMFQDisplay(scene, x, y, mfqScores, displayConfig) {
 
     const container = scene.add.container(x, y);
 
-    // Compact layout: smaller bars, shorter labels
+    // Compact layout: smaller bars
     const barSpacing = 18;
-    const labelWidth = 50;
+    const labelWidth = 65;
     const barWidth = 45;
     const barHeight = 10;
     const segmentWidth = barWidth / 3;
@@ -122,9 +122,7 @@ export function createCompactMFQDisplay(scene, x, y, mfqScores, displayConfig) {
 
         if (!level) return;
 
-        // Short label (first 4 chars or custom short label)
-        const shortLabel = category.shortLabel || category.label.substring(0, 4);
-        const label = scene.add.text(0, yOffset, shortLabel, {
+        const label = scene.add.text(0, yOffset, category.label, {
             fontSize: '10px',
             fill: '#444'
         }).setOrigin(0, 0.5);
