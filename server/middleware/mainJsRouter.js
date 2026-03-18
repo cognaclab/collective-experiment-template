@@ -25,15 +25,15 @@ class MainJsRouter {
                 if (this.experimentType === 'deployed') {
                     // For deployed mode, serve from deployed directory
                     targetFile = fs.existsSync(this.deployedMainJs) ? this.deployedMainJs : this.exampleMainJs;
-                    console.log('🎯 Serving deployed main.js');
+                    console.log('[SERVE] Serving deployed main.js');
                 } else if (this.experimentType === 'generated') {
                     // For generated mode, serve main-generated.js (or fallback to example)
                     targetFile = fs.existsSync(this.generatedMainJs) ? this.generatedMainJs : this.exampleMainJs;
-                    console.log('🎯 Serving generated main.js');
+                    console.log('[SERVE] Serving generated main.js');
                 } else {
                     // For example mode
                     targetFile = this.exampleMainJs;
-                    console.log('🎯 Serving example main.js');
+                    console.log('[SERVE] Serving example main.js');
                 }
 
                 if (fs.existsSync(targetFile)) {

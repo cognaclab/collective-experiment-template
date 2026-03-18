@@ -34,7 +34,7 @@ class ExperimentModeHandler {
                 const data = fs.readFileSync(compiledPagesPath, 'utf8');
                 const parsed = JSON.parse(data);
                 this.compiledPages = parsed.pages || {};
-                console.log(`📚 Loaded ${Object.keys(this.compiledPages).length} compiled pages from ${this.experimentType}`);
+                console.log(`[PAGES] Loaded ${Object.keys(this.compiledPages).length} compiled pages from ${this.experimentType}`);
             }
         } catch (error) {
             console.warn('Failed to load compiled pages:', error.message);
@@ -62,7 +62,7 @@ class ExperimentModeHandler {
                     viewPath = path.join(this.deployedViewsDir, `${view}.ejs`);
                     if (fs.existsSync(viewPath)) {
                         targetViewsDir = this.deployedViewsDir;
-                        console.log(`📄 Using deployed template: ${view}.ejs`);
+                        console.log(`[TEMPLATE] Using deployed template: ${view}.ejs`);
 
                         // Add compiled page data to locals
                         if (this.compiledPages[view]) {
@@ -73,14 +73,14 @@ class ExperimentModeHandler {
                     } else {
                         // Fallback to example template
                         targetViewsDir = this.exampleViewsDir;
-                        console.log(`📄 Fallback to example template: ${view}.ejs`);
+                        console.log(`[TEMPLATE] Fallback to example template: ${view}.ejs`);
                     }
                 } else if (this.experimentType === 'generated') {
                     // Check for generated template first
                     viewPath = path.join(this.generatedViewsDir, `${view}.ejs`);
                     if (fs.existsSync(viewPath)) {
                         targetViewsDir = this.generatedViewsDir;
-                        console.log(`📄 Using generated template: ${view}.ejs`);
+                        console.log(`[TEMPLATE] Using generated template: ${view}.ejs`);
 
                         // Add compiled page data to locals
                         if (this.compiledPages[view]) {
@@ -91,12 +91,12 @@ class ExperimentModeHandler {
                     } else {
                         // Fallback to example template
                         targetViewsDir = this.exampleViewsDir;
-                        console.log(`📄 Fallback to example template: ${view}.ejs`);
+                        console.log(`[TEMPLATE] Fallback to example template: ${view}.ejs`);
                     }
                 } else {
                     // Use example templates
                     targetViewsDir = this.exampleViewsDir;
-                    console.log(`📄 Using example template: ${view}.ejs`);
+                    console.log(`[TEMPLATE] Using example template: ${view}.ejs`);
                 }
                 
                 // Temporarily update views directory
@@ -109,16 +109,16 @@ class ExperimentModeHandler {
                     req.app.set('views', originalViewsDir);
 
                     if (err) {
-                        console.error(`❌ Template render error for ${view}:`, err.message);
+                        console.error(`[ERROR] Template render error for ${view}:`, err.message);
                         console.error('Full error:', err);
                     }
 
                     if (!html && !err) {
-                        console.error(`❌ No HTML generated for view: ${view}`);
+                        console.error(`[ERROR] No HTML generated for view: ${view}`);
                     }
 
                     if (html) {
-                        console.log(`✅ Template ${view} rendered successfully (${html.length} bytes)`);
+                        console.log(`[OK] Template ${view} rendered successfully (${html.length} bytes)`);
                     }
 
                     if (callback) {
@@ -129,7 +129,7 @@ class ExperimentModeHandler {
                         if (err) {
                             return next(err);
                         }
-                        console.log(`📤 Sending HTML response for ${view}`);
+                        console.log(`[SEND] Sending HTML response for ${view}`);
                         res.type('html');  // Explicitly set Content-Type to text/html
                         res.send(html);
                     }

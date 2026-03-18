@@ -24,7 +24,7 @@ function debug(...args) {
  */
 function important(...args) {
     const timestamp = new Date().toLocaleTimeString();
-    console.log(`${timestamp} ✅`, ...args);
+    console.log(`${timestamp} [OK]`, ...args);
 }
 
 /**
@@ -36,7 +36,7 @@ function playerEvent(action, details) {
     const timestamp = new Date().toLocaleTimeString();
     const { player, room, ...rest } = details;
     const extras = Object.keys(rest).length > 0 ? ` | ${JSON.stringify(rest)}` : '';
-    console.log(`${timestamp} 👤 [${room || 'unknown'}] ${player || 'unknown'} ${action}${extras}`);
+    console.log(`${timestamp} [PLAYER] [${room || 'unknown'}] ${player || 'unknown'} ${action}${extras}`);
 }
 
 /**
@@ -48,7 +48,7 @@ function gameEvent(action, details) {
     const timestamp = new Date().toLocaleTimeString();
     const { room, trial, ...rest } = details;
     const extras = Object.keys(rest).length > 0 ? ` | ${JSON.stringify(rest)}` : '';
-    console.log(`${timestamp} 🎮 [${room || 'unknown'}] ${action}${trial ? ` (trial ${trial})` : ''}${extras}`);
+    console.log(`${timestamp} [GAME] [${room || 'unknown'}] ${action}${trial ? ` (trial ${trial})` : ''}${extras}`);
 }
 
 module.exports = {

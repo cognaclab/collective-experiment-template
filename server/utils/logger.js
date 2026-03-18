@@ -27,7 +27,7 @@ const importantConsoleFormat = winston.format.combine(
   }),
   winston.format.printf(({ level, message, timestamp, ...meta }) => {
     // Clean format for important events
-    const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : '✅';
+    const prefix = level === 'error' ? '[ERROR]' : level === 'warn' ? '[WARN]' : '[OK]';
     const metaStr = Object.keys(meta).length > 0 && meta.service === undefined
       ? ` ${JSON.stringify(meta)}`
       : '';
@@ -73,7 +73,7 @@ logger.important = (message, meta = {}) => {
   // Also print to console directly for visibility
   const timestamp = new Date().toLocaleTimeString();
   const metaStr = Object.keys(meta).length > 0 ? ` | ${JSON.stringify(meta)}` : '';
-  console.log(`${timestamp} ✅ ${message}${metaStr}`);
+  console.log(`${timestamp} [OK] ${message}${metaStr}`);
 };
 
 // Helper functions for common logging patterns

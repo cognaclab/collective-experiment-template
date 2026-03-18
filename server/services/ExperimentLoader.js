@@ -104,7 +104,7 @@ class ExperimentLoader {
         // Validate conditions.indivOrGroup
         if (!this.config.conditions.indivOrGroup) {
             throw new Error(
-                `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                `\nEXPERIMENT CONFIGURATION ERROR\n\n` +
                 `Missing required field: conditions.indivOrGroup\n` +
                 `  This field specifies whether the experiment is individual or group-based\n` +
                 `  Allowed values: 'individual' or 'group'\n` +
@@ -119,7 +119,7 @@ class ExperimentLoader {
         const validModes = ['individual', 'group'];
         if (!validModes.includes(this.config.conditions.indivOrGroup)) {
             throw new Error(
-                `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                `\nEXPERIMENT CONFIGURATION ERROR\n\n` +
                 `Invalid value for conditions.indivOrGroup: '${this.config.conditions.indivOrGroup}'\n` +
                 `  Allowed values: 'individual' or 'group'\n` +
                 `  Got: '${this.config.conditions.indivOrGroup}'\n` +
@@ -152,7 +152,7 @@ class ExperimentLoader {
             if (envConfig.probabilities) {
                 if (!Array.isArray(envConfig.probabilities)) {
                     throw new Error(
-                        `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                        `\nEXPERIMENT CONFIGURATION ERROR\n\n` +
                         `Environment '${envName}': 'probabilities' must be an array!\n` +
                         `  Got: ${typeof envConfig.probabilities}\n` +
                         `  Expected: Array of ${numMachines} probabilities\n` +
@@ -164,7 +164,7 @@ class ExperimentLoader {
 
                 if (envConfig.probabilities.length !== numMachines) {
                     throw new Error(
-                        `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                        `\nEXPERIMENT CONFIGURATION ERROR\n\n` +
                         `Environment '${envName}': Probability length mismatch!\n` +
                         `  Expected: ${numMachines} probabilities (k_armed_bandit: ${numMachines})\n` +
                         `  Got: ${envConfig.probabilities.length} probabilities: [${envConfig.probabilities.join(', ')}]\n` +
@@ -179,7 +179,7 @@ class ExperimentLoader {
                     const prob = envConfig.probabilities[i];
                     if (typeof prob !== 'number' || prob < 0 || prob > 1) {
                         throw new Error(
-                            `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                            `\nEXPERIMENT CONFIGURATION ERROR\n\n` +
                             `Environment '${envName}': Invalid probability value!\n` +
                             `  Machine ${i}: ${prob}\n` +
                             `  Probabilities must be numbers between 0 and 1\n` +
@@ -197,7 +197,7 @@ class ExperimentLoader {
 
                 if (probKeys.length === 0) {
                     throw new Error(
-                        `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                        `\nEXPERIMENT CONFIGURATION ERROR\n\n` +
                         `Environment '${envName}': No probabilities defined!\n` +
                         `  Please use one of these formats:\n\n` +
                         `  New format (recommended):\n` +
@@ -212,7 +212,7 @@ class ExperimentLoader {
 
                 if (probKeys.length !== numMachines) {
                     throw new Error(
-                        `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                        `\nEXPERIMENT CONFIGURATION ERROR\n\n` +
                         `Environment '${envName}': Probability count mismatch!\n` +
                         `  Expected: ${numMachines} probabilities (k_armed_bandit: ${numMachines})\n` +
                         `  Got: ${probKeys.length} probabilities: ${probKeys.join(', ')}\n` +
@@ -231,7 +231,7 @@ class ExperimentLoader {
 
                     if (prob === undefined) {
                         throw new Error(
-                            `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                            `\nEXPERIMENT CONFIGURATION ERROR\n\n` +
                             `Environment '${envName}': Missing probability!\n` +
                             `  Missing: ${probKey}\n` +
                             `  Found: ${probKeys.join(', ')}\n` +
@@ -243,7 +243,7 @@ class ExperimentLoader {
 
                     if (typeof prob !== 'number' || prob < 0 || prob > 1) {
                         throw new Error(
-                            `\n❌ EXPERIMENT CONFIGURATION ERROR\n\n` +
+                            `\nEXPERIMENT CONFIGURATION ERROR\n\n` +
                             `Environment '${envName}': Invalid probability value!\n` +
                             `  ${probKey}: ${prob}\n` +
                             `  Probabilities must be numbers between 0 and 1\n` +

@@ -47,7 +47,7 @@ function handleDisconnect({client, config, io, countDownWaiting, total_N_nowRef,
       room.readyToStart = false;
       room.restTime = maxWaitingTime;
 
-      console.log(`🔄 Room ${client.room} reset to waiting state (${room.n}/${minGroupSize} players)`);
+      console.log(`[ROOM] Room ${client.room} reset to waiting state (${room.n}/${minGroupSize} players)`);
 
       // Notify remaining players
       io.to(client.room).emit('waiting_room_update', {

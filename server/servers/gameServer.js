@@ -235,6 +235,8 @@ const roomCreationConfig = {
 	reward_system: loadedConfig?.reward_system,
 	// Two-phase experiment structure (blind → transparent)
 	experiment_phases: loadedConfig?.experiment_phases,
+	// MFQ score display configuration (categories, thresholds)
+	mfq_scores: loadedConfig?.mfq_scores,
 	// Game settings needed by roomFactory for round/turn structure
 	game: loadedConfig?.game
 };
