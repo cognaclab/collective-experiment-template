@@ -11,8 +11,6 @@ const {
     , modeToNumeric
 } = require('./helpers');
 const constants = require('../../config/constants');
-const NetworkGraph = require('./NetworkGraph');
-const PairingManager = require('./PairingManager');
 
 /**
  * Create a room with configuration
@@ -46,48 +44,6 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode
 
     // Use provided expCondition from YAML config
     const expConditionValue = isDecoy ? 'decoyRoom' : (expCondition || 'default');
-
-    // Initialize network and pairing for networked experiments
-    let network = null;
-    let pairingManager = null;
-
-    if (config && config.network && config.network.ostracism_enabled) {
-        const topology = config.network.initial_topology || 'complete';
-        network = new NetworkGraph(maxGroupSize, topology);
-        pairingManager = new PairingManager(network, config.pairing || {});
-    }
-
-    // Initialize two-phase experiment configuration
-    let phaseConfig = null;
-    let currentPhaseName = 'blind';
-    let currentPhaseIndex = 0;
-
-    if (config?.experiment_phases?.enabled) {
-        const phases = config.experiment_phases.phases || [];
-
-        // Handle force_single_phase override (for testing)
-        if (config.experiment_phases.force_single_phase) {
-            const forcedPhase = phases.find(p => p.name === config.experiment_phases.force_single_phase);
-            if (forcedPhase) {
-                phaseConfig = forcedPhase;
-                currentPhaseName = forcedPhase.name;
-            }
-        }
-        // Handle force_phase_order override (for testing)
-        else if (config.experiment_phases.force_phase_order === 'transparent_first') {
-            const transparentPhase = phases.find(p => p.name === 'transparent');
-            if (transparentPhase) {
-                phaseConfig = transparentPhase;
-                currentPhaseName = 'transparent';
-                currentPhaseIndex = 1; // Treat as if we've already done blind
-            }
-        }
-        // Normal: start with first phase (blind)
-        else if (phases.length > 0) {
-            phaseConfig = phases[0];
-            currentPhaseName = phases[0].name || 'blind';
-        }
-    }
 
     return {
         roomId: name, // Store room identifier for database
@@ -129,40 +85,7 @@ function createRoom({ isDecoy = false, name = 'unnamedRoom', config = null, mode
         groupTotalCost: [0],
         currentEnv: 0,
         envChangeTracker: 0,
-        currentScene: null,
-
-        // Networked experiment state
-        network: network,
-        pairingManager: pairingManager,
-        currentPairings: [],           // Current round's pairings: [[p1, p2], ...]
-        isolatedPlayers: [],           // Players with no valid partners
-        ostracismVotes: {},            // { roundNum: { playerId: { partnerId, vote, timestamp } } }
-        cooperationHistory: {},        // { playerId: { partnerId: [choices] } }
-        roundNumber: 0,                // Current round (for networked PD)
-
-        // Round/Turn structure for networked PD
-        // gameRound: which round we're in (0-indexed, e.g., 0, 1, 2 for 3 rounds)
-        // turnWithinRound: which turn within the current round (1-indexed, e.g., 1, 2 for 2 turns)
-        // turnsPerRound: how many turns per round (from config, default 2)
-        // totalGameRounds: total number of rounds (from config, default 3)
-        turnWithinRound: 1,
-        turnsPerRound: config?.game?.horizon || 2,
-        totalGameRounds: config?.game?.total_game_rounds || 3,
-        currentRoundPartner: {},       // { playerId: partnerId } - persists for entire round
-
-        // =================================================================
-        // Two-Phase Experiment State (blind vs transparent conditions)
-        // =================================================================
-        currentPhaseIndex: currentPhaseIndex,
-        currentPhaseName: currentPhaseName,
-        phaseConfig: phaseConfig,
-        phaseStartTrial: 1,            // Trial number when current phase started
-        phasePayoffs: {},              // payoffs[phaseIndex][playerIndex] = cumulative points
-
-        // MFQ (Moral Foundations Questionnaire) scores
-        // Loaded at room formation, used in transparent phase
-        mfqScores: {},                 // mfqScores[subjectId] = { scores: {...}, levels: {...} }
-        mfqDisplayConfig: config?.mfq_scores?.display_categories || null
+        currentScene: null
     };
 }
 

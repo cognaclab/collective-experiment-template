@@ -12,17 +12,9 @@
  * - For individual (n=1): Proceeds immediately
  * - For multiplayer (n>1): Waits for all players before proceeding
  * - Server emits 'start_scene' to instruct client(s) which scene to render next
- *
- * Two-Phase Experiment Support:
- * - Supports experiments with multiple phases (e.g., blind → transparent)
- * - Tracks phase progression via room.currentPhaseIndex
- * - Handles network reset between phases
- * - Routes to ScenePhaseTransition between phases
  */
 
 const logger = require('../utils/logger');
-const NetworkGraph = require('../utils/NetworkGraph');
-const Session = require('../database/models/Session');
 
 /**
  * Scene types that require synchronized ENTRY in multiplayer mode.
@@ -31,14 +23,12 @@ const Session = require('../database/models/Session');
  *
  * Key insight: Sync is based on DESTINATION, not current scene.
  * We sync before entering choice/pairing scenes where players interact.
- * We don't sync before entering results/ostracism where players just view info or vote independently.
+ * We don't sync before entering results where players just view info.
  */
 const SCENES_REQUIRING_SYNCHRONIZED_ENTRY = [
     'game',              // Bandit task - all players start together
     'pd_choice',         // PD choice - all players decide together
-    'choice',            // Generic choice - all players decide together
-    'pairing',           // Partner assignment - all players must be present
-    'phase_transition'   // Phase transition - all players see instruction together
+    'choice'             // Generic choice - all players decide together
 ];
 
 /**
@@ -202,23 +192,6 @@ async function handleSceneComplete(client, data, config, io) {
 
     // Handle room transition from temporary to shared room
     if (isTemporaryRoom && isTransitioningToWaitingRoom) {
-        const formationMode = config.experimentLoader?.gameConfig?.group_formation?.mode;
-
-        if (formationMode === 'live') {
-            const { transitionToFormationQueue } = require('./sessionManager');
-
-            logger.info('Routing player to live formation queue', {
-                oldRoom: client.room,
-                player: client.subjectID,
-                scene: sceneKey,
-                nextScene: nextScene.scene
-            });
-
-            await transitionToFormationQueue(client, config, io);
-            delete config.roomStatus[client.room];
-            return;
-        }
-
         const { transitionToSharedRoom } = require('./sessionManager');
 
         logger.info('Transitioning player from temporary room to shared waiting room', {
@@ -260,24 +233,7 @@ async function handleSceneComplete(client, data, config, io) {
     const currentSceneConfig = sequence.find(s => s.scene === sceneKey);
 
     // Determine the EFFECTIVE next scene (may differ from YAML due to runtime logic)
-    // For example, YAML says Results → Ostracism, but turn loop may redirect to Choice
     let effectiveNextScene = nextScene;
-
-    if (nextScene?.type === 'ostracism' && room.turnsPerRound > 1) {
-        const turnsPerRound = room.turnsPerRound || 2;
-        const turnWithinRound = room.turnWithinRound || 1;
-
-        if (turnWithinRound < turnsPerRound) {
-            // Turn loop will redirect to choice, not ostracism
-            effectiveNextScene = { type: 'choice', scene: 'ScenePDChoice' };
-            logger.debug('Effective next scene adjusted for turn loop', {
-                yamlNext: nextScene?.scene,
-                effectiveNext: 'ScenePDChoice',
-                turnWithinRound,
-                turnsPerRound
-            });
-        }
-    }
 
     // Sync is based on DESTINATION: does the next scene require synchronized entry?
     const nextRequiresSync = effectiveNextScene && SCENES_REQUIRING_SYNCHRONIZED_ENTRY.includes(effectiveNextScene.type);
@@ -387,8 +343,6 @@ async function handleSceneComplete(client, data, config, io) {
     }
 
     // Define result scene types that complete a trial and increment counter
-    // Note: 'results' is NOT included - it's used in networked-pd for mid-round display
-    // and has its own turn-looping logic in the ostracism handler
     const RESULT_SCENE_TYPES = ['feedback', 'pd_results'];
 
     // Handle trial progression - increment AFTER result/feedback scenes
@@ -468,7 +422,7 @@ async function handleSceneComplete(client, data, config, io) {
         // For permanent rooms, recalculate next scene (may differ from earlier check)
         nextScene = getNextScene(sceneKey, sequence, triggerType);
     }
-    // For temporary rooms, nextScene was already set at line 147
+    // For temporary rooms, nextScene was already set earlier
 
     if (!nextScene) {
         logger.info('Experiment completed for room', {
@@ -578,7 +532,7 @@ async function handleSceneComplete(client, data, config, io) {
             exp_condition: room.exp_condition,
             prob_means: prob_means,
             horizon: horizon,
-            taskType: room.taskType  // 'networked_pd', 'static', 'dynamic', etc.
+            taskType: room.taskType
         });
 
         room.parametersInitialized = true;
@@ -602,7 +556,6 @@ async function handleSceneComplete(client, data, config, io) {
             optionOrder: room.optionOrder || [1, 2, 3] // Machine ID order for counterbalancing
         };
     } else if (nextScene.type === 'feedback') {
-        const gameScene = sequence.find(s => s.scene === 'SceneMain');
         const horizon = config.experimentLoader?.gameConfig?.horizon || config.horizon;
 
         sceneData = {
@@ -616,18 +569,13 @@ async function handleSceneComplete(client, data, config, io) {
             mySocialInfo: room.socialInfo?.[currentPointer] || {}
         };
     } else if (nextScene.type === 'pd_choice') {
-        // Prisoner's Dilemma choice scene (simple PD without turns)
+        // Prisoner's Dilemma choice scene (simple PD)
         const horizon = config.experimentLoader.gameConfig.horizon || 3;
         sceneData = {
             trial: room.trial || 1,
             totalTrials: horizon,
             maxChoiceTime: config.experimentLoader.gameConfig.max_choice_time || 10000,
-            showTimer: true,
-            // Explicitly set turnsPerRound=1 for simple PD (no turn structure)
-            turnsPerRound: 1,
-            gameRound: 1,
-            turnWithinRound: room.trial || 1,
-            totalRounds: 1
+            showTimer: true
         };
         logger.debug('Preparing ScenePDChoice sceneData', {
             sceneData: sceneData,
@@ -732,259 +680,6 @@ async function handleSceneComplete(client, data, config, io) {
         }
 
         // Early return - skip default broadcast for pd_results
-        return;
-    } else if (nextScene.type === 'ostracism') {
-        // Check if we need to loop back to choice (more turns in this round)
-        // This implements the round/turn structure: multiple turns with same partner before ostracism
-        const turnsPerRound = room.turnsPerRound || config.experimentLoader?.gameConfig?.horizon || 2;
-        const turnWithinRound = room.turnWithinRound || 1;
-
-        if (turnWithinRound < turnsPerRound) {
-            // Not done with this round yet - loop back to choice scene with same partner
-            room.turnWithinRound = turnWithinRound + 1;
-            room.trial = (room.trial || 1) + 1;
-
-            logger.info('Looping back to choice scene (more turns in round)', {
-                room: client.room,
-                gameRound: room.gameRound,
-                turnWithinRound: room.turnWithinRound,
-                turnsPerRound: turnsPerRound,
-                trial: room.trial,
-                player: client.subjectID
-            });
-
-            // Emit choice scene to ALL players in the room with personalized data
-            for (const [idx, player] of Object.entries(room.membersID)) {
-                if (!player || !player.socketId) continue;
-
-                const playerSocket = io.sockets.sockets.get(player.socketId);
-                if (!playerSocket) continue;
-
-                const playerId = parseInt(idx);
-
-                // Get this player's partner from currentRoundPartner or currentPairings
-                const partnerId = room.currentRoundPartner?.[playerId] ??
-                    (room.currentPairings?.find(([p1, p2]) => p1 === playerId || p2 === playerId)
-                        ?.find(p => p !== playerId));
-                const partner = partnerId !== null && partnerId !== undefined ? room.membersID[partnerId] : null;
-
-                // Build personalized choice scene data
-                const choiceData = {
-                    trial: room.trial,
-                    totalTrials: turnsPerRound * (room.totalGameRounds || 3),
-                    gameRound: (room.gameRound || 0) + 1,
-                    turnWithinRound: room.turnWithinRound,
-                    turnsPerRound: turnsPerRound,
-                    totalRounds: room.totalGameRounds || 3,
-                    maxChoiceTime: config.experimentLoader?.gameConfig?.max_choice_time || 20000,
-                    showTimer: true,
-                    showPartner: true,
-                    partnerId: partnerId,
-                    partnerSubjectId: partner?.subjectId || `Player ${partnerId}`,
-                    avatarId: player.avatarId || null,
-                    partnerAvatarId: partner?.avatarId || null,
-                    // Two-phase experiment data
-                    currentPhaseName: room.currentPhaseName || 'blind',
-                    showMFQScores: room.phaseConfig?.show_mfq_scores || false
-                };
-
-                // Add MFQ scores if in transparent phase
-                if (room.phaseConfig?.show_mfq_scores && room.mfqScores && partner?.subjectId) {
-                    if (room.mfqScores[partner.subjectId]) {
-                        choiceData.partnerMFQScores = room.mfqScores[partner.subjectId];
-                        choiceData.mfqDisplayConfig = room.mfqDisplayConfig || null;
-                    }
-                }
-
-                playerSocket.emit('start_scene', {
-                    scene: 'ScenePDChoice',
-                    sceneConfig: {
-                        scene: 'ScenePDChoice',
-                        type: 'choice',
-                        next: 'ScenePDResults'
-                    },
-                    sceneData: choiceData,
-                    roomId: client.room,
-                    sessionId: player.sessionId,
-                    subjectId: player.subjectId
-                });
-
-                logger.debug('Emitted start_scene for ScenePDChoice to player', {
-                    playerId: playerId,
-                    subjectId: player.subjectId,
-                    partnerId: partnerId
-                });
-            }
-
-            // Track current scene
-            if (config.roomStatus[client.room]) {
-                config.roomStatus[client.room].currentScene = 'ScenePDChoice';
-            }
-
-            return; // Skip ostracism - loop back to choice
-        }
-
-        // All turns complete - proceed to ostracism voting
-        // Ostracism voting scene - emit PERSONALIZED data to TRIGGERING player only
-        // Each player transitions independently when they click Continue on results
-        // Synchronization happens AFTER voting via handleOstracismVote.js
-
-        // Find this player's index in membersID (object keyed by player number)
-        let playerId = -1;
-        for (const [idx, player] of Object.entries(room.membersID)) {
-            if (player && player.subjectId === client.subjectID) {
-                playerId = parseInt(idx);
-                break;
-            }
-        }
-
-        if (playerId === -1) {
-            logger.warn('Player not found in membersID for ostracism', {
-                subjectID: client.subjectID
-            });
-            return;
-        }
-
-        // Helper function to find partner from currentPairings
-        const findPartner = (pId) => {
-            if (!room.currentPairings) return null;
-            for (const [p1, p2] of room.currentPairings) {
-                if (p1 === pId) return p2;
-                if (p2 === pId) return p1;
-            }
-            return null;
-        };
-
-        // Find this player's partner from currentPairings
-        const partnerId = findPartner(playerId);
-        const partner = partnerId !== null ? room.membersID[partnerId] : null;
-
-        // Get cooperation history with this partner
-        const cooperationHistory = room.cooperationHistory?.[playerId]?.[partnerId] || [];
-
-        // Calculate cooperation stats
-        const totalInteractions = cooperationHistory.length;
-        const partnerCooperations = cooperationHistory.filter(c => c === 0).length;
-
-        // Get avatarId for this player
-        const playerMember = room.membersID[playerId];
-
-        const ostracismData = {
-            roundNumber: (room.gameRound || 0) + 1,
-            totalRounds: room.totalGameRounds || config.experimentLoader?.gameConfig?.total_game_rounds || 3,
-            partnerId: partnerId,
-            partnerSubjectId: partner?.subjectId || `Player ${partnerId}`,
-            cooperationHistory: cooperationHistory,
-            cooperationStats: {
-                totalInteractions: totalInteractions,
-                partnerCooperations: partnerCooperations,
-                cooperationRate: totalInteractions > 0 ? Math.round((partnerCooperations / totalInteractions) * 100) : 0
-            },
-            cumulativePayoff: room.cumulativePayoffs?.[playerId] || 0,
-            isIsolated: room.network?.isIsolated?.(playerId) || false,
-            avatarId: playerMember?.avatarId || null,
-            partnerAvatarId: partner?.avatarId || null
-        };
-
-        // Emit ONLY to the triggering client (not all players)
-        client.emit('start_scene', {
-            scene: nextScene.scene,
-            sceneConfig: nextScene,
-            sceneData: ostracismData,
-            roomId: client.room,
-            sessionId: client.sessionId,
-            subjectId: client.subjectID
-        });
-
-        logger.info('Emitted ostracism scene to triggering player only', {
-            playerId: playerId,
-            partnerId: partnerId,
-            subjectID: client.subjectID,
-            totalInteractions: totalInteractions,
-            partnerCooperations: partnerCooperations
-        });
-
-        // Track current scene in room state
-        if (config.roomStatus[client.room]) {
-            config.roomStatus[client.room].currentScene = nextScene.scene;
-        }
-
-        // Early return - skip default broadcast for ostracism
-        return;
-    } else if (nextScene.type === 'network_update') {
-        // Network update scene - emit personalized network state to triggering player only
-        // Each player calls scene_complete independently after ostracism voting
-
-        // Find triggering player's ID
-        let playerId = -1;
-        for (const [idx, player] of Object.entries(room.membersID)) {
-            if (player && player.subjectId === client.subjectID) {
-                playerId = parseInt(idx);
-                break;
-            }
-        }
-
-        if (playerId === -1) {
-            logger.warn('Player not found in membersID for network_update', {
-                subjectID: client.subjectID
-            });
-            return;
-        }
-
-        // Get network state data
-        const networkData = room.network ? room.network.serialize() : {};
-
-        // Get player-specific status
-        const playerConnections = room.network ? room.network.getDegree(playerId) : 0;
-        const availablePartners = room.network ? room.network.getValidPartners(playerId) : [];
-        const isIsolated = room.network ? room.network.isIsolated(playerId) : false;
-
-        // Get edges removed this round from lastOstracismResults
-        const lastOstracismResults = room.lastOstracismResults || {};
-        const edgesRemovedThisRound = lastOstracismResults.edgesRemoved || [];
-
-        // Get newly isolated players count (anonymous - no identifiable info)
-        const newlyIsolated = lastOstracismResults.newlyIsolated || [];
-
-        // Build ANONYMOUS network update data
-        // Do NOT reveal which specific connections were broken or by whom
-        const networkUpdateData = {
-            roundNumber: (room.gameRound || 0) + 1,
-            totalRounds: room.totalGameRounds || config.experimentLoader?.gameConfig?.total_game_rounds || 3,
-            edgesRemoved: edgesRemovedThisRound.length,
-            totalEdgesRemaining: networkData.totalEdges || 0,
-            networkDensity: networkData.density || 0,
-            playerStatus: {
-                currentConnections: playerConnections,
-                isIsolated: isIsolated
-            },
-            isolatedCount: newlyIsolated.length
-        };
-
-        // Emit to triggering player only
-        client.emit('start_scene', {
-            scene: nextScene.scene,
-            sceneConfig: nextScene,
-            sceneData: networkUpdateData,
-            roomId: client.room,
-            sessionId: client.sessionId,
-            subjectId: client.subjectID
-        });
-
-        logger.info('Emitted network_update to player', {
-            playerId: playerId,
-            subjectID: client.subjectID,
-            edgesRemoved: edgesRemovedThisRound.length,
-            playerConnections: playerConnections,
-            isIsolated: isIsolated
-        });
-
-        // Track current scene in room state
-        if (config.roomStatus[client.room]) {
-            config.roomStatus[client.room].currentScene = nextScene.scene;
-        }
-
-        // Early return - skip default broadcast for network_update
         return;
     } else if (nextScene.type === 'round_summary') {
         // Round summary scene - emit PERSONALIZED trial history for current round to each player
@@ -1437,13 +1132,7 @@ async function handleSceneComplete(client, data, config, io) {
         if (paymentCalculator) {
             // Create a temporary client object with cumulative points
             const tempClient = {
-                waitingBonus: 0 // TODO: Track waiting bonus per client
-            };
-
-            // Create a temporary room object with total points
-            const tempRoom = {
-                totalPayoff_perIndiv: [totalPointsAllRounds],
-                n: room.n
+                waitingBonus: 0
             };
 
             try {
@@ -1471,7 +1160,7 @@ async function handleSceneComplete(client, data, config, io) {
             horizon: horizon,
             n: room.n,
             prob_means: prob_means_summary,
-            payment: paymentData // Add payment data to scene data
+            payment: paymentData
         };
 
         logger.info('Preparing questionnaire with summary data', {
@@ -1528,521 +1217,6 @@ async function handleSceneComplete(client, data, config, io) {
             maxPlayers: maxGroupSize,
             roomReady: sceneData.roomReady
         });
-    } else if (currentSceneConfig?.type === 'phase_transition') {
-        // Phase transition scene completed - proceed to pairing for new phase
-        // Override nextScene to go to pairing (which was set in sceneConfig.next)
-        logger.info('Phase transition complete, proceeding to pairing for new phase', {
-            room: client.room,
-            currentPhaseName: room.currentPhaseName,
-            currentPhaseIndex: room.currentPhaseIndex,
-            gameRound: room.gameRound
-        });
-
-        // Find the pairing scene in sequence
-        const pairingScene = sequence.find(s => s.type === 'pairing');
-        if (pairingScene) {
-            nextScene = pairingScene;
-        }
-        // Fall through to pairing handler below
-    }
-
-    if (nextScene.type === 'pairing') {
-        // Server-initiated pairing for networked experiments
-        // Generate pairings ONCE here instead of each client requesting them
-        const { generatePairingsForRoom } = require('./handlePairingStart');
-
-        // Handle round progression when coming from network_update scene
-        // This implements the round loop: after each round's ostracism/network update,
-        // increment gameRound and check if all rounds are complete
-        if (currentSceneConfig?.type === 'network_update') {
-            // Increment game round after network update (end of round)
-            room.gameRound = (room.gameRound || 0) + 1;
-            room.turnWithinRound = 1;  // Reset turn counter for new round
-            room.currentRoundPartner = {};  // Clear partner assignments
-
-            const totalGameRounds = room.totalGameRounds || config.experimentLoader?.gameConfig?.total_game_rounds || 3;
-
-            logger.info('Round progression after network_update', {
-                room: client.room,
-                newGameRound: room.gameRound,
-                totalGameRounds: totalGameRounds,
-                turnWithinRound: room.turnWithinRound
-            });
-
-            // Check if all rounds in this PHASE are complete
-            if (room.gameRound >= totalGameRounds) {
-                // Phase complete - check if more phases remain
-                const experimentPhasesConfig = room.experimentConfig?.experiment_phases;
-                const phases = experimentPhasesConfig?.phases || [];
-                const currentPhaseIndex = room.currentPhaseIndex || 0;
-
-                // Store phase payoffs before potentially transitioning
-                if (!room.phasePayoffs) {
-                    room.phasePayoffs = {};
-                }
-                room.phasePayoffs[currentPhaseIndex] = { ...room.cumulativePayoffs };
-
-                logger.info('Phase rounds complete, checking for more phases', {
-                    room: client.room,
-                    currentPhaseIndex,
-                    currentPhaseName: room.currentPhaseName,
-                    completedRounds: room.gameRound,
-                    totalPhasesConfigured: phases.length
-                });
-
-                // Check if there are more phases to run
-                if (experimentPhasesConfig?.enabled && currentPhaseIndex < phases.length - 1) {
-                    // Transition to next phase
-                    const nextPhaseIndex = currentPhaseIndex + 1;
-                    const nextPhase = phases[nextPhaseIndex];
-
-                    logger.info('Transitioning to next experiment phase', {
-                        room: client.room,
-                        fromPhase: room.currentPhaseName,
-                        toPhase: nextPhase.name,
-                        nextPhaseIndex,
-                        showMFQScores: nextPhase.show_mfq_scores
-                    });
-
-                    // Update room state for new phase
-                    room.currentPhaseIndex = nextPhaseIndex;
-                    room.currentPhaseName = nextPhase.name;
-                    room.phaseConfig = nextPhase;
-                    room.phaseStartTrial = room.trial || 1;
-
-                    // Reset round/turn counters for new phase
-                    room.gameRound = 0;
-                    room.turnWithinRound = 1;
-                    room.currentRoundPartner = {};
-
-                    // Reset network for new phase (full reset to complete topology)
-                    const networkConfig = room.experimentConfig?.network;
-                    const initialTopology = networkConfig?.initial_topology || 'complete';
-                    room.network = new NetworkGraph(room.n, initialTopology);
-                    room.currentPairings = [];
-                    room.lastOstracismResults = {};
-                    room.cooperationHistory = {};
-
-                    // Update totalGameRounds for new phase (may differ per phase)
-                    const phaseRounds = nextPhase.rounds || config.experimentLoader?.gameConfig?.total_game_rounds || 3;
-                    room.totalGameRounds = phaseRounds;
-
-                    logger.info('Network and game state reset for new phase', {
-                        room: client.room,
-                        newPhaseName: nextPhase.name,
-                        phaseRounds,
-                        networkTopology: initialTopology
-                    });
-
-                    // Navigate all players to phase transition scene
-                    const sockets = await io.in(client.room).fetchSockets();
-
-                    for (const playerSocket of sockets) {
-                        // Find player's index
-                        let playerIdx = -1;
-                        for (const [idx, player] of Object.entries(room.membersID)) {
-                            if (player && player.subjectId === playerSocket.subjectID) {
-                                playerIdx = parseInt(idx);
-                                break;
-                            }
-                        }
-
-                        const playerMember = playerIdx >= 0 ? room.membersID[playerIdx] : null;
-                        const playerPoints = room.phasePayoffs[currentPhaseIndex]?.[playerIdx] || 0;
-
-                        // Prepare data for phase transition scene
-                        const phaseTransitionData = {
-                            completedPhaseName: room.phasePayoffs[currentPhaseIndex] ? phases[currentPhaseIndex].display_name : 'Part 1',
-                            completedPhaseIndex: currentPhaseIndex,
-                            nextPhaseName: nextPhase.display_name || nextPhase.name,
-                            nextPhaseIndex,
-                            showMFQScoresInNextPhase: nextPhase.show_mfq_scores || false,
-                            phasePoints: playerPoints,
-                            avatarId: playerMember?.avatarId || null,
-                            mfqDisplayConfig: room.mfqDisplayConfig || null,
-                            totalPhases: phases.length
-                        };
-
-                        playerSocket.emit('start_scene', {
-                            scene: 'ScenePhaseTransition',
-                            sceneConfig: {
-                                scene: 'ScenePhaseTransition',
-                                type: 'phase_transition',
-                                next: 'ScenePDPairing'
-                            },
-                            sceneData: phaseTransitionData,
-                            roomId: client.room,
-                            sessionId: playerSocket.sessionId,
-                            subjectId: playerSocket.subjectID
-                        });
-                    }
-
-                    if (config.roomStatus[client.room]) {
-                        config.roomStatus[client.room].currentScene = 'ScenePhaseTransition';
-                    }
-
-                    return; // Skip pairing - transitioning to new phase
-                }
-
-                // No more phases - all phases complete, go to questionnaire
-                const questionnaireScene = sequence.find(s => s.type === 'questionnaire');
-
-                if (questionnaireScene) {
-                    logger.info('All phases complete, transitioning to questionnaire', {
-                        room: client.room,
-                        completedPhases: currentPhaseIndex + 1,
-                        totalPhases: phases.length || 1,
-                        completedRounds: room.gameRound,
-                        totalGameRounds: totalGameRounds
-                    });
-
-                    // Emit personalized questionnaire data to each player
-                    const sockets = await io.in(client.room).fetchSockets();
-                    const paymentCalculator = config.experimentLoader?.paymentCalculator;
-
-                    for (const playerSocket of sockets) {
-                        // Find player's index
-                        let playerIdx = -1;
-                        for (const [idx, player] of Object.entries(room.membersID)) {
-                            if (player && player.subjectId === playerSocket.subjectID) {
-                                playerIdx = parseInt(idx);
-                                break;
-                            }
-                        }
-
-                        // Get player's cumulative payoff (sum across all phases)
-                        let totalPoints = room.cumulativePayoffs?.[playerIdx] || 0;
-
-                        // If we have phase payoffs, sum them for total
-                        if (room.phasePayoffs && Object.keys(room.phasePayoffs).length > 0) {
-                            totalPoints = 0;
-                            for (const phaseIdx in room.phasePayoffs) {
-                                totalPoints += room.phasePayoffs[phaseIdx]?.[playerIdx] || 0;
-                            }
-                        }
-
-                        // Build round breakdown from all phases
-                        const roundBreakdown = [];
-                        const allPhaseRounds = phases.length > 0 ? phases : [{ rounds: totalGameRounds }];
-                        let roundCounter = 0;
-
-                        for (let phaseIdx = 0; phaseIdx < allPhaseRounds.length; phaseIdx++) {
-                            const phaseRoundCount = allPhaseRounds[phaseIdx].rounds || totalGameRounds;
-                            for (let r = 0; r < phaseRoundCount; r++) {
-                                roundBreakdown.push({
-                                    round: roundCounter + 1,
-                                    phase: phaseIdx,
-                                    phaseName: allPhaseRounds[phaseIdx].display_name || `Phase ${phaseIdx + 1}`,
-                                    points: room.payoffsByRound?.[roundCounter]?.[playerIdx] || 0
-                                });
-                                roundCounter++;
-                            }
-                        }
-
-                        // Get waiting bonus from socket
-                        const waitingBonus = playerSocket.waitingBonus || 0;
-
-                        // Calculate payment
-                        let paymentData = null;
-                        if (paymentCalculator) {
-                            try {
-                                paymentData = paymentCalculator.calculateSessionPayment(
-                                    totalPoints,
-                                    waitingBonus,
-                                    true // completed
-                                );
-                            } catch (error) {
-                                logger.error('Failed to calculate payment', { error: error.message });
-                            }
-                        }
-
-                        logger.info('Sending questionnaire data to player', {
-                            subjectID: playerSocket.subjectID,
-                            playerIdx,
-                            points: totalPoints,
-                            roundBreakdown,
-                            waitingBonus,
-                            payment: paymentData?.formatted
-                        });
-
-                        // Persist phase data and performance to Session record
-                        try {
-                            // Build phase points map from phasePayoffs
-                            const phasePointsMap = {};
-                            if (room.phasePayoffs && phases.length > 0) {
-                                for (let pIdx = 0; pIdx < phases.length; pIdx++) {
-                                    const phaseName = phases[pIdx].name;
-                                    phasePointsMap[phaseName] = room.phasePayoffs[pIdx]?.[playerIdx] || 0;
-                                }
-                            }
-
-                            await Session.findOneAndUpdate(
-                                { sessionId: playerSocket.sessionId },
-                                {
-                                    $set: {
-                                        'performance.totalPoints': totalPoints,
-                                        'performance.totalPayoff': paymentData?.amount || 0,
-                                        'performance.waitingBonus': waitingBonus,
-                                        'performance.phasePoints': phasePointsMap,
-                                        'phaseData.enabled': phases.length > 1,
-                                        'phaseData.phasesCompleted': phases.length,
-                                        'phaseData.totalPhases': phases.length,
-                                        'phaseData.phaseOrder': phases.map(p => p.name),
-                                        'phaseData.currentPhase': phases[phases.length - 1]?.name || 'unknown'
-                                    }
-                                }
-                            );
-                            logger.info('Updated Session with phase performance data', {
-                                sessionId: playerSocket.sessionId,
-                                totalPoints,
-                                phasePoints: phasePointsMap
-                            });
-                        } catch (sessionError) {
-                            logger.error('Failed to update Session with phase data', {
-                                sessionId: playerSocket.sessionId,
-                                error: sessionError.message
-                            });
-                        }
-
-                        // Get player's avatarId
-                        const playerMember = playerIdx >= 0 ? room.membersID[playerIdx] : null;
-
-                        playerSocket.emit('start_scene', {
-                            scene: questionnaireScene.scene,
-                            sceneConfig: questionnaireScene,
-                            sceneData: {
-                                gameRound: room.gameRound,
-                                totalRounds: totalGameRounds,
-                                experimentComplete: true,
-                                totalPointsAllRounds: totalPoints,
-                                roundBreakdown: roundBreakdown,
-                                payment: paymentData,
-                                avatarId: playerMember?.avatarId || null,
-                                phasePayoffs: room.phasePayoffs
-                            },
-                            roomId: client.room,
-                            sessionId: playerSocket.sessionId,
-                            subjectId: playerSocket.subjectID
-                        });
-                    }
-
-                    if (config.roomStatus[client.room]) {
-                        config.roomStatus[client.room].currentScene = questionnaireScene.scene;
-                    }
-
-                    return; // Skip pairing - experiment complete
-                }
-            }
-        }
-
-        const roundNumber = room.gameRound !== undefined ? room.gameRound + 1 : (nextScene.params?.roundNumber || 1);
-        const totalRounds = room.totalGameRounds || nextScene.params?.totalRounds || 3;
-
-        logger.info('Server-initiated pairing generation', {
-            room: client.room,
-            roundNumber,
-            totalRounds,
-            playerCount: room.n
-        });
-
-        // Generate pairings (without emitting events - we'll send data with start_scene)
-        const pairingResult = await generatePairingsForRoom(room, roundNumber, null);
-
-        if (!pairingResult.success) {
-            if (pairingResult.alreadyProcessed) {
-                logger.debug('Pairing already processed for this round', {
-                    room: client.room,
-                    roundNumber
-                });
-            } else {
-                logger.error('Failed to generate pairings', {
-                    room: client.room,
-                    roundNumber,
-                    error: pairingResult.error
-                });
-                io.to(client.room).emit('error', {
-                    message: 'Failed to generate pairings',
-                    details: pairingResult.error
-                });
-                return;
-            }
-        }
-
-        // Get all sockets in room for personalized emission
-        const sockets = await io.in(client.room).fetchSockets();
-
-        logger.info('Emitting personalized pairing data to each player', {
-            room: client.room,
-            roundNumber,
-            playerCount: sockets.length,
-            pairsGenerated: pairingResult.pairs?.length || 0
-        });
-
-        // Emit personalized pairing data to EACH player individually
-        for (const playerSocket of sockets) {
-            // Find this player's index (0-indexed in membersID, supports both string and object formats)
-            const playerIndex = findPlayerIndex(room.membersID, playerSocket.subjectID);
-
-            if (playerIndex === -1) {
-                logger.warn('Player not found in membersID for pairing', {
-                    subjectID: playerSocket.subjectID,
-                    membersID: room.membersID.map(m => m?.subjectId || m)
-                });
-                continue;
-            }
-
-            // Get this player's pairing data
-            const playerPairingData = pairingResult.playerPairings?.[playerIndex] || {
-                roundNumber,
-                isUnpaired: true,
-                reason: 'No pairing data found'
-            };
-
-            // Build personalized sceneData for THIS player
-            const turnsPerRound = room.turnsPerRound || config.experimentLoader?.gameConfig?.horizon || 2;
-            const playerMember = room.membersID[playerIndex];
-            const partnerIndex = playerPairingData?.partnerId;
-            const partnerMember = partnerIndex !== null && partnerIndex !== undefined ? room.membersID[partnerIndex] : null;
-
-            const personalizedSceneData = {
-                roundNumber,
-                totalRounds,
-                turnsPerRound,
-                pairingData: playerPairingData,
-                avatarId: playerMember?.avatarId || null,
-                partnerAvatarId: partnerMember?.avatarId || null,
-                // Two-phase experiment data
-                currentPhaseName: room.currentPhaseName || 'blind',
-                currentPhaseIndex: room.currentPhaseIndex || 0,
-                showMFQScores: room.phaseConfig?.show_mfq_scores || false
-            };
-
-            // Add MFQ scores if in transparent phase and scores should be shown
-            if (room.phaseConfig?.show_mfq_scores && room.mfqScores) {
-                const partnerSubjectId = partnerMember?.subjectId;
-                if (partnerSubjectId && room.mfqScores[partnerSubjectId]) {
-                    personalizedSceneData.partnerMFQScores = room.mfqScores[partnerSubjectId];
-                    personalizedSceneData.mfqDisplayConfig = room.mfqDisplayConfig || null;
-
-                    logger.debug('Including MFQ scores in pairing data', {
-                        subjectID: playerSocket.subjectID,
-                        partnerSubjectId,
-                        hasScores: !!room.mfqScores[partnerSubjectId]
-                    });
-                }
-            }
-
-            // Emit to THIS player only
-            playerSocket.emit('start_scene', {
-                scene: nextScene.scene,
-                sceneConfig: nextScene,
-                sceneData: personalizedSceneData,
-                roomId: client.room,
-                sessionId: playerSocket.sessionId,
-                subjectId: playerSocket.subjectID
-            });
-
-            logger.debug('Emitted pairing data to player', {
-                subjectID: playerSocket.subjectID,
-                playerIndex,
-                hasPairing: !playerPairingData.isIsolated && !playerPairingData.isUnpaired,
-                partnerId: playerPairingData.partnerId
-            });
-        }
-
-        // Track current scene in room state
-        if (config.roomStatus[client.room]) {
-            config.roomStatus[client.room].currentScene = nextScene.scene;
-        }
-
-        // Early return - skip default broadcast for pairing scene
-        return;
-    }
-
-    // Handle pairing scene completing -> choice scene (first turn of round)
-    // This provides personalized data with avatars and MFQ scores
-    if (currentSceneConfig?.type === 'pairing' && nextScene.type === 'choice') {
-        const turnsPerRound = room.turnsPerRound || config.experimentLoader?.gameConfig?.horizon || 2;
-
-        logger.info('Pairing scene complete, transitioning to first choice of round', {
-            room: client.room,
-            gameRound: room.gameRound,
-            turnWithinRound: room.turnWithinRound || 1,
-            turnsPerRound: turnsPerRound
-        });
-
-        // Initialize turn counter if not already set
-        if (!room.turnWithinRound) {
-            room.turnWithinRound = 1;
-        }
-
-        // Emit choice scene to ALL players in the room with personalized data
-        for (const [idx, player] of Object.entries(room.membersID)) {
-            if (!player || !player.socketId) continue;
-
-            const playerSocket = io.sockets.sockets.get(player.socketId);
-            if (!playerSocket) continue;
-
-            const playerId = parseInt(idx);
-
-            // Get this player's partner from currentRoundPartner or currentPairings
-            const partnerId = room.currentRoundPartner?.[playerId] ??
-                (room.currentPairings?.find(([p1, p2]) => p1 === playerId || p2 === playerId)
-                    ?.find(p => p !== playerId));
-            const partner = partnerId !== null && partnerId !== undefined ? room.membersID[partnerId] : null;
-
-            // Build personalized choice scene data (same structure as turn loop)
-            const choiceData = {
-                trial: room.trial || 1,
-                totalTrials: turnsPerRound * (room.totalGameRounds || 3),
-                gameRound: (room.gameRound || 0) + 1,
-                turnWithinRound: room.turnWithinRound,
-                turnsPerRound: turnsPerRound,
-                totalRounds: room.totalGameRounds || 3,
-                maxChoiceTime: config.experimentLoader?.gameConfig?.max_choice_time || 20000,
-                showTimer: true,
-                showPartner: true,
-                partnerId: partnerId,
-                partnerSubjectId: partner?.subjectId || `Player ${partnerId}`,
-                avatarId: player.avatarId || null,
-                partnerAvatarId: partner?.avatarId || null,
-                // Two-phase experiment data
-                currentPhaseName: room.currentPhaseName || 'blind',
-                showMFQScores: room.phaseConfig?.show_mfq_scores || false
-            };
-
-            // Add MFQ scores if in transparent phase
-            if (room.phaseConfig?.show_mfq_scores && room.mfqScores && partner?.subjectId) {
-                if (room.mfqScores[partner.subjectId]) {
-                    choiceData.partnerMFQScores = room.mfqScores[partner.subjectId];
-                    choiceData.mfqDisplayConfig = room.mfqDisplayConfig || null;
-                }
-            }
-
-            playerSocket.emit('start_scene', {
-                scene: nextScene.scene,
-                sceneConfig: nextScene,
-                sceneData: choiceData,
-                roomId: client.room,
-                sessionId: player.sessionId,
-                subjectId: player.subjectId
-            });
-
-            logger.debug('Emitted first turn choice data to player', {
-                playerId: playerId,
-                subjectId: player.subjectId,
-                partnerId: partnerId,
-                avatarId: player.avatarId,
-                partnerAvatarId: partner?.avatarId
-            });
-        }
-
-        // Track current scene
-        if (config.roomStatus[client.room]) {
-            config.roomStatus[client.room].currentScene = nextScene.scene;
-        }
-
-        return; // Skip default broadcast
     }
 
     // Broadcast next scene to all players in room

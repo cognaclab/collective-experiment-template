@@ -8,7 +8,6 @@
 
 const { buildSessionData } = require('../utils/dataBuilders');
 const Session = require('../database/models/Session');
-const ParticipantClassification = require('../database/models/ParticipantClassification');
 const logger = require('../utils/logger');
 
 function onConnectioncConfig({ config, client, io }) {
@@ -24,35 +23,6 @@ function onConnectioncConfig({ config, client, io }) {
     // Capture waiting bonus from client (accumulated during waiting room)
     const waitingBonusParam = client.request?._query.bonus_for_waiting;
     client.waitingBonus = waitingBonusParam ? parseInt(waitingBonusParam, 10) || 0 : 0;
-
-    // Async lookup of participant classification (non-blocking)
-    if (client.subjectID && config.groupFormationService) {
-        ParticipantClassification.findOne({ subjectId: client.subjectID })
-            .then(classification => {
-                if (classification) {
-                    client.classification = {
-                        moralType: classification.moralType,
-                        bindingIndex: classification.bindingIndex,
-                        bindingScore: classification.bindingScore,
-                        individualizingScore: classification.individualizingScore
-                    };
-                    logger.info('Classification loaded for participant', {
-                        subjectId: client.subjectID,
-                        moralType: classification.moralType
-                    });
-                } else {
-                    logger.warn('No classification found for participant', {
-                        subjectId: client.subjectID
-                    });
-                }
-            })
-            .catch(err => {
-                logger.error('Failed to load classification', {
-                    subjectId: client.subjectID,
-                    error: err.message
-                });
-            });
-    }
 
     // check sessionName already assigned
 	const incomingSessionName = client.request?._query.sessionName;

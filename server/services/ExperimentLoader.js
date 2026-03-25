@@ -311,7 +311,7 @@ class ExperimentLoader {
             // Environments (legacy bandit probabilities - kept for backward compatibility)
             environments: this.config.environments,
 
-            // Network configuration (for networked experiments like PD with ostracism)
+            // Network configuration (for networked experiments)
             network: this.config.network || null,
             pairing: this.config.pairing || null,
 
@@ -323,15 +323,6 @@ class ExperimentLoader {
                 flat_fee: 2.0,
                 completion_fee: 0
             },
-
-            // Group formation (live dynamic sorting by moral type)
-            group_formation: this.config.group_formation || null,
-
-            // MFQ scores configuration (for two-phase experiments with moral foundations data)
-            mfq_scores: this.config.mfq_scores || null,
-
-            // Experiment phases (e.g., blind then transparent)
-            experiment_phases: this.config.experiment_phases || null,
 
             // Debug settings
             debug_exceptions: this.config.debug?.subject_exceptions || []

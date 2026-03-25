@@ -46,11 +46,6 @@ const { handleNewGameRoundReady } = require('../socket/handleNewGameRoundReady')
 const { handleDisconnect } = require('../socket/handleDisconnect');
 const handleSceneComplete = require('../socket/handleSceneComplete');
 
-// Networked PD handlers
-const { handlePairingStart } = require('../socket/handlePairingStart');
-const handleNetworkedPDChoice = require('../socket/handleNetworkedPDChoice');
-const handleOstracismVote = require('../socket/handleOstracismVote');
-
 // Session management utilities
 const { countDown, startSession, reformNewGroups } = require('../socket/sessionManager');
 const { emitParameters } = require('../socket/paramEmitters');
@@ -233,10 +228,6 @@ const roomCreationConfig = {
 	pairing: loadedConfig?.pairing,
 	// Reward system config for payoff calculation (PD matrix, probabilistic, etc.)
 	reward_system: loadedConfig?.reward_system,
-	// Two-phase experiment structure (blind → transparent)
-	experiment_phases: loadedConfig?.experiment_phases,
-	// MFQ score display configuration (categories, thresholds)
-	mfq_scores: loadedConfig?.mfq_scores,
 	// Game settings needed by roomFactory for round/turn structure
 	game: loadedConfig?.game
 };
@@ -301,101 +292,6 @@ const gameConfig = {
 	// Add experiment name for database tracking
 	experimentName: experimentLoader ? experimentLoader.getMetadata().name : 'unknown'
 };
-
-// ==========================================
-// Initialize GroupFormationService (if live mode configured)
-// ==========================================
-if (loadedConfig?.group_formation?.mode === 'live') {
-	const GroupFormationService = require('../services/GroupFormationService');
-	const MFQScoreLoader = require('../services/MFQScoreLoader');
-	const { assignAvatar } = require('../socket/sessionManager');
-
-	const gfConfig = loadedConfig.group_formation;
-	const compositionTargets = (gfConfig.composition_targets || []).map(t => ({
-		type: t.type,
-		b: t.binding,
-		i: t.individualizing
-	}));
-
-	const gfs = new GroupFormationService({
-		groupSize: gfConfig.group_size || 8,
-		allowIntermediates: gfConfig.allow_intermediates || false,
-		timeout: gfConfig.timeout || 300000,
-		experimentName: gameConfig.experimentName,
-		compositionTargets: compositionTargets.length > 0 ? compositionTargets : undefined
-	});
-
-	gfs.onGroupFormed = async (compositionType, members) => {
-		const roomName = makeid(8) + '_' + compositionType;
-
-		const room = createRoom({
-			name: roomName,
-			mode: 'group',
-			expCondition: loadedConfig.exp_condition || 'baseline',
-			config: roomCreationConfig
-		});
-
-		roomStatus[roomName] = room;
-		room.n = members.length;
-		room.compositionType = compositionType;
-
-		// Load MFQ scores for all members
-		const subjectIds = members.map(m => m.subjectId);
-		const mfqScoreLoader = new MFQScoreLoader(
-			loadedConfig?.mfq_scores || {}
-		);
-		const mfqScores = await mfqScoreLoader.loadScoresForSubjects(subjectIds);
-		room.mfqScores = mfqScores;
-
-		// Move all members into the room and build membersID with full metadata
-		members.forEach((member, idx) => {
-			const socket = member.socket;
-			socket.leave(socket.room);
-			socket.join(roomName);
-			socket.room = roomName;
-			socket.subjectNumber = idx + 1;
-			room.subjectNumbers = room.subjectNumbers || [];
-			room.subjectNumbers.push(idx + 1);
-
-			const avatarId = assignAvatar(socket, room);
-
-			room.membersID.push({
-				socketId: socket.id,
-				subjectId: member.subjectId,
-				sessionId: socket.sessionId,
-				subjectNumber: idx + 1,
-				avatarId: avatarId
-			});
-		});
-
-		logger.important('Group formed via GroupFormationService', {
-			roomName,
-			compositionType,
-			members: subjectIds
-		});
-
-		// Notify all members — clients will emit scene_complete to trigger
-		// server-driven transition to the next scene (e.g., ScenePDPairing)
-		members.forEach(member => {
-			member.socket.emit('group_formed', {
-				roomId: roomName,
-				compositionType,
-				groupSize: members.length,
-				subjectNumber: member.socket.subjectNumber,
-				avatarId: member.socket.avatarId
-			});
-		});
-	};
-
-	gameConfig.groupFormationService = gfs;
-
-	logger.important('GroupFormationService initialized', {
-		mode: 'live',
-		groupSize: gfs.groupSize,
-		allowIntermediates: gfs.allowIntermediates,
-		compositionTargets: gfs.compositionTargets.map(t => t.type)
-	});
-}
 
 /**
  * Socket.IO Connection Handlers
@@ -486,24 +382,6 @@ io.on('connection', function (client) {
 	// Server coordinates across all players and instructs which scene to start next
 	client.on('scene_complete', function (data) {
 		handleSceneComplete(client, data, gameConfig, io);
-	});
-
-	// ===== Event Handler: 'pairing_start' (Networked PD) =====
-	client.on('pairing_start', function (data) {
-		handlePairingStart(data, client, io, roomStatus);
-	});
-
-	// ===== Event Handler: 'networked_pd_choice' (Networked PD) =====
-	client.on('networked_pd_choice', function (data) {
-		if (!firstTrialStartingTimeRef[client.room]) {
-			firstTrialStartingTimeRef[client.room] = new Date();
-		}
-		handleNetworkedPDChoice(data, client, io, roomStatus);
-	});
-
-	// ===== Event Handler: 'ostracism_vote' (Networked PD) =====
-	client.on('ostracism_vote', function (data) {
-		handleOstracismVote(data, client, io, roomStatus);
 	});
 
 	// ===== Event Handler: 'disconnect' =====

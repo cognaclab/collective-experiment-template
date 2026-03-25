@@ -3,7 +3,6 @@
 
 const { makeid } = require('../utils/helpers');
 const { createRoom } = require('../utils/roomFactory');
-const MFQScoreLoader = require('../services/MFQScoreLoader');
 
 // Available avatar colors for assignment (when assign_avatars is enabled)
 const AVATAR_POOL = ['blue', 'green', 'orange', 'pink', 'purple', 'red', 'teal', 'yellow', 'magenta'];
@@ -167,13 +166,13 @@ function reformNewGroups (room, config, io, countDownWaiting, this_n) {
 	config.roomStatus[newRoomName_2] = createRoom({ name: newRoomName_2, config });
 	config.roomStatus[newRoomName_3] = createRoom({ name: newRoomName_3, config });
 	// to avoid new participants arriving
-	config.roomStatus[newRoomName_1]['starting'] = 1; 
+	config.roomStatus[newRoomName_1]['starting'] = 1;
 	config.roomStatus[newRoomName_2]['starting'] = 1;
 	config.roomStatus[newRoomName_3]['starting'] = 1;
 
 	// assigning clients to new rooms
 	io.to(room).emit('these are new rooms', {newRoomName_1,newRoomName_2,newRoomName_3});
-	
+
 }
 
 function findAvailableGroupRoom(config, maxGroupSize) {
@@ -207,10 +206,6 @@ async function transitionToSharedRoom(client, config, io) {
     // Check if avatars should be assigned
     const shouldAssignAvatars = config.experimentLoader?.gameConfig?.assign_avatars === true;
 
-    // Check if MFQ scores should be loaded (for two-phase experiments)
-    const mfqConfig = config.experimentLoader?.gameConfig?.mfq_scores;
-    const shouldLoadMFQ = mfqConfig && config.experimentLoader?.gameConfig?.experiment_phases?.enabled;
-
     if (availableRoomInfo) {
         newRoomName = availableRoomInfo.name;
         newRoom = availableRoomInfo.room;
@@ -236,20 +231,6 @@ async function transitionToSharedRoom(client, config, io) {
 
         if (avatarId) {
             console.log(`Assigned avatar '${avatarId}' to player ${client.subjectID}`);
-        }
-
-        if (shouldLoadMFQ) {
-            try {
-                const loader = new MFQScoreLoader(mfqConfig);
-                const scores = await loader.getScores(client.subjectID);
-                if (scores) {
-                    if (!newRoom.mfqScores) newRoom.mfqScores = {};
-                    newRoom.mfqScores[client.subjectID] = scores;
-                    console.log(`Loaded MFQ scores for player ${client.subjectID}`);
-                }
-            } catch (error) {
-                console.warn(`Failed to load MFQ scores for ${client.subjectID}:`, error.message);
-            }
         }
 
         console.log(`Player ${client.subjectID} transitioned from temp room ${client.room} to shared room ${newRoomName} (${newRoom.n}/${maxGroupSize})`);
@@ -315,20 +296,6 @@ async function transitionToSharedRoom(client, config, io) {
             console.log(`Assigned avatar '${avatarId}' to player ${client.subjectID}`);
         }
 
-        if (shouldLoadMFQ) {
-            try {
-                const loader = new MFQScoreLoader(mfqConfig);
-                const scores = await loader.getScores(client.subjectID);
-                if (scores) {
-                    if (!newRoom.mfqScores) newRoom.mfqScores = {};
-                    newRoom.mfqScores[client.subjectID] = scores;
-                    console.log(`Loaded MFQ scores for player ${client.subjectID}`);
-                }
-            } catch (error) {
-                console.warn(`Failed to load MFQ scores for ${client.subjectID}:`, error.message);
-            }
-        }
-
         console.log(`Player ${client.subjectID} transitioned from temp room ${client.room} to new shared room ${newRoomName} (1/${maxGroupSize})`);
     }
 
@@ -341,55 +308,4 @@ async function transitionToSharedRoom(client, config, io) {
     return { roomName: newRoomName, room: newRoom };
 }
 
-
-/**
- * Transition a player from their temporary instruction room into the formation queue.
- * Called when group_formation.mode === 'live' instead of transitionToSharedRoom().
- */
-async function transitionToFormationQueue(client, config, io) {
-    const gfs = config.groupFormationService;
-
-    if (!gfs) {
-        console.error('GroupFormationService not available');
-        return;
-    }
-
-    const classification = client.classification;
-
-    if (!classification) {
-        console.warn(`Player ${client.subjectID} has no classification - cannot enter formation queue`);
-        client.emit('formation_error', {
-            message: 'Your moral foundations profile was not found. Please contact the researcher.'
-        });
-        return;
-    }
-
-    // Leave the temporary room
-    const tempRoom = client.room;
-    client.leave(tempRoom);
-
-    // Enter the formation queue
-    const result = gfs.onParticipantArrival(client.subjectID, classification, client);
-
-    if (!result.queued) {
-        console.warn(`Player ${client.subjectID} could not join queue: ${result.reason}`);
-        client.emit('formation_error', {
-            message: `Cannot join the waiting queue: ${result.reason}`
-        });
-        return;
-    }
-
-    // Emit waiting room scene to client with queue status
-    client.emit('start_scene', {
-        scene: 'SceneWaitingRoom',
-        sceneConfig: { scene: 'SceneWaitingRoom', type: 'waiting' },
-        sceneData: {
-            mode: 'formation_queue',
-            queueStatus: gfs.getQueueStatus()
-        }
-    });
-
-    console.log(`Player ${client.subjectID} (${classification.moralType}) entered formation queue from temp room ${tempRoom}`);
-}
-
-module.exports = { assignAvatar, countDown, startSession, reformNewGroups, transitionToSharedRoom, transitionToFormationQueue };
+module.exports = { assignAvatar, countDown, startSession, reformNewGroups, transitionToSharedRoom };
